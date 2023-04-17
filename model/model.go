@@ -18,15 +18,16 @@ func init() {
 }
 
 func connect() {
+	var err error
 	database := conf.Sub("database")
 	username := database.GetString("username")
 	password := database.GetString("password")
 	databasename := database.GetString("dbname")
 	host := database.GetString("host")
-	port := database.GetString("port")
+	port := database.GetInt("port")
 
 	dsn := fmt.Sprintf(`host=%s user=%s
-		password=%s databasename=%s
+		password=%s dbname=%s
 		port=%d sslmode=disable 
 		TimeZone=Asia/Shanghai`,
 		host,
@@ -36,16 +37,19 @@ func connect() {
 		port,
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		// TODO: use log to show ERROR with this message
 		// then just panic
-		panic(fmt.Sprintf(`Database Connect Failed\n
-			host: %s\n
-			port
-			databasename: %s\n
-			username: %s\n
-			password: %s\n`,
+		panic(fmt.Sprintf(`
+			ERROR: %v
+			Database Connect Failed
+			host: %s
+			port: %d
+			databasename: %s
+			username: %s
+			password: %s`,
+			err,
 			host,
 			port,
 			databasename,
