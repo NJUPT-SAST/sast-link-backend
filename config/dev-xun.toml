@@ -1,0 +1,8 @@
+description = "sast's development configuration"
+
+[database]
+username = "postgres"
+password = "sast_forever_link"
+host = "aimisaka.site"
+dbname = "link"
+port = 52843
