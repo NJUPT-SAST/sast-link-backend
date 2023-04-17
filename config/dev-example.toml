@@ -1,0 +1,8 @@
+description = "xxx's development configuration"
+
+[database]
+username = "xxxxx"
+password = "xxxxx"
+host = "xxxxx"
+dbname = "link"
+port = xxxx
