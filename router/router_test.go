@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSetupRouter(t *testing.T) {
-	router := SetupRouter()
+func TestInitRouter(t *testing.T) {
+	router := InitRouter()
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/ping", nil)
 	router.ServeHTTP(w, req)
