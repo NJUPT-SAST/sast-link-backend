@@ -9,6 +9,8 @@ import (
 
 func InitRouter() *gin.Engine {
 	r := gin.Default()
+	// FIXME: need discuss on web log
+	// r.Use(middleware.WebLogger)
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.String(http.StatusOK, "pong")
