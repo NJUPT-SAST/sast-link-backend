@@ -9,5 +9,5 @@ import (
 
 func Register(ctx *gin.Context) {
 	// TODO: fill relevant code
-	ctx.JSON(http.StatusOK, result.Success())
+	ctx.JSON(http.StatusOK, result.Success(nil))
 }
