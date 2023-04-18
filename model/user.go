@@ -23,3 +23,7 @@ func CreateUser(user *User) error {
 	}
 	return nil
 }
+
+// func UserByEmail(email string) User {
+//
+// }
