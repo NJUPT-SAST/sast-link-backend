@@ -6,3 +6,6 @@ password = "xxxxx"
 host = "xxxxx"
 dbname = "link"
 port = xxxx
+
+[log]
+level = "debug"
