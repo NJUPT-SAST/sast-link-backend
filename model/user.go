@@ -17,6 +17,7 @@ type User struct {
 	WechatId  *string   `json:"wechat_id,omitempty"`
 	CreatedAt time.Time `json:"created_at,omitempty" gorm:"not null"`
 	IsDeleted bool      `json:"is_deleted,omitempty" gorm:"not null"`
+
 }
 
 func CreateUser(user *User) error {
@@ -38,6 +39,15 @@ func VerifyAccount(username string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+}
+
+func CreateUser(user *User) error {
+	if res := db.Create(user); res.Error != nil {
+		return res.Error
+	}
+	return nil
 }
 
 // func UserByEmail(email string) User {
