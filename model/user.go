@@ -39,3 +39,7 @@ func VerifyAccount(username string) (bool, error) {
 
 	return true, nil
 }
+
+// func UserByEmail(email string) User {
+//
+// }
