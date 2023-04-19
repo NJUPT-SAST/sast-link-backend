@@ -2,6 +2,8 @@ package model
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type User struct {
@@ -23,3 +25,21 @@ func CreateUser(user *User) error {
 	}
 	return nil
 }
+
+func VerifyAccount(username string) (bool, error) {
+	isExist := false
+	var user User
+	err := db.Select("email").Where("email = ?", username).First(&user).Error
+	if err != nil && gorm.ErrRecordNotFound != err {
+		return isExist, err
+	}
+	if user != (User{}) {
+		isExist = true
+	}
+
+	return isExist, nil
+}
+
+// func UserByEmail(email string) User {
+//
+// }
