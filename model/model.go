@@ -4,13 +4,15 @@ import (
 	"fmt"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 var (
-	db   *gorm.DB
-	conf = config.Config
+	db     *gorm.DB
+	conf   = config.Config
+	logger = log.Log
 )
 
 func init() {
@@ -39,22 +41,6 @@ func connect() {
 
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		// TODO: use log to show ERROR with this message
-		// then just panic
-		panic(fmt.Sprintf(`
-			ERROR: %v
-			Database Connect Failed
-			host: %s
-			port: %d
-			databasename: %s
-			username: %s
-			password: %s`,
-			err,
-			host,
-			port,
-			databasename,
-			username,
-			password,
-		))
+		logger.Panicln(err)
 	}
 }
