@@ -12,6 +12,7 @@ require (
 
 require github.com/sirupsen/logrus v1.9.0
 
+
 require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
