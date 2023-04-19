@@ -10,3 +10,8 @@ func CreateUser(emal string, password string) {
 		Password: &password,
 	})
 }
+
+func VerifyAccount(username string) (bool, error) {
+	return model.VerifyAccount(username)
+}
+
