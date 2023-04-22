@@ -26,7 +26,7 @@ func CreateUser(user *User) error {
 	return nil
 }
 
-func VerifyAccount(username string) (bool, error) {
+func VerifyAccount(username string) (bool, string, error) {
 	isExist := false
 	var user User
 	err := db.Select("email").Where("email = ?", username).First(&user).Error
@@ -37,7 +37,10 @@ func VerifyAccount(username string) (bool, error) {
 		isExist = true
 	}
 
-	return isExist, nil
+	if isExist {
+		ticket, err := GenerateToken(user)
+	}
+	return isExist, ticket, nil
 }
 
 // func UserByEmail(email string) User {
