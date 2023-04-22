@@ -38,6 +38,8 @@ require github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18
 
 require github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18
 
+require github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18
+
 require (
 	github.com/bytedance/sonic v1.8.7 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
