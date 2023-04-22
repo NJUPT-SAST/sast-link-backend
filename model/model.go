@@ -2,7 +2,6 @@ package model
 
 import (
 	"fmt"
-
 	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"gorm.io/driver/postgres"
@@ -21,7 +20,7 @@ func init() {
 
 func connect() {
 	var err error
-	database := conf.Sub("database")
+	database := conf.Sub("postgres")
 	username := database.GetString("username")
 	password := database.GetString("password")
 	databasename := database.GetString("dbname")
