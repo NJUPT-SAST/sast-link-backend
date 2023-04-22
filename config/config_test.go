@@ -6,6 +6,7 @@ func TestConfig(t *testing.T) {
 	configs := []string{
 		"postgres.host",
 		"postgres.port",
+		"redis.localhost.addr",
 	}
 
 	for _, config := range configs {

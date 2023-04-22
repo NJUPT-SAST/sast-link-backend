@@ -2,7 +2,6 @@ package model
 
 import (
 	"fmt"
-
 	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"gorm.io/driver/postgres"
