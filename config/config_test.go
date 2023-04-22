@@ -4,8 +4,9 @@ import "testing"
 
 func TestConfig(t *testing.T) {
 	configs := []string{
-		"database.host",
-		"database.port",
+		"postgres.host",
+		"postgres.port",
+		"redis.localhost.addr",
 	}
 
 	for _, config := range configs {

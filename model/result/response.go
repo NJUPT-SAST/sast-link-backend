@@ -10,7 +10,7 @@ type Response struct {
 func Success(data any) Response {
 	return Response{
 		Success: true,
-		ErrCode: StatusOK,
+		ErrCode: SUCCESS,
 		ErrMsg:  "",
 		Data:    data,
 	}

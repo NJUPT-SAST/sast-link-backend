@@ -19,6 +19,7 @@ func init() {
 	fileName := os.Getenv("CONFIG_FILE")
 	Config.AddConfigPath(".")
 	Config.AddConfigPath("../../config")
+	Config.AddConfigPath("../../../config")
 	Config.AddConfigPath("../config")
 	Config.SetConfigName(fileName)
 	Config.SetConfigType("toml")
