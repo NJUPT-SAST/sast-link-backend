@@ -2,23 +2,27 @@ package model
 
 import (
 	"fmt"
+
 	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 var (
 	db     *gorm.DB
+	Rdb    *redis.Client
 	conf   = config.Config
 	logger = log.Log
 )
 
 func init() {
-	connect()
+	connectPostgreSQL()
+	connectRedis()
 }
 
-func connect() {
+func connectPostgreSQL() {
 	var err error
 	database := conf.Sub("postgres")
 	username := database.GetString("username")
@@ -41,5 +45,23 @@ func connect() {
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		logger.Panicln(err)
+	}
+}
+
+func connectRedis() {
+	redisConf := conf.Sub("redis")
+	host := redisConf.GetString("host")
+	port := redisConf.GetInt("port")
+	Addr := host + ":" + string(port)
+	Password := redisConf.GetString("password")
+	DB := redisConf.GetInt("db")
+	Rdb = redis.NewClient(&redis.Options{
+		Addr:     Addr,
+		Password: Password,
+		DB:       DB, // use default DB
+	})
+	fmt.Sprintf("redis connect to %s, default DB is %s", Addr, DB)
+	if Rdb == nil {
+		logger.Panicln("redis connect failed")
 	}
 }

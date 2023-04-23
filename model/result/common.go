@@ -19,6 +19,7 @@ const (
 	ERROR_AUTH                       = 20004
 	ERROR_AUTH_CHECK_TICKET_NOTFOUND = 20005
 	ERROR_AUTH_INCOMING_TOKEN_FAIL   = 20006
+	ERROR_AUTH_TOKEN_PARSE_FAIL      = 20007
 )
 
 // MsgFlags represent the error msg by "errCode":"errMsg" form
@@ -38,6 +39,7 @@ var MsgFlags = map[int]string{
 	ERROR_AUTH_TOKEN:                 "Token生成失败",
 	ERROR_AUTH:                       "Token错误",
 	ERROR_AUTH_CHECK_TICKET_NOTFOUND: "TICKET不存在",
+	ERROR_AUTH_PARSE_TOKEN_FAIL:      "Token解析失败",
 }
 
 // GetMsg get error information based on Code
