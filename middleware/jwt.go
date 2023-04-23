@@ -2,16 +2,18 @@ package middleware
 
 import (
 	"context"
+	"net/http"
+	"time"
+
 	"github.com/NJUPT-SAST/sast-link-backend/log"
+	"github.com/NJUPT-SAST/sast-link-backend/model"
 	"github.com/NJUPT-SAST/sast-link-backend/model/result"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/gin-gonic/gin"
-	"net/http"
-	"time"
 )
 
 var ctx = context.Background()
-var rdb = util.ConnectRedis()
+var rdb = model.Rdb
 
 // JWT deal with the token passed in
 // if token is nil,or can`t pass the check,or timeout,it will return error

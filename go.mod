@@ -10,9 +10,6 @@ require (
 	gorm.io/gorm v1.25.0
 )
 
-require github.com/sirupsen/logrus v1.9.0
-
-
 require (
 	github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18
 	github.com/sirupsen/logrus v1.9.0
@@ -26,20 +23,6 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 )
-require (
-	github.com/fsnotify/fsnotify v1.6.0 // indirect
-	github.com/spf13/afero v1.9.5 // indirect
-	github.com/spf13/cast v1.5.0 // indirect
-	github.com/spf13/jwalterweatherman v1.1.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/subosito/gotenv v1.4.2 // indirect
-)
-
-require github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18
-
-require github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18
-
-require github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18
 
 require (
 	github.com/bytedance/sonic v1.8.7 // indirect
@@ -54,6 +37,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.12.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
+	github.com/golang-jwt/jwt/v5 v5.0.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect

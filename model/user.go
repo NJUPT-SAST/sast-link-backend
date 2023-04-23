@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 
+	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"gorm.io/gorm"
 )
 
@@ -26,18 +27,23 @@ func CreateUser(user *User) error {
 	return nil
 }
 
-func VerifyAccount(username string) (bool, error) {
+func VerifyAccount(username string) (bool, string, error) {
 	isExist := false
+	ticket := ""
 	var user User
 	err := db.Select("email").Where("email = ?", username).First(&user).Error
 	if err != nil && gorm.ErrRecordNotFound != err {
-		return isExist, err
+		return isExist, ticket, err
 	}
+	// if user != null
 	if user != (User{}) {
 		isExist = true
 	}
 
-	return isExist, nil
+	if isExist {
+		ticket, err = util.GenerateToken(username)
+	}
+	return isExist, ticket, nil
 }
 
 // func UserByEmail(email string) User {
