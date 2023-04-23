@@ -3,46 +3,68 @@ package util
 // util
 //the basic configuration of JWT
 import (
-	jwt "github.com/dgrijalva/jwt-go"
+	"time"
+
+	"fmt"
+
+	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/NJUPT-SAST/sast-link-backend/config"
 )
 
-var jwtSecret = "233"
+var jwtSigningKey = config.Config.GetString("jwt.signingKey")
 
-type Claims struct {
+type CustomClaims struct {
 	Username string `json:"username"`
-	Password string `json:"password"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 // GenerateToken
 // token expireTime : not set, do this with redis
 
-func GenerateToken(username, password string) (string, error) {
-
-	claims := Claims{
+func GenerateToken(username string) (string, error) {
+	claims := CustomClaims{
 		username,
-		password,
-		jwt.StandardClaims{
-			Issuer: "gin-blog",
+		jwt.RegisteredClaims{
+			// expires at 3 hours
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 3)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			Issuer:    "sast",
+			Subject:   "user",
 		},
 	}
 
 	tokenClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	token, err := tokenClaims.SignedString(jwtSecret)
+	token, err := tokenClaims.SignedString(jwtSigningKey)
 
 	return token, err
 }
 
-func ParseToken(token string) (*Claims, error) {
-	tokenClaims, err := jwt.ParseWithClaims(token, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return jwtSecret, nil
+func ParseToken(token string) (*CustomClaims, error) {
+	tokenClaims, err := jwt.ParseWithClaims(token, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return jwtSigningKey, nil
 	})
-
-	if tokenClaims != nil {
-		if claims, ok := tokenClaims.Claims.(*Claims); ok && tokenClaims.Valid {
-			return claims, nil
-		}
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, err
+	if claims, ok := tokenClaims.Claims.(*CustomClaims); ok && tokenClaims.Valid {
+		return claims, nil
+	} else {
+		return nil, fmt.Errorf("token parse error")
+	}
+}
+
+func RefreshToken(token string) (string, error) {
+	claims, err := ParseToken(token)
+	if err != nil {
+		return "", err
+	}
+
+	claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Hour * 3))
+	tokenClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token, err = tokenClaims.SignedString(jwtSigningKey)
+
+	return token, err
 }
