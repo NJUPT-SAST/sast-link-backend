@@ -7,5 +7,14 @@ host = "xxxxx"
 dbname = "link"
 port = xxxx
 
+[redis]
+host = "xxx"
+port = "11451"
+password = "xxxxx"
+db = "0"
+
+[jwt]
+signing_key = "xxxxx"
+
 [log]
 level = "debug"
