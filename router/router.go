@@ -1,15 +1,16 @@
 package router
 
 import (
-	"github.com/NJUPT-SAST/sast-link-backend/middleware"
 	"net/http"
+
+	"github.com/NJUPT-SAST/sast-link-backend/middleware"
 
 	v1 "github.com/NJUPT-SAST/sast-link-backend/api/v1"
 	"github.com/gin-gonic/gin"
 )
 
 func InitRouter() *gin.Engine {
-	r := gin.Default()
+	r := gin.New()
 	// FIXME: need discuss on web log
 	// r.Use(middleware.WebLogger)
 	r.Use(middleware.JWT)
@@ -23,6 +24,7 @@ func InitRouter() *gin.Engine {
 
 	usergroup := apiV1.Group("/user")
 	{
+		usergroup.GET("/info", v1.UserInfo)
 		usergroup.POST("/register", v1.Register)
 	}
 
