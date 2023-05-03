@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/util"
@@ -53,6 +54,10 @@ func VerifyAccount(username string) (bool, string, error) {
 	return isExist, ticket, nil
 }
 
-// func UserByEmail(email string) User {
-//
-// }
+func UserInfo(username string) (*User, error) {
+	var user = User{Uid: &username}
+	if err := db.First(&user).Error; err != nil {
+		return nil, fmt.Errorf("%v: User [%s] Not Exist\n", err, username)
+	}
+	return &user, nil
+}
