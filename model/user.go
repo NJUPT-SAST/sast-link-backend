@@ -1,11 +1,14 @@
 package model
 
 import (
+	"context"
 	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"gorm.io/gorm"
 )
+
+var ctx = context.Background()
 
 type User struct {
 	ID        uint      `json:"id,omitempty" gorm:"primaryKey"`
@@ -31,7 +34,9 @@ func VerifyAccount(username string) (bool, string, error) {
 	isExist := false
 	ticket := ""
 	var user User
+	// select user by username
 	err := db.Select("email").Where("email = ?", username).First(&user).Error
+	// if user not exist
 	if err != nil && gorm.ErrRecordNotFound != err {
 		return isExist, ticket, err
 	}
@@ -43,6 +48,8 @@ func VerifyAccount(username string) (bool, string, error) {
 	if isExist {
 		ticket, err = util.GenerateToken(username)
 	}
+	// 3h expire
+	Rdb.Set(ctx, "TICKET:"+username, ticket, time.Hour*3)
 	return isExist, ticket, nil
 }
 
