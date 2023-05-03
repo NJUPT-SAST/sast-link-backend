@@ -61,7 +61,7 @@ func connectRedis() {
 		Password: Password,
 		DB:       DB, // use default DB
 	})
-	modelLogger.Info("redis connect to %s, default DB is %s", Addr, DB)
+	modelLogger.Infof("redis connect to %s, default DB is %d", Addr, DB)
 	ctx := context.Background()
 	_, err := Rdb.Ping(ctx).Result()
 	if err != nil {

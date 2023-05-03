@@ -31,3 +31,8 @@ func UserInfo(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, result.Success(*user))
 	}
 }
+
+func SendEmail(ctx *gin.Context, recipient string) {
+	ticket := ctx.GetHeader("TICKET")
+	
+}

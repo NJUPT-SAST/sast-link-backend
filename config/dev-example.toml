@@ -18,3 +18,7 @@ signing_key = "xxxxx"
 
 [log]
 level = "debug"
+
+[email]
+sender = "xxxxx"
+secret = "xxxxx"
