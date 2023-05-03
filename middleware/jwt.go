@@ -67,6 +67,8 @@ func JWT(c *gin.Context) {
 
 // checkTokenInRedis check TICKET or TOKEN in redis
 // return if checkTokenInRedis PASS
+//
+// `tokenPattern` const of "TICKET" or "TOKEN"
 func checkTokenInRedis(username string, tokenPattern string, code *int) bool {
 	val, err := rdb.Get(ctx, tokenPattern+":"+username).Result()
 	// todo replace here by logging

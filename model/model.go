@@ -11,10 +11,10 @@ import (
 )
 
 var (
-	db     *gorm.DB
-	Rdb    *redis.Client
-	conf   = config.Config
-	logger = log.Log
+	db          *gorm.DB
+	Rdb         *redis.Client
+	conf        = config.Config
+	modelLogger = log.Log
 )
 
 func init() {
@@ -44,7 +44,7 @@ func connectPostgreSQL() {
 
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		logger.Panicln(err)
+		modelLogger.Panicln(err)
 	}
 }
 
@@ -62,6 +62,6 @@ func connectRedis() {
 	})
 	fmt.Sprintf("redis connect to %s, default DB is %s", Addr, DB)
 	if Rdb == nil {
-		logger.Panicln("redis connect failed")
+		modelLogger.Panicln("redis connect failed")
 	}
 }

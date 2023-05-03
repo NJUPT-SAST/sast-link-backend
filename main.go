@@ -1,12 +1,12 @@
 package main
 
 import (
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/router"
-	"log"
 )
 
 func main() {
 	router := router.InitRouter()
 	// _ = router.Run()
-	log.Fatalln(router.Run())
+	log.Log.Errorln(router.Run())
 }
