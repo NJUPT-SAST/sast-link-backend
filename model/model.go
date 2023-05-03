@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
@@ -52,7 +53,7 @@ func connectRedis() {
 	redisConf := conf.Sub("redis")
 	host := redisConf.GetString("host")
 	port := redisConf.GetInt("port")
-	Addr := host + ":" + string(port)
+	Addr := host + ":" + fmt.Sprint(port)
 	Password := redisConf.GetString("password")
 	DB := redisConf.GetInt("db")
 	Rdb = redis.NewClient(&redis.Options{
@@ -60,8 +61,10 @@ func connectRedis() {
 		Password: Password,
 		DB:       DB, // use default DB
 	})
-	fmt.Sprintf("redis connect to %s, default DB is %s", Addr, DB)
-	if Rdb == nil {
+	logger.Info("redis connect to %s, default DB is %s", Addr, DB)
+	ctx := context.Background()
+	_, err := Rdb.Ping(ctx).Result()
+	if err != nil {
 		logger.Panicln("redis connect failed")
 	}
 }
