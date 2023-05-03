@@ -33,7 +33,11 @@ func JWT(c *gin.Context) {
 		} else {
 			// verify token in redis
 			// notice: there are two ways to verify,one is to verify TICKET, another is TOKEN
-			username := claims.Username
+			username, claimsError := claims.GetSubject()
+			if claimsError != nil {
+				log.Log.Errorf("Parse Token Error")
+				return
+			}
 			//here to add the router where api need judge ticket in redis
 			if path := c.FullPath(); path == "/login" {
 				checkTokenInRedis(username, "TICKET", &code)
