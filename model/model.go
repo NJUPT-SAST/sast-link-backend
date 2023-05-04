@@ -9,10 +9,11 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
 var (
-	db          *gorm.DB
+	Db          *gorm.DB
 	Rdb         *redis.Client
 	conf        = config.Config
 	modelLogger = log.Log
@@ -43,7 +44,11 @@ func connectPostgreSQL() {
 		port,
 	)
 
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	Db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+		NamingStrategy: schema.NamingStrategy{
+			SingularTable: true,
+		},
+	})
 	if err != nil {
 		modelLogger.Panicln(err)
 	}
