@@ -27,6 +27,10 @@ func InitRouter() *gin.Engine {
 		usergroup.GET("/info", v1.UserInfo)
 		usergroup.POST("/register", v1.Register)
 	}
+	vefifyGroup := apiV1.Group("/verify")
+	{
+		vefifyGroup.GET("/email", v1.SendEmail)
+	}
 
 	// admingroup := apiV1.Group("/admin")
 	// {

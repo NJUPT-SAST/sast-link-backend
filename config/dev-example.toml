@@ -1,6 +1,6 @@
 description = "xxx's development configuration"
 
-[database]
+[postgres]
 username = "xxxxx"
 password = "xxxxx"
 host = "xxxxx"
