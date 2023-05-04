@@ -80,7 +80,7 @@ func checkTokenInRedis(username string, tokenPattern string, code *int) bool {
 		log.Log.Errorf("Check %s in Redis error: %v", tokenPattern, err)
 	}
 	if val == "" {
-		*code = result.ERROR_AUTH_CHECK_TICKET_NOTFOUND
+		*code = result.ERROR_CHECK_TICKET_NOTFOUND
 	}
 	return *code == result.SUCCESS
 }

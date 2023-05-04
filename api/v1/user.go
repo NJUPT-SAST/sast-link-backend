@@ -32,7 +32,22 @@ func UserInfo(ctx *gin.Context) {
 	}
 }
 
-func SendEmail(ctx *gin.Context, recipient string) {
+func SendEmail(ctx *gin.Context) {
+	username := ctx.Query("username")
 	ticket := ctx.GetHeader("TICKET")
-	
+	err := service.SendEmail(username, ticket)
+	if err != nil {
+		if err.Error() == result.GetMsg(result.ERROR_TICKET_NOT_CORRECT) {
+			controllerLogger.WithFields(
+				logrus.Fields{
+					"username": username,
+				}).Error(err)
+			ctx.JSON(http.StatusOK, result.Failed(
+				result.ERROR_TICKET_NOT_CORRECT,
+				result.GetMsg(result.ERROR_TICKET_NOT_CORRECT),
+			))
+		} else {
+			ctx.JSON(http.StatusOK, result.Success(nil))
+		}
+	}
 }

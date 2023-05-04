@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/model"
+	"github.com/NJUPT-SAST/sast-link-backend/model/result"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/redis/go-redis/v9"
 )
+
+var serviceLogger = log.Log
 
 func CreateUser(emal string, password string) {
 	model.CreateUser(&model.User{
@@ -38,12 +42,13 @@ func SendEmail(username string, ticket string) error {
 	if err != nil {
 		// key does not exists
 		if err == redis.Nil {
-			return err
+			return fmt.Errorf(result.GetMsg(result.ERROR_CHECK_TICKET_NOTFOUND), err)
 		}
 		return err
 	}
+	// ticket is not correct
 	if val != ticket {
-		return fmt.Errorf("ticket is not correct: %v", err)
+		return fmt.Errorf(result.GetMsg(result.ERROR_CHECK_TICKET_NOTFOUND), err)
 	}
 	code := model.GenerateVerifyCode(username)
 	emailErr := model.SendEmail(username, code)
