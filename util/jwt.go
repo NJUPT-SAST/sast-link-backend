@@ -5,14 +5,13 @@ package util
 import (
 	"time"
 
-	"fmt"
-
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
+	"github.com/NJUPT-SAST/sast-link-backend/model/result"
 )
 
-var jwtSigningKey = config.Config.GetString("jwt.signingKey")
+var jwtSigningKey = config.Config.Sub("jwt").GetString("signing_key")
 
 // GenerateToken
 // token expireTime : not set, do this with redis
@@ -26,24 +25,24 @@ func GenerateToken(username string) (string, error) {
 		Subject:   username,
 	}
 
-	tokenClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	token, err := tokenClaims.SignedString(jwtSigningKey)
-
-	return token, err
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signingKey := []byte(jwtSigningKey)
+	signToken, err := token.SignedString(signingKey)
+	return signToken, err
 }
 
 func ParseToken(token string) (*jwt.RegisteredClaims, error) {
 	tokenClaims, err := jwt.ParseWithClaims(token, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return jwtSigningKey, nil
+		return []byte(jwtSigningKey), nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, result.AUTH_PARSE_TOKEN_FAIL.Wrap(err)
 	}
 
 	if claims, ok := tokenClaims.Claims.(*jwt.RegisteredClaims); ok && tokenClaims.Valid {
 		return claims, nil
 	} else {
-		return nil, fmt.Errorf("token parse error")
+		return nil, result.AUTH_PARSE_TOKEN_FAIL.Wrap(err)
 	}
 }
 

@@ -3,22 +3,25 @@ package model
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"net/mail"
 	"net/smtp"
 	"time"
 
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"gorm.io/gorm"
 )
 
 var ctx = context.Background()
+var userLogger = log.Log
 
 type User struct {
 	ID        uint      `json:"id,omitempty" gorm:"primaryKey"`
 	Uid       *string   `json:"uid,omitempty" gorm:"not null"`
-	Email     *string   `json:"email,omitempty"`
+	Email     *string   `json:"email,omitempty" gorm: "not null"`
 	Password  *string   `json:"passowrd,omitempty" grom:"not null"`
 	QQId      *string   `json:"qq_id,omitempty"`
 	LarkId    *string   `json:"lark_id,omitempty"`
@@ -29,28 +32,33 @@ type User struct {
 }
 
 func CreateUser(user *User) error {
-	if res := db.Create(user); res.Error != nil {
+	if res := Db.Create(user); res.Error != nil {
 		return res.Error
 	}
 	return nil
 }
 
 func VerifyAccount(username string) (bool, string, error) {
-	isExist := false
+	isExist := true
 	ticket := ""
 	var user User
 	// select user by username
-	err := db.Select("email").Where("email = ?", username).First(&user).Error
-	// if user not exist
-	if err != nil && gorm.ErrRecordNotFound != err {
-		return isExist, ticket, err
-	}
-	// if user != null
-	if user != (User{}) {
-		isExist = true
+	err := Db.Where("email = ?", username).First(&user).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			userLogger.Infof("User [%s] Not Exist\n", username)
+			isExist = false
+		} else {
+			return isExist, ticket, err
+		}
 	}
 
-	if isExist {
+	// if user == null
+	//if user == (User{}) {
+	//	isExist = true
+	//}
+
+	if !isExist {
 		ticket, err = util.GenerateToken(username)
 		// 5min expire
 		Rdb.Set(ctx, "TICKET:"+username, ticket, time.Minute*5)
@@ -60,7 +68,7 @@ func VerifyAccount(username string) (bool, string, error) {
 
 func UserInfo(username string) (*User, error) {
 	var user = User{Uid: &username}
-	if err := db.First(&user).Error; err != nil {
+	if err := Db.First(&user).Error; err != nil {
 		return nil, fmt.Errorf("%v: User [%s] Not Exist\n", err, username)
 	}
 	return &user, nil

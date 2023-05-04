@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/model"
@@ -37,23 +37,45 @@ func UserInfo(jwt string) (*model.User, error) {
 }
 
 func SendEmail(username string, ticket string) error {
-	key := "TICKET:" + username
-	val, err := model.Rdb.Get(context.Background(), key).Result()
+	ticketKey := "TICKET:" + username
+	ctx := context.Background()
+	val, err := model.Rdb.Get(ctx, ticketKey).Result()
 	if err != nil {
 		// key does not exists
 		if err == redis.Nil {
-			return fmt.Errorf(result.GetMsg(result.ERROR_CHECK_TICKET_NOTFOUND), err)
+			return result.CHECK_TICKET_NOTFOUND.Wrap(err)
 		}
 		return err
 	}
 	// ticket is not correct
 	if val != ticket {
-		return fmt.Errorf(result.GetMsg(result.ERROR_CHECK_TICKET_NOTFOUND), err)
+		return result.TICKET_NOT_CORRECT.Wrap(err)
 	}
 	code := model.GenerateVerifyCode(username)
+	codeKey := "VERIFY_CODE:" + username
+
+	// 3min expire
+	model.Rdb.Set(ctx, codeKey, code, time.Minute*3)
+
+	serviceLogger.Infof("Send Email to [%s] with code [%s]\n", username, code)
 	emailErr := model.SendEmail(username, code)
 	if emailErr != nil {
 		return emailErr
+	}
+	return nil
+}
+
+func CheckVerifyCode(username string, code string) error {
+	key := "VERIFY_CODE:" + username
+	val, err := model.Rdb.Get(context.Background(), key).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return result.VerifyCodeError
+		}
+		return err
+	}
+	if val != code {
+		return result.VerifyCodeError
 	}
 	return nil
 }
