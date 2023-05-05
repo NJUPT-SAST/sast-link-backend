@@ -1,6 +1,6 @@
 description = "xxx's development configuration"
 
-[database]
+[postgres]
 username = "xxxxx"
 password = "xxxxx"
 host = "xxxxx"
@@ -11,10 +11,14 @@ port = xxxx
 host = "xxx"
 port = "11451"
 password = "xxxxx"
-db = "0"
+db = 0
 
 [jwt]
 signing_key = "xxxxx"
 
 [log]
 level = "debug"
+
+[email]
+sender = "xxxxx"
+secret = "xxxxx"
