@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
@@ -8,10 +9,11 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
 var (
-	db          *gorm.DB
+	Db          *gorm.DB
 	Rdb         *redis.Client
 	conf        = config.Config
 	modelLogger = log.Log
@@ -42,7 +44,11 @@ func connectPostgreSQL() {
 		port,
 	)
 
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	Db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+		NamingStrategy: schema.NamingStrategy{
+			SingularTable: true,
+		},
+	})
 	if err != nil {
 		modelLogger.Panicln(err)
 	}
@@ -52,7 +58,7 @@ func connectRedis() {
 	redisConf := conf.Sub("redis")
 	host := redisConf.GetString("host")
 	port := redisConf.GetInt("port")
-	Addr := host + ":" + string(port)
+	Addr := host + ":" + fmt.Sprint(port)
 	Password := redisConf.GetString("password")
 	DB := redisConf.GetInt("db")
 	Rdb = redis.NewClient(&redis.Options{
@@ -60,8 +66,10 @@ func connectRedis() {
 		Password: Password,
 		DB:       DB, // use default DB
 	})
-	fmt.Sprintf("redis connect to %s, default DB is %s", Addr, DB)
-	if Rdb == nil {
+	modelLogger.Infof("redis connect to %s, default DB is %d", Addr, DB)
+	ctx := context.Background()
+	_, err := Rdb.Ping(ctx).Result()
+	if err != nil {
 		modelLogger.Panicln("redis connect failed")
 	}
 }

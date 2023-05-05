@@ -21,6 +21,8 @@ func init() {
 	Config.AddConfigPath("../../config")
 	Config.AddConfigPath("../../../config")
 	Config.AddConfigPath("../config")
+	Config.AddConfigPath("./config")
+	Config.AddConfigPath("$HOME/Workspace/go/sast/sast-link-backend/config/")
 	Config.SetConfigName(fileName)
 	Config.SetConfigType("toml")
 
@@ -31,4 +33,5 @@ func init() {
 			panic(err.Error())
 		}
 	}
+	fmt.Printf("Config file [config/%s.toml] loaded\n", fileName)
 }

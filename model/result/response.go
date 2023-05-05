@@ -1,8 +1,10 @@
 package result
 
+import "net/http"
+
 type Response struct {
 	Success bool
-	ErrCode StatusCode
+	ErrCode int
 	ErrMsg  string
 	Data    interface{}
 }
@@ -10,17 +12,17 @@ type Response struct {
 func Success(data any) Response {
 	return Response{
 		Success: true,
-		ErrCode: SUCCESS,
+		ErrCode: http.StatusOK,
 		ErrMsg:  "",
 		Data:    data,
 	}
 }
 
-func Failed(errCode StatusCode, errMsg string) Response {
+func Failed(e LocalError) Response {
 	return Response{
 		Success: false,
-		ErrCode: errCode,
-		ErrMsg:  errMsg,
+		ErrCode: e.ErrCode,
+		ErrMsg:  e.ErrMsg,
 		Data:    nil,
 	}
 }
