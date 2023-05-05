@@ -11,7 +11,7 @@ port = xxxx
 host = "xxx"
 port = "11451"
 password = "xxxxx"
-db = "0"
+db = 0
 
 [jwt]
 signing_key = "xxxxx"

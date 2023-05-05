@@ -58,7 +58,8 @@ func SendEmail(username string, ticket string) error {
 	model.Rdb.Set(ctx, codeKey, code, time.Minute*3)
 
 	serviceLogger.Infof("Send Email to [%s] with code [%s]\n", username, code)
-	emailErr := model.SendEmail(username, code)
+	content := model.InsertCode(code)
+	emailErr := model.SendEmail(username, content)
 	if emailErr != nil {
 		return emailErr
 	}
