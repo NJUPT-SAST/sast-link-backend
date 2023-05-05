@@ -15,3 +15,9 @@ func TestSendEmail(t *testing.T) {
 	code := GenerateVerifyCode(testEmail)
 	SendEmail(testEmail, code)
 }
+
+func TestVerifyCode(t *testing.T) {
+	data := "SAST"
+	str := InsertCode(data)
+	fmt.Println(str)
+}
