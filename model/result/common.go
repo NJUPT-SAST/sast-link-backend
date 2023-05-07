@@ -14,9 +14,9 @@ func (e LocalError) Error() string {
 }
 
 // 创建多个错误变量
-var ReadBodyError = LocalError{ErrCode: 10001, ErrMsg: "读取请求体失败", Err: nil}
+var ParamError = LocalError{ErrCode: 10001, ErrMsg: "请求参数错误", Err: nil}
 var UsernameOrPasswordError = LocalError{ErrCode: 10002, ErrMsg: "用户名或密码错误", Err: nil}
-var NotExistUser = LocalError{ErrCode: 10011, ErrMsg: "用户不存在", Err: nil}
+var UserNotExist = LocalError{ErrCode: 10011, ErrMsg: "用户不存在", Err: nil}
 var CheckExistUserfail = LocalError{ErrCode: 10012, ErrMsg: "检查用户是否存在失败", Err: nil}
 var ADD_USER_FAIL = LocalError{ErrCode: 10013, ErrMsg: "添加用户失败", Err: nil}
 var DELETE_USER_FAIL = LocalError{ErrCode: 10014, ErrMsg: "删除用户失败", Err: nil}
