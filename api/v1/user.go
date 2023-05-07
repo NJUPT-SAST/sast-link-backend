@@ -2,8 +2,12 @@ package v1
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/NJUPT-SAST/sast-link-backend/model"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/model/result"
@@ -115,4 +119,65 @@ func VerifyAccount(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, result.Success(ticket))
+}
+
+func Login(ctx *gin.Context) {
+	//verify information
+	ticket := ctx.GetHeader("TICKET")
+	password := ctx.Query("password")
+	if ticket == "" {
+		ctx.JSON(http.StatusBadRequest, result.AUTH_INCOMING_TICKET_FAIL)
+		return
+	}
+	if password == "" {
+		ctx.JSON(http.StatusBadRequest, result.Password_NOTFOUND)
+		return
+	}
+	fmt.Println(ticket, password)
+	//get username from ticket
+	username, err := util.GetUsername(ticket)
+	if err != nil || username == "" {
+		ctx.JSON(http.StatusBadRequest, result.TICKET_NOT_CORRECT)
+		return
+	}
+	//check the password
+	flag, err := service.Login(username, password)
+	if err != nil {
+		controllerLogger.WithFields(
+			logrus.Fields{
+				"username": username,
+			}).Error(err)
+		//ctx.JSON(http.StatusUnauthorized, result.Failed(result.VerifyAccountError))
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.VerifyPasswordError))
+		return
+	}
+	if !flag {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.PasswordError))
+		return
+	}
+	//set Token with expire time and return
+	token, err := util.GenerateToken(username)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, result.GENERATE_TOKEN)
+	}
+	model.Rdb.Set(ctx, "TOKEN:"+username, token, time.Hour*6)
+	ctx.JSON(http.StatusOK, result.Success(token))
+}
+
+func Logout(ctx *gin.Context) {
+	//verify information
+	ticket := ctx.GetHeader("TOKEN")
+	if ticket == "" {
+		ctx.JSON(http.StatusBadRequest, result.TICKET_NOT_CORRECT)
+		return
+	}
+	fmt.Println(ticket)
+	//remove Token from username
+	username, err := util.GetUsername(ticket)
+	if err != nil || username == "" {
+		ctx.JSON(http.StatusBadRequest, result.TICKET_NOT_CORRECT)
+		return
+	}
+	model.Rdb.Del(ctx, "TOKEN:"+username)
+	ctx.JSON(http.StatusOK, result.Success(nil))
 }
