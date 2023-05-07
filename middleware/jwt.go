@@ -56,7 +56,7 @@ func JWT(c *gin.Context) {
 	if dbErr != nil {
 		// if the user is not exist
 		if dbErr == gorm.ErrRecordNotFound {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.NotExistUser))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.UserNotExist))
 		}
 		c.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.AUTH_PARSE_TOKEN_FAIL))
 	}
