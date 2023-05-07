@@ -63,15 +63,30 @@ func VerifyAccountLogin(username string) (string, error) {
 	}
 	// user is exist and can login
 	if exist {
-		ticket, err := util.GenerateToken(fmt.Sprintln(username, "-login"))
+		ticket, err := util.GenerateToken(fmt.Sprintf("%s-login", username))
 		if err != nil {
 			return "", err
 		}
 		// 5min expire
 		model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, time.Minute*5)
-		return "", err
+		return ticket, err
 	} else { // user is not exist and can't login
-		return "", result.UserNotExist
+		// login can use uid and email
+		uidExist, err := model.CheckUserByUid(username)
+		if err != nil {
+			return "", err
+		}
+		if uidExist {
+			ticket, err := util.GenerateToken(fmt.Sprintf("%s-login", username))
+			if err != nil {
+				return "", err
+			}
+			// 5min expire
+			model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, time.Minute*5)
+			return ticket, err
+		} else {
+			return "", result.UserNotExist
+		}
 	}
 }
 
