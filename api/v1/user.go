@@ -2,8 +2,8 @@ package v1
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/model/result"
@@ -22,7 +22,7 @@ func Register(ctx *gin.Context) {
 	password, passwordFlag := ctx.GetPostForm("password")
 	code, codeFlag := ctx.GetPostForm("code")
 	if !usernameFlag || !passwordFlag || !codeFlag {
-		ctx.JSON(http.StatusBadRequest, result.ReadBodyError)
+		ctx.JSON(http.StatusBadRequest, result.ParamError)
 		return
 	}
 	if username == "" || password == "" {
@@ -34,8 +34,6 @@ func Register(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Println(username, password, code)
-
 	codeError := service.CheckVerifyCode(username, code)
 	if codeError != nil {
 		if errors.Is(codeError, result.VerifyCodeError) {
@@ -43,6 +41,7 @@ func Register(ctx *gin.Context) {
 			return
 		}
 	}
+
 	service.CreateUser(username, password)
 	ctx.JSON(http.StatusOK, result.Success(nil))
 }
@@ -64,6 +63,8 @@ func UserInfo(ctx *gin.Context) {
 func SendEmail(ctx *gin.Context) {
 	ticket := ctx.GetHeader("TICKET")
 	username, usernameErr := util.GetUsername(ticket)
+	// redis ticket is username-register
+	username = strings.Split(username, "-")[0]
 	// 错误处理机制写玉玉了
 	// 我开始乱写了啊啊啊啊
 	if usernameErr != nil {
@@ -74,6 +75,7 @@ func SendEmail(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, result.Failed(result.TICKET_NOT_CORRECT))
 		return
 	}
+
 	err := service.SendEmail(username, ticket)
 	if err != nil {
 		controllerLogger.WithFields(
@@ -94,18 +96,23 @@ func SendEmail(ctx *gin.Context) {
 
 func VerifyAccount(ctx *gin.Context) {
 	username := ctx.Query("username")
-	isExist, ticket, err := service.VerifyAccount(username)
+	flag := ctx.Query("flag")
+	ticket, err := service.VerifyAccount(username, flag)
 	if err != nil {
 		controllerLogger.WithFields(
 			logrus.Fields{
 				"username": username,
 			}).Error(err)
-		//ctx.JSON(http.StatusUnauthorized, result.Failed(result.VerifyAccountError))
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.VerifyAccountError))
+		if errors.Is(err, result.UserIsExist) {
+			ctx.JSON(http.StatusUnauthorized, result.Failed(result.UserIsExist))
+		} else if errors.Is(err, result.UserNotExist) {
+			ctx.JSON(http.StatusUnauthorized, result.Failed(result.UserNotExist))
+		} else if errors.Is(err, result.ParamError) {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.ParamError))
+		} else {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.VerifyAccountError))
+		}
 		return
-	}
-	if isExist {
-		ctx.JSON(http.StatusUnauthorized, result.Failed(result.UserIsExist))
 	}
 	ctx.JSON(http.StatusOK, result.Success(ticket))
 }

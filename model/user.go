@@ -2,12 +2,8 @@ package model
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
-	"net"
-	"net/mail"
-	"net/smtp"
 	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
@@ -38,32 +34,34 @@ func CreateUser(user *User) error {
 	return nil
 }
 
-func VerifyAccount(username string) (bool, string, error) {
-	isExist := true
-	ticket := ""
+// CheckUserByEmail find user by email
+// return true if user exist
+func CheckUserByEmail(email string) (bool, error) {
 	var user User
-	// select user by username
-	err := Db.Where("email = ?", username).First(&user).Error
+	err := Db.Where("email = ?", email).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			userLogger.Infof("User [%s] Not Exist\n", username)
-			isExist = false
-		} else {
-			return isExist, ticket, err
+			userLogger.Infof("User [%s] Not Exist\n", email)
+			return false, nil
 		}
+		return false, err
 	}
+	return true, nil
+}
 
-	// if user == null
-	//if user == (User{}) {
-	//	isExist = true
-	//}
-
-	if !isExist {
-		ticket, err = util.GenerateToken(username)
-		// 5min expire
-		Rdb.Set(ctx, "TICKET:"+username, ticket, time.Minute*5)
+// CheckUserByUid find user by uid
+// return true if user exist
+func CheckUserByUid(uid string) (bool, error) {
+	var user User
+	err := Db.Where("uid = ?", uid).First(&user).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			userLogger.Infof("User [%s] Not Exist\n", uid)
+			return false, nil
+		}
+		return false, err
 	}
-	return isExist, ticket, nil
+	return true, nil
 }
 
 func UserInfo(username string) (*User, error) {
@@ -82,84 +80,8 @@ func GenerateVerifyCode(username string) string {
 }
 
 func SendEmail(recipient string, content string) error {
-	// https://gist.github.com/chrisgillis/10888032
 	emailInfo := conf.Sub("email")
 	sender := emailInfo.GetString("sender")
 	secret := emailInfo.GetString("secret")
-	from := mail.Address{"", sender}
-	to := mail.Address{"", recipient}
-	subj := "确认电子邮件注册SAST-Link账户"
-	body := content
-
-	// Setup headers
-	headers := make(map[string]string)
-	headers["From"] = from.String()
-	headers["To"] = to.String()
-	headers["Subject"] = subj
-
-	// setup message
-	message := ""
-	for k, v := range headers {
-		message += fmt.Sprintf("%s: %s\r\n", k, v)
-	}
-	message += "\r\n" + body
-
-	// Connect to the SMTP server
-	servername := "smtp.feishu.cn:465"
-
-	host, _, _ := net.SplitHostPort(servername)
-
-	auth := smtp.PlainAuth("", sender, secret, host)
-
-	// TLS config
-	tlsconfig := &tls.Config{
-		InsecureSkipVerify: true,
-		ServerName:         host,
-	}
-
-	// Here is the key, you need to call tls.Dial instead of smtp.Dial
-	// for smtp servers running on 465 that require an ssl connection
-	// from the very beginning (no starttls)
-	conn, err := tls.Dial("tcp", servername, tlsconfig)
-	if err != nil {
-		return err
-	}
-
-	c, err := smtp.NewClient(conn, host)
-	if err != nil {
-		return err
-	}
-
-	// Auth
-	if err = c.Auth(auth); err != nil {
-		return err
-	}
-
-	// To && From
-	if err = c.Mail(from.Address); err != nil {
-		return err
-	}
-
-	if err = c.Rcpt(to.Address); err != nil {
-		return err
-	}
-
-	// Data
-	w, err := c.Data()
-	if err != nil {
-		return err
-	}
-
-	_, err = w.Write([]byte(message))
-	if err != nil {
-		return err
-	}
-
-	err = w.Close()
-	if err != nil {
-		return err
-	}
-
-	c.Quit()
-	return nil
+	return util.SendEmail(sender, secret, recipient, content)
 }
