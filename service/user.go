@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
@@ -11,6 +12,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+var ctx = context.Background()
 var serviceLogger = log.Log
 var ctx = context.Background()
 
@@ -21,6 +23,74 @@ func CreateUser(emal string, password string) {
 	})
 }
 
+func VerifyAccount(username string, flag string) (string, error) {
+	// 0 is register
+	// 1 is login
+	if flag == "0" {
+		return VerifyAccountRegister(username)
+	} else if flag == "1" {
+		return VerifyAccountLogin(username)
+	} else {
+		return "", result.ParamError
+	}
+}
+
+// verify ticket at register
+func VerifyAccountRegister(username string) (string, error) {
+	// check if the user is exist
+	exist, err := model.CheckUserByEmail(username)
+	if err != nil {
+		return "", err
+	}
+	// user is exist and can't register
+	if exist {
+		return "", result.UserIsExist
+	} else { // user is not exist and can register
+		ticket, err := util.GenerateToken(fmt.Sprintf("%s-register", username))
+		if err != nil {
+			return "", err
+		}
+		// 5min expire
+		model.Rdb.Set(ctx, "REGISTER_TICKET:"+username, ticket, time.Minute*5)
+		return ticket, err
+	}
+}
+
+// verify ticket at login
+func VerifyAccountLogin(username string) (string, error) {
+	exist, err := model.CheckUserByEmail(username)
+	if err != nil {
+		return "", err
+	}
+	// user is exist and can login
+	if exist {
+		ticket, err := util.GenerateToken(fmt.Sprintf("%s-login", username))
+		if err != nil {
+			return "", err
+		}
+		// 5min expire
+		model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, time.Minute*5)
+		return ticket, err
+	} else { // user is not exist and can't login
+		// login can use uid and email
+		uidExist, err := model.CheckUserByUid(username)
+		if err != nil {
+			return "", err
+		}
+		if uidExist {
+			ticket, err := util.GenerateToken(fmt.Sprintf("%s-login", username))
+			if err != nil {
+				return "", err
+			}
+			// 5min expire
+			model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, time.Minute*5)
+			return ticket, err
+		} else {
+			return "", result.UserNotExist
+		}
+	}
+}
+
 func Login(username string, password string) (bool, error) {
 	//check password
 	flag, err := model.CheckPassword(username, password)
@@ -28,10 +98,6 @@ func Login(username string, password string) (bool, error) {
 		return false, err
 	}
 	return true, err
-}
-
-func VerifyAccount(username string) (bool, string, error) {
-	return model.VerifyAccount(username)
 }
 
 func UserInfo(jwt string) (*model.User, error) {
@@ -47,7 +113,7 @@ func UserInfo(jwt string) (*model.User, error) {
 }
 
 func SendEmail(username string, ticket string) error {
-	ticketKey := "TICKET:" + username
+	ticketKey := fmt.Sprintf("REGISTER_TICKET:%s", username)
 	ctx := context.Background()
 	val, err := model.Rdb.Get(ctx, ticketKey).Result()
 	if err != nil {
@@ -59,7 +125,7 @@ func SendEmail(username string, ticket string) error {
 	}
 	// ticket is not correct
 	if val != ticket {
-		return result.TICKET_NOT_CORRECT.Wrap(err)
+		return result.TICKET_NOT_CORRECT
 	}
 	code := model.GenerateVerifyCode(username)
 	codeKey := "VERIFY_CODE:" + username
