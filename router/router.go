@@ -22,6 +22,8 @@ func InitRouter() *gin.Engine {
 	{
 		usergroup.GET("/info", v1.UserInfo)
 		usergroup.POST("/register", v1.Register)
+		usergroup.POST("/login", v1.Login)
+		usergroup.POST("/logout", v1.Logout)
 	}
 	verify := apiV1.Group("/verify")
 	{

@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/mail"
 	"net/smtp"
+	"regexp"
 	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
@@ -36,6 +37,32 @@ func CreateUser(user *User) error {
 		return res.Error
 	}
 	return nil
+}
+
+func CheckPassword(username string, password string) (bool, error) {
+	var user User
+	matched, err2 := regexp.MatchString("@", username)
+	if err2 != nil {
+		userLogger.Infof("regexp matchiong error")
+		return false, err2
+	}
+	exist := true
+	var err error = nil
+	if matched {
+		err = Db.Where("email = ?", username).First(&user).Error
+	} else {
+		err = Db.Where("uid = ?", username).First(&user).Error
+	}
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			userLogger.Infof("User [%s] Not Exist\n", username)
+			exist = false
+		}
+	}
+	if *user.Password != password {
+		exist = false
+	}
+	return exist, err
 }
 
 func VerifyAccount(username string) (bool, string, error) {

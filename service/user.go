@@ -12,12 +12,22 @@ import (
 )
 
 var serviceLogger = log.Log
+var ctx = context.Background()
 
 func CreateUser(emal string, password string) {
 	model.CreateUser(&model.User{
 		Email:    &emal,
 		Password: &password,
 	})
+}
+
+func Login(username string, password string) (bool, error) {
+	//check password
+	flag, err := model.CheckPassword(username, password)
+	if !flag {
+		return false, err
+	}
+	return true, err
 }
 
 func VerifyAccount(username string) (bool, string, error) {
@@ -53,10 +63,8 @@ func SendEmail(username string, ticket string) error {
 	}
 	code := model.GenerateVerifyCode(username)
 	codeKey := "VERIFY_CODE:" + username
-
 	// 3min expire
 	model.Rdb.Set(ctx, codeKey, code, time.Minute*3)
-
 	serviceLogger.Infof("Send Email to [%s] with code [%s]\n", username, code)
 	content := model.InsertCode(code)
 	emailErr := model.SendEmail(username, content)
