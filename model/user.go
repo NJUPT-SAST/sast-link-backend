@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
+	"github.com/NJUPT-SAST/sast-link-backend/model/result"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"gorm.io/gorm"
 )
@@ -57,7 +58,7 @@ func CheckUserByUid(uid string) (bool, error) {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			userLogger.Infof("User [%s] Not Exist\n", uid)
-			return false, nil
+			return false, result.UserNotExist
 		}
 		return false, err
 	}
