@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/model"
@@ -44,8 +45,13 @@ func JWT(c *gin.Context) {
 	if claimsError != nil {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.AUTH_PARSE_TOKEN_FAIL))
 	}
-	var user model.User
+	//refresh token
+	_, err = rdb.Get(ctx, "TOKEN:"+username).Result()
+	if err != nil {
+		rdb.Set(ctx, "TOKEN:"+username, token, time.Hour*6)
+	}
 	// query user in database
+	var user model.User
 	dbErr := model.Db.Where("email = ?", username).First(&user).Error
 	if dbErr != nil {
 		// if the user is not exist
@@ -67,7 +73,6 @@ func checkExcludePath(path string) bool {
 
 // checkTokenInRedis check TICKET or TOKEN in redis
 // return if checkTokenInRedis PASS
-//
 // `tokenPattern` const of "TICKET" or "TOKEN"
 func checkTokenInRedis(username string, tokenPattern string) (bool, error) {
 	_, err := rdb.Get(ctx, tokenPattern+":"+username).Result()
