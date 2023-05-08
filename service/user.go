@@ -14,7 +14,6 @@ import (
 
 var ctx = context.Background()
 var serviceLogger = log.Log
-var ctx = context.Background()
 
 func CreateUser(emal string, password string) {
 	model.CreateUser(&model.User{
