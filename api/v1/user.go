@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -123,7 +124,7 @@ func VerifyAccount(ctx *gin.Context) {
 
 func Login(ctx *gin.Context) {
 	//verify information
-	ticket := ctx.GetHeader("TICKET")
+	ticket := ctx.GetHeader("LOGIN_TICKET")
 	password := ctx.Query("password")
 	if ticket == "" {
 		ctx.JSON(http.StatusBadRequest, result.AUTH_INCOMING_TICKET_FAIL)
@@ -140,6 +141,10 @@ func Login(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, result.TICKET_NOT_CORRECT)
 		return
 	}
+	//transform username
+	compile, err := regexp.Compile("-")
+	split := compile.Split(username, 2)
+	username = split[0]
 	//check the password
 	flag, err := service.Login(username, password)
 	if err != nil {
@@ -166,14 +171,14 @@ func Login(ctx *gin.Context) {
 
 func Logout(ctx *gin.Context) {
 	//verify information
-	ticket := ctx.GetHeader("TOKEN")
-	if ticket == "" {
+	token := ctx.GetHeader("TOKEN")
+	if token == "" {
 		ctx.JSON(http.StatusBadRequest, result.TICKET_NOT_CORRECT)
 		return
 	}
-	fmt.Println(ticket)
+	fmt.Println(token)
 	//remove Token from username
-	username, err := util.GetUsername(ticket)
+	username, err := util.GetUsername(token)
 	if err != nil || username == "" {
 		ctx.JSON(http.StatusBadRequest, result.TICKET_NOT_CORRECT)
 		return
