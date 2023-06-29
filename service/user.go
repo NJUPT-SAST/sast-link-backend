@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
@@ -15,11 +16,19 @@ import (
 var ctx = context.Background()
 var serviceLogger = log.Log
 
-func CreateUser(emal string, password string) {
-	model.CreateUser(&model.User{
-		Email:    &emal,
+func CreateUser(email string, password string) error {
+	split := regexp.MustCompile(`@`)
+	uid := split.Split(email, 2)[0]
+	err := model.CreateUser(&model.User{
+		Email:    &email,
 		Password: &password,
+		Uid:      &uid,
 	})
+	if err != nil {
+		return err
+	} else {
+		return nil
+	}
 }
 
 func VerifyAccount(username string, flag string) (string, error) {

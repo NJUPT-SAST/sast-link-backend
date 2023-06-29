@@ -22,7 +22,7 @@ var controllerLogger = log.Log
 
 func Register(ctx *gin.Context) {
 	// TODO: fill relevant code
-	// 从ctx中拿到Body
+	// get Body from request
 	username, usernameFlag := ctx.GetPostForm("username")
 	password, passwordFlag := ctx.GetPostForm("password")
 	code, codeFlag := ctx.GetPostForm("code")
@@ -47,7 +47,11 @@ func Register(ctx *gin.Context) {
 		}
 	}
 
-	service.CreateUser(username, password)
+	creErr := service.CreateUser(username, password)
+	if creErr != nil {
+		ctx.JSON(http.StatusBadRequest, result.UnknownError)
+		return
+	}
 	ctx.JSON(http.StatusOK, result.Success(nil))
 }
 
@@ -87,13 +91,15 @@ func SendEmail(ctx *gin.Context) {
 			logrus.Fields{
 				"username": username,
 			}).Error(err)
-		if errors.Is(err, result.TICKET_NOT_CORRECT) {
-			ctx.JSON(http.StatusUnauthorized, result.Failed(result.TICKET_NOT_CORRECT))
-		} else if errors.Is(err, result.CHECK_TICKET_NOTFOUND) {
-			ctx.JSON(http.StatusUnauthorized, result.Failed(result.CHECK_TICKET_NOTFOUND))
-		} else {
-			ctx.JSON(http.StatusUnauthorized, result.Failed(result.SendEmailError))
-		}
+		
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(err)))
+		// if errors.Is(err, result.TICKET_NOT_CORRECT) {
+		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.TICKET_NOT_CORRECT))
+		// } else if errors.Is(err, result.CHECK_TICKET_NOTFOUND) {
+		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.CHECK_TICKET_NOTFOUND))
+		// } else {
+		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.SendEmailError))
+		// }
 	} else {
 		ctx.JSON(http.StatusOK, result.Success(nil))
 	}
@@ -108,15 +114,17 @@ func VerifyAccount(ctx *gin.Context) {
 			logrus.Fields{
 				"username": username,
 			}).Error(err)
-		if errors.Is(err, result.UserIsExist) {
-			ctx.JSON(http.StatusUnauthorized, result.Failed(result.UserIsExist))
-		} else if errors.Is(err, result.UserNotExist) {
-			ctx.JSON(http.StatusUnauthorized, result.Failed(result.UserNotExist))
-		} else if errors.Is(err, result.ParamError) {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.ParamError))
-		} else {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.VerifyAccountError))
-		}
+		
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(err)))
+		// if errors.Is(err, result.UserIsExist) {
+		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.UserIsExist))
+		// } else if errors.Is(err, result.UserNotExist) {
+		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.UserNotExist))
+		// } else if errors.Is(err, result.ParamError) {
+		// 	ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.ParamError))
+		// } else {
+		// 	ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.VerifyAccountError))
+		// }
 		return
 	}
 	ctx.JSON(http.StatusOK, result.Success(ticket))
@@ -127,18 +135,18 @@ func Login(ctx *gin.Context) {
 	ticket := ctx.GetHeader("LOGIN_TICKET")
 	password := ctx.Query("password")
 	if ticket == "" {
-		ctx.JSON(http.StatusBadRequest, result.AUTH_INCOMING_TICKET_FAIL)
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.AUTH_INCOMING_TICKET_FAIL))
 		return
 	}
 	if password == "" {
-		ctx.JSON(http.StatusBadRequest, result.Password_NOTFOUND)
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.Password_NOTFOUND))
 		return
 	}
 	fmt.Println(ticket, password)
 	//get username from ticket
 	username, err := util.GetUsername(ticket)
 	if err != nil || username == "" {
-		ctx.JSON(http.StatusBadRequest, result.TICKET_NOT_CORRECT)
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.TICKET_NOT_CORRECT))
 		return
 	}
 	//transform username
@@ -163,7 +171,7 @@ func Login(ctx *gin.Context) {
 	//set Token with expire time and return
 	token, err := util.GenerateToken(username)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, result.GENERATE_TOKEN)
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.GENERATE_TOKEN))
 	}
 	model.Rdb.Set(ctx, "TOKEN:"+username, token, time.Hour*6)
 	ctx.JSON(http.StatusOK, result.Success(token))
