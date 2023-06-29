@@ -135,18 +135,18 @@ func Login(ctx *gin.Context) {
 	ticket := ctx.GetHeader("LOGIN_TICKET")
 	password := ctx.Query("password")
 	if ticket == "" {
-		ctx.JSON(http.StatusBadRequest, result.AUTH_INCOMING_TICKET_FAIL)
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.AUTH_INCOMING_TICKET_FAIL))
 		return
 	}
 	if password == "" {
-		ctx.JSON(http.StatusBadRequest, result.Password_NOTFOUND)
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.Password_NOTFOUND))
 		return
 	}
 	fmt.Println(ticket, password)
 	//get username from ticket
 	username, err := util.GetUsername(ticket)
 	if err != nil || username == "" {
-		ctx.JSON(http.StatusBadRequest, result.TICKET_NOT_CORRECT)
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.TICKET_NOT_CORRECT))
 		return
 	}
 	//transform username
@@ -171,7 +171,7 @@ func Login(ctx *gin.Context) {
 	//set Token with expire time and return
 	token, err := util.GenerateToken(username)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, result.GENERATE_TOKEN)
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.GENERATE_TOKEN))
 	}
 	model.Rdb.Set(ctx, "TOKEN:"+username, token, time.Hour*6)
 	ctx.JSON(http.StatusOK, result.Success(token))
