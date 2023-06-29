@@ -14,13 +14,17 @@ import (
 
 var ctx = context.Background()
 var serviceLogger = log.Log
-var ctx = context.Background()
 
-func CreateUser(emal string, password string) {
-	model.CreateUser(&model.User{
+func CreateUser(emal string, password string) error{
+	err := model.CreateUser(&model.User{
 		Email:    &emal,
 		Password: &password,
 	})
+	if err != nil {
+		return err
+	} else {
+		return nil
+	}
 }
 
 func VerifyAccount(username string, flag string) (string, error) {

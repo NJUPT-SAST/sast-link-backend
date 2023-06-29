@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
-	"net/mail"
-	"net/smtp"
 	"regexp"
 	"time"
 
