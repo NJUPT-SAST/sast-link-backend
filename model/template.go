@@ -10,6 +10,6 @@ const VerifyCodeTemplate = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transit
 func InsertCode(code string) string {
 	page, _ := template.New("webpage").Parse(VerifyCodeTemplate)
 	var b bytes.Buffer
-	page.Execute(&b, code)
+	_ = page.Execute(&b, code)
 	return b.String()
 }
