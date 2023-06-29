@@ -21,7 +21,7 @@ var controllerLogger = log.Log
 
 func Register(ctx *gin.Context) {
 	// TODO: fill relevant code
-	// 从ctx中拿到Body
+	// get Body from request
 	username, usernameFlag := ctx.GetPostForm("username")
 	password, passwordFlag := ctx.GetPostForm("password")
 	code, codeFlag := ctx.GetPostForm("code")
@@ -46,7 +46,11 @@ func Register(ctx *gin.Context) {
 		}
 	}
 
-	service.CreateUser(username, password)
+	creErr := service.CreateUser(username, password)
+	if creErr != nil {
+		ctx.JSON(http.StatusBadRequest, result.UnknownError)
+		return
+	}
 	ctx.JSON(http.StatusOK, result.Success(nil))
 }
 
@@ -86,13 +90,15 @@ func SendEmail(ctx *gin.Context) {
 			logrus.Fields{
 				"username": username,
 			}).Error(err)
-		if errors.Is(err, result.TICKET_NOT_CORRECT) {
-			ctx.JSON(http.StatusUnauthorized, result.Failed(result.TICKET_NOT_CORRECT))
-		} else if errors.Is(err, result.CHECK_TICKET_NOTFOUND) {
-			ctx.JSON(http.StatusUnauthorized, result.Failed(result.CHECK_TICKET_NOTFOUND))
-		} else {
-			ctx.JSON(http.StatusUnauthorized, result.Failed(result.SendEmailError))
-		}
+		
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(err)))
+		// if errors.Is(err, result.TICKET_NOT_CORRECT) {
+		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.TICKET_NOT_CORRECT))
+		// } else if errors.Is(err, result.CHECK_TICKET_NOTFOUND) {
+		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.CHECK_TICKET_NOTFOUND))
+		// } else {
+		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.SendEmailError))
+		// }
 	} else {
 		ctx.JSON(http.StatusOK, result.Success(nil))
 	}
@@ -107,15 +113,17 @@ func VerifyAccount(ctx *gin.Context) {
 			logrus.Fields{
 				"username": username,
 			}).Error(err)
-		if errors.Is(err, result.UserIsExist) {
-			ctx.JSON(http.StatusUnauthorized, result.Failed(result.UserIsExist))
-		} else if errors.Is(err, result.UserNotExist) {
-			ctx.JSON(http.StatusUnauthorized, result.Failed(result.UserNotExist))
-		} else if errors.Is(err, result.ParamError) {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.ParamError))
-		} else {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.VerifyAccountError))
-		}
+		
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(err)))
+		// if errors.Is(err, result.UserIsExist) {
+		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.UserIsExist))
+		// } else if errors.Is(err, result.UserNotExist) {
+		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.UserNotExist))
+		// } else if errors.Is(err, result.ParamError) {
+		// 	ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.ParamError))
+		// } else {
+		// 	ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.VerifyAccountError))
+		// }
 		return
 	}
 	ctx.JSON(http.StatusOK, result.Success(ticket))
