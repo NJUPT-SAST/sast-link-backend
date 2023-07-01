@@ -1,11 +1,8 @@
 package v1
 
 import (
-	"errors"
-	"fmt"
 	"net/http"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/model"
@@ -21,35 +18,43 @@ import (
 var controllerLogger = log.Log
 
 func Register(ctx *gin.Context) {
-	// TODO: fill relevant code
 	// get Body from request
-	username, usernameFlag := ctx.GetPostForm("username")
 	password, passwordFlag := ctx.GetPostForm("password")
-	code, codeFlag := ctx.GetPostForm("code")
-	if !usernameFlag || !passwordFlag || !codeFlag {
-		ctx.JSON(http.StatusBadRequest, result.ParamError)
+	if !passwordFlag {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.ParamError))
 		return
 	}
-	if username == "" || password == "" {
-		ctx.JSON(http.StatusBadRequest, result.UsernameOrPasswordError)
-		return
-	}
-	if code == "" {
-		ctx.JSON(http.StatusBadRequest, result.VerifyCodeError)
+	if password == "" {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.UsernameOrPasswordError))
 		return
 	}
 
-	codeError := service.CheckVerifyCode(username, code)
-	if codeError != nil {
-		if errors.Is(codeError, result.VerifyCodeError) {
-			ctx.JSON(http.StatusBadRequest, result.VerifyCodeError)
-			return
-		}
+	ticket := ctx.GetHeader("REGISTER_TICKET")
+	username, usernameErr := util.GetUsername(ticket)
+	if usernameErr != nil {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(usernameErr)))
+		return
 	}
 
 	creErr := service.CreateUser(username, password)
 	if creErr != nil {
 		ctx.JSON(http.StatusBadRequest, result.UnknownError)
+		return
+	}
+	ctx.JSON(http.StatusOK, result.Success(nil))
+}
+
+func CheckVerifyCode(ctx *gin.Context) {
+	code, codeFlag := ctx.GetPostForm("captcha")
+	ticket := ctx.GetHeader("REGISTER_TICKET")
+	if !codeFlag {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.ParamError))
+		return
+	}
+
+	codeError := service.CheckVerifyCode(ticket, code)
+	if codeError != nil {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(codeError)))
 		return
 	}
 	ctx.JSON(http.StatusOK, result.Success(nil))
@@ -70,10 +75,8 @@ func UserInfo(ctx *gin.Context) {
 }
 
 func SendEmail(ctx *gin.Context) {
-	ticket := ctx.GetHeader("TICKET")
+	ticket := ctx.GetHeader("REGISTER_TICKET")
 	username, usernameErr := util.GetUsername(ticket)
-	// redis ticket is username-register
-	username = strings.Split(username, "-")[0]
 	// 错误处理机制写玉玉了
 	// 我开始乱写了啊啊啊啊
 	if usernameErr != nil {
@@ -91,15 +94,8 @@ func SendEmail(ctx *gin.Context) {
 			logrus.Fields{
 				"username": username,
 			}).Error(err)
-		
+
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(err)))
-		// if errors.Is(err, result.TICKET_NOT_CORRECT) {
-		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.TICKET_NOT_CORRECT))
-		// } else if errors.Is(err, result.CHECK_TICKET_NOTFOUND) {
-		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.CHECK_TICKET_NOTFOUND))
-		// } else {
-		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.SendEmailError))
-		// }
 	} else {
 		ctx.JSON(http.StatusOK, result.Success(nil))
 	}
@@ -108,26 +104,30 @@ func SendEmail(ctx *gin.Context) {
 func VerifyAccount(ctx *gin.Context) {
 	username := ctx.Query("username")
 	flag := ctx.Query("flag")
+	tKey := ""
+	// 0 is register
+	// 1 is login
+	if flag == "1" {
+		tKey = "login-ticket"
+	} else if flag == "0" {
+		tKey = "register-ticket"
+	} else {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.ParamError))
+		return
+	}
 	ticket, err := service.VerifyAccount(username, flag)
 	if err != nil {
 		controllerLogger.WithFields(
 			logrus.Fields{
 				"username": username,
 			}).Error(err)
-		
+
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(err)))
-		// if errors.Is(err, result.UserIsExist) {
-		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.UserIsExist))
-		// } else if errors.Is(err, result.UserNotExist) {
-		// 	ctx.JSON(http.StatusUnauthorized, result.Failed(result.UserNotExist))
-		// } else if errors.Is(err, result.ParamError) {
-		// 	ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.ParamError))
-		// } else {
-		// 	ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.VerifyAccountError))
-		// }
 		return
 	}
-	ctx.JSON(http.StatusOK, result.Success(ticket))
+	ctx.JSON(http.StatusOK, result.Success(gin.H{
+		tKey: ticket,
+	}))
 }
 
 func Login(ctx *gin.Context) {
@@ -135,14 +135,13 @@ func Login(ctx *gin.Context) {
 	ticket := ctx.GetHeader("LOGIN_TICKET")
 	password := ctx.Query("password")
 	if ticket == "" {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.AUTH_INCOMING_TICKET_FAIL))
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.CHECK_TICKET_NOTFOUND))
 		return
 	}
 	if password == "" {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.Password_NOTFOUND))
 		return
 	}
-	fmt.Println(ticket, password)
 	//get username from ticket
 	username, err := util.GetUsername(ticket)
 	if err != nil || username == "" {
@@ -169,12 +168,14 @@ func Login(ctx *gin.Context) {
 		return
 	}
 	//set Token with expire time and return
-	token, err := util.GenerateToken(username)
+	token, err := util.GenerateTokenWithExpireTime(username, time.Hour*24)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.GENERATE_TOKEN))
 	}
-	model.Rdb.Set(ctx, "TOKEN:"+username, token, time.Hour*6)
-	ctx.JSON(http.StatusOK, result.Success(token))
+	model.Rdb.Set(ctx, "TOKEN:"+username, token, time.Hour*24)
+	ctx.JSON(http.StatusOK, result.Success(gin.H{
+		"token": token,
+	}))
 }
 
 func Logout(ctx *gin.Context) {
@@ -184,7 +185,6 @@ func Logout(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, result.TICKET_NOT_CORRECT)
 		return
 	}
-	fmt.Println(token)
 	//remove Token from username
 	username, err := util.GetUsername(token)
 	if err != nil || username == "" {

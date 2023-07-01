@@ -102,8 +102,6 @@ func UserInfo(username string) (*User, error) {
 
 func GenerateVerifyCode(username string) string {
 	code := util.GenerateCode()
-	// 5min expire
-	Rdb.Set(ctx, "VERIFY_CODE:"+username, code, time.Minute*5)
 	return code
 }
 
