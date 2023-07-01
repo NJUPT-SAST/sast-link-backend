@@ -28,6 +28,7 @@ func InitRouter() *gin.Engine {
 	verify := apiV1.Group("/verify")
 	{
 		verify.GET("/account", v1.VerifyAccount)
+		verify.POST("/captcha", v1.CheckVerifyCode)
 	}
 	apiV1.GET("/sendEmail", v1.SendEmail)
 	//S-LYPL7 admingroup := apiV1.Group("/admin")

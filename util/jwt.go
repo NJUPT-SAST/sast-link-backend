@@ -3,6 +3,7 @@ package util
 // util
 //the basic configuration of JWT
 import (
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -19,6 +20,22 @@ func GenerateToken(username string) (string, error) {
 	claims := jwt.RegisteredClaims{
 		// expires at 3 hours
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 3)),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		NotBefore: jwt.NewNumericDate(time.Now()),
+		Issuer:    "sast",
+		Subject:   username,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signingKey := []byte(jwtSigningKey)
+	signToken, err := token.SignedString(signingKey)
+	return signToken, err
+}
+
+// GenerateToken with expireTime
+func GenerateTokenWithExpireTime(username string, expireTime time.Duration) (string, error) {
+	claims := jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(expireTime)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 		NotBefore: jwt.NewNumericDate(time.Now()),
 		Issuer:    "sast",
@@ -68,5 +85,6 @@ func GetUsername(token string) (string, error) {
 	if claimsError != nil {
 		return "", claimsError
 	}
-	return username, nil
+	// redis ticket is username-register
+	return strings.Split(username, "-")[0], nil
 }

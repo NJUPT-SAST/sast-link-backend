@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/model"
@@ -36,14 +35,12 @@ func VerifyAccount(username string, flag string) (string, error) {
 	// 1 is login
 	if flag == "0" {
 		return VerifyAccountRegister(username)
-	} else if flag == "1" {
-		return VerifyAccountLogin(username)
 	} else {
-		return "", result.ParamError
+		return VerifyAccountLogin(username)
 	}
 }
 
-// verify ticket at register
+// this function is used to verify the user's email is exist or not when register
 func VerifyAccountRegister(username string) (string, error) {
 	// check if the user is exist
 	exist, err := model.CheckUserByEmail(username)
@@ -54,17 +51,18 @@ func VerifyAccountRegister(username string) (string, error) {
 	if exist {
 		return "", result.UserIsExist
 	} else { // user is not exist and can register
-		ticket, err := util.GenerateToken(fmt.Sprintf("%s-register", username))
+		// generate token and set expire time
+		ticket, err := util.GenerateTokenWithExpireTime(fmt.Sprintf("%s-register", username), model.REGISTER_TICKET_EXPIRE_TIME)
 		if err != nil {
 			return "", err
 		}
-		// 5min expire
-		model.Rdb.Set(ctx, "REGISTER_TICKET:"+username, ticket, time.Minute*5)
+		// set token to redis
+		model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["VERIFY_ACCOUNT"], model.REGISTER_TICKET_EXPIRE_TIME)
 		return ticket, err
 	}
 }
 
-// verify ticket at login
+// this function is used to verify the user's email is exist or not when login
 func VerifyAccountLogin(username string) (string, error) {
 	exist, err := model.CheckUserByEmail(username)
 	if err != nil {
@@ -72,12 +70,12 @@ func VerifyAccountLogin(username string) (string, error) {
 	}
 	// user is exist and can login
 	if exist {
-		ticket, err := util.GenerateToken(fmt.Sprintf("%s-login", username))
+		ticket, err := util.GenerateTokenWithExpireTime(fmt.Sprintf("%s-login", username), model.LOGIN_TICKET_EXPIRE)
 		if err != nil {
 			return "", err
 		}
 		// 5min expire
-		model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, time.Minute*5)
+		model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, model.LOGIN_TICKET_EXPIRE)
 		return ticket, err
 	} else { // user is not exist and can't login
 		// login can use uid and email
@@ -86,12 +84,12 @@ func VerifyAccountLogin(username string) (string, error) {
 			return "", err
 		}
 		if uidExist {
-			ticket, err := util.GenerateToken(fmt.Sprintf("%s-login", username))
+			ticket, err := util.GenerateTokenWithExpireTime(fmt.Sprintf("%s-login", username), model.LOGIN_TICKET_EXPIRE)
 			if err != nil {
 				return "", err
 			}
 			// 5min expire
-			model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, time.Minute*5)
+			model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, model.LOGIN_TICKET_EXPIRE)
 			return ticket, err
 		} else {
 			return "", result.UserNotExist
@@ -121,44 +119,74 @@ func UserInfo(jwt string) (*model.User, error) {
 }
 
 func SendEmail(username string, ticket string) error {
-	ticketKey := fmt.Sprintf("REGISTER_TICKET:%s", username)
-	ctx := context.Background()
-	val, err := model.Rdb.Get(ctx, ticketKey).Result()
+	val, err := model.Rdb.Get(ctx, ticket).Result()
 	if err != nil {
 		// key does not exists
 		if err == redis.Nil {
-			return result.CHECK_TICKET_NOTFOUND.Wrap(err)
+			return result.CHECK_TICKET_NOTFOUND
 		}
 		return err
 	}
-	// ticket is not correct
-	if val != ticket {
+
+	// Determine if the ticket is correct
+	if val != model.REGISTER_STATUS["VERIFY_ACCOUNT"] {
 		return result.TICKET_NOT_CORRECT
 	}
 	code := model.GenerateVerifyCode(username)
-	codeKey := "VERIFY_CODE:" + username
-	// 3min expire
-	model.Rdb.Set(ctx, codeKey, code, time.Minute*3)
-	serviceLogger.Infof("Send Email to [%s] with code [%s]\n", username, code)
+	codeKey := "CAPTCHA-" + username
+	model.Rdb.Set(ctx, codeKey, code, model.CAPTCHA_EXPIRE_TIME)
 	content := model.InsertCode(code)
 	emailErr := model.SendEmail(username, content)
 	if emailErr != nil {
 		return emailErr
 	}
+	serviceLogger.Infof("Send Email to [%s] with code [%s]\n", username, code)
+	// Update the status of the ticket
+	model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["SEND_EMAIL"], model.REGISTER_TICKET_EXPIRE_TIME)
 	return nil
 }
 
-func CheckVerifyCode(username string, code string) error {
-	key := "VERIFY_CODE:" + username
-	val, err := model.Rdb.Get(context.Background(), key).Result()
+func CheckVerifyCode(ticket string, code string) error {
+	status, err := model.Rdb.Get(ctx, ticket).Result()
 	if err != nil {
 		if err == redis.Nil {
-			return result.VerifyCodeError
+			return result.CHECK_TICKET_NOTFOUND
 		}
 		return err
 	}
-	if val != code {
-		return result.VerifyCodeError
+	if status != model.REGISTER_STATUS["SEND_EMAIL"] {
+		return result.TICKET_NOT_CORRECT
 	}
+	username, uErr := util.GetUsername(ticket)
+	if uErr != nil {
+		return uErr
+	}
+
+	codeKey := "CAPTCHA-" + username
+	rCode, cErr := model.Rdb.Get(ctx, codeKey).Result()
+	if cErr != nil {
+		if cErr == redis.Nil {
+			return result.CaptchaError
+		}
+		return cErr
+	}
+
+	if code != rCode {
+		return result.CaptchaError
+	}
+
+	// Update the status of the ticket
+	model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["VERIFY_CAPTCHA"], model.REGISTER_TICKET_EXPIRE_TIME)
 	return nil
+}
+
+func CheckToken(key string, token string) bool {
+	val, err := model.Rdb.Get(ctx, key).Result()
+	if err != nil {
+		return false
+	}
+	if val != token {
+		return false
+	}
+	return true
 }
