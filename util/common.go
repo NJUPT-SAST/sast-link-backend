@@ -1,7 +1,6 @@
 package util
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
 	"math/rand"
@@ -10,8 +9,6 @@ import (
 	"net/smtp"
 	"time"
 )
-
-var ctx = context.Background()
 
 // GenerateCode generate a random code
 func GenerateCode() string {
