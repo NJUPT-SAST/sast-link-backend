@@ -104,18 +104,34 @@ func Login(username string, password string) (bool, error) {
 		return false, err
 	}
 	return true, err
+
 }
 
 func UserInfo(jwt string) (*model.User, error) {
 	jwtClaims, err := util.ParseToken(jwt)
+	nilUser := &model.User{}
 	if err != nil {
-		return nil, err
+		return nilUser, err
 	}
 	username, claimsError := jwtClaims.GetSubject()
 	if claimsError != nil {
-		return nil, claimsError
+		return nilUser, claimsError
 	}
-	return model.UserInfo(username)
+
+	rToken, err := model.Rdb.Get(ctx, fmt.Sprintf("TOKEN:%s", username)).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return nilUser, result.AUTH_ERROR
+		}
+		return nilUser, err
+	}
+
+	if rToken == "" || rToken != jwt {
+		return nilUser, result.AUTH_ERROR
+	}
+
+	return model.UserInfo(username + "test")
+	//return model.UserInfo(username)
 }
 
 func SendEmail(username string, ticket string) error {
