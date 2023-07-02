@@ -61,17 +61,19 @@ func CheckVerifyCode(ctx *gin.Context) {
 }
 
 func UserInfo(ctx *gin.Context) {
-	if user, err := service.UserInfo(ctx.GetHeader("TOKEN")); err != nil {
+	user, err := service.UserInfo(ctx.GetHeader("TOKEN"))
+	if err != nil {
 		controllerLogger.WithFields(
 			logrus.Fields{
 				"username": user.Uid,
 			}).Error(err)
 		ctx.JSON(http.StatusOK, result.Failed(result.GET_USERINFO_FAIL))
-	} else {
-		ctx.JSON(http.StatusOK, result.Success(gin.H{
-			"email": user.Email,
-		}))
+		return
 	}
+
+	ctx.JSON(http.StatusOK, result.Success(gin.H{
+		"email": user.Email,
+	}))
 }
 
 func SendEmail(ctx *gin.Context) {
@@ -181,6 +183,7 @@ func Login(ctx *gin.Context) {
 func Logout(ctx *gin.Context) {
 	//verify information
 	token := ctx.GetHeader("TOKEN")
+
 	if token == "" {
 		ctx.JSON(http.StatusBadRequest, result.TICKET_NOT_CORRECT)
 		return
