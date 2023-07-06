@@ -103,7 +103,7 @@ type JWTAccessGenerate struct {
 
 func (a *JWTAccessClaims) Valid() error {
 	if time.Unix(a.ExpiresAt.Unix(), 0).Before(time.Now()) {
-		return result.ERRINVALID_ACCESS_TOKEN
+		return result.InvalidAccToken
 	}
 	return nil
 }

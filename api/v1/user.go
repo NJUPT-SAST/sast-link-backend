@@ -38,7 +38,7 @@ func Register(ctx *gin.Context) {
 
 	creErr := service.CreateUser(username, password)
 	if creErr != nil {
-		ctx.JSON(http.StatusBadRequest, result.UnknownError)
+		ctx.JSON(http.StatusBadRequest, result.InternalErr)
 		return
 	}
 	ctx.JSON(http.StatusOK, result.Success(nil))
