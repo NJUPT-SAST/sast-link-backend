@@ -170,7 +170,7 @@ func Login(ctx *gin.Context) {
 		return
 	}
 	//set Token with expire time and return
-	token, err := util.GenerateTokenWithExpireTime(username, time.Hour*24)
+	token, err := util.GenerateTokenWithExp(username, time.Hour*24)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.GENERATE_TOKEN))
 	}

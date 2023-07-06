@@ -52,12 +52,12 @@ func VerifyAccountRegister(username string) (string, error) {
 		return "", result.UserIsExist
 	} else { // user is not exist and can register
 		// generate token and set expire time
-		ticket, err := util.GenerateTokenWithExpireTime(fmt.Sprintf("%s-register", username), model.REGISTER_TICKET_EXPIRE_TIME)
+		ticket, err := util.GenerateTokenWithExp(fmt.Sprintf("%s-register", username), model.REGISTER_TICKET_EXP)
 		if err != nil {
 			return "", err
 		}
 		// set token to redis
-		model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["VERIFY_ACCOUNT"], model.REGISTER_TICKET_EXPIRE_TIME)
+		model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["VERIFY_ACCOUNT"], model.REGISTER_TICKET_EXP)
 		return ticket, err
 	}
 }
@@ -70,12 +70,12 @@ func VerifyAccountLogin(username string) (string, error) {
 	}
 	// user is exist and can login
 	if exist {
-		ticket, err := util.GenerateTokenWithExpireTime(fmt.Sprintf("%s-login", username), model.LOGIN_TICKET_EXPIRE)
+		ticket, err := util.GenerateTokenWithExp(fmt.Sprintf("%s-login", username), model.LOGIN_TICKET_EXP)
 		if err != nil {
 			return "", err
 		}
 		// 5min expire
-		model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, model.LOGIN_TICKET_EXPIRE)
+		model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, model.LOGIN_TICKET_EXP)
 		return ticket, err
 	} else { // user is not exist and can't login
 		// login can use uid and email
@@ -84,12 +84,12 @@ func VerifyAccountLogin(username string) (string, error) {
 			return "", err
 		}
 		if uidExist {
-			ticket, err := util.GenerateTokenWithExpireTime(fmt.Sprintf("%s-login", username), model.LOGIN_TICKET_EXPIRE)
+			ticket, err := util.GenerateTokenWithExp(fmt.Sprintf("%s-login", username), model.LOGIN_TICKET_EXP)
 			if err != nil {
 				return "", err
 			}
 			// 5min expire
-			model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, model.LOGIN_TICKET_EXPIRE)
+			model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, model.LOGIN_TICKET_EXP)
 			return ticket, err
 		} else {
 			return "", result.UserNotExist
@@ -150,7 +150,7 @@ func SendEmail(username string, ticket string) error {
 	}
 	code := model.GenerateVerifyCode(username)
 	codeKey := "CAPTCHA-" + username
-	model.Rdb.Set(ctx, codeKey, code, model.CAPTCHA_EXPIRE_TIME)
+	model.Rdb.Set(ctx, codeKey, code, model.CAPTCHA_EXP)
 	content := model.InsertCode(code)
 	emailErr := model.SendEmail(username, content)
 	if emailErr != nil {
@@ -158,7 +158,7 @@ func SendEmail(username string, ticket string) error {
 	}
 	serviceLogger.Infof("Send Email to [%s] with code [%s]\n", username, code)
 	// Update the status of the ticket
-	model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["SEND_EMAIL"], model.REGISTER_TICKET_EXPIRE_TIME)
+	model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["SEND_EMAIL"], model.REGISTER_TICKET_EXP)
 	return nil
 }
 
@@ -192,7 +192,7 @@ func CheckVerifyCode(ticket string, code string) error {
 	}
 
 	// Update the status of the ticket
-	model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["VERIFY_CAPTCHA"], model.REGISTER_TICKET_EXPIRE_TIME)
+	model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["VERIFY_CAPTCHA"], model.REGISTER_TICKET_EXP)
 	return nil
 }
 

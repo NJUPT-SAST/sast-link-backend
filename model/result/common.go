@@ -34,6 +34,7 @@ var (
 	AUTH_PARSE_TOKEN_FAIL = LocalError{ErrCode: 20006, ErrMsg: "Token解析失败"}
 	TICKET_NOT_CORRECT = LocalError{ErrCode: 20007, ErrMsg: "Ticket不正确"}
 	CHECK_TICKET_NOTFOUND = LocalError{ErrCode: 20008, ErrMsg: "Ticket不存在"}
+	ERRINVALID_ACCESS_TOKEN = LocalError{ErrCode: 20009, ErrMsg: "无效的access_token"}
 	SendEmailError = LocalError{ErrCode: 30001, ErrMsg: "发送邮件失败"}
 	CaptchaError = LocalError{ErrCode: 30002, ErrMsg: "验证码错误"}
 	VerifyAccountError = LocalError{ErrCode: 40001, ErrMsg: "验证账户失败"}
@@ -62,6 +63,7 @@ var errorMap = map[int]LocalError{
 	20006: AUTH_PARSE_TOKEN_FAIL,
 	20007: TICKET_NOT_CORRECT,
 	20008: CHECK_TICKET_NOTFOUND,
+	20009: ERRINVALID_ACCESS_TOKEN,
 	30001: SendEmailError,
 	30002: CaptchaError,
 	40001: VerifyAccountError,
