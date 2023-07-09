@@ -135,7 +135,7 @@ func VerifyAccount(ctx *gin.Context) {
 func Login(ctx *gin.Context) {
 	//verify information
 	ticket := ctx.GetHeader("LOGIN_TICKET")
-	password := ctx.Query("password")
+	password := ctx.PostForm("password")
 	if ticket == "" {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.CHECK_TICKET_NOTFOUND))
 		return
