@@ -19,6 +19,61 @@ var (
 	modelLogger = log.Log
 )
 
+// Redis config
+type RedisConf struct {
+	Host     string
+	Port     int
+	Addr     string
+	Password string
+	Db       int
+	MaxIdle  int
+}
+
+// Postgres config
+type PostgresConf struct {
+	Host     string
+	Port     int
+	Username string
+	Password string
+	Dbname   string
+}
+
+// Get redis config
+func GetRedisConf() *RedisConf {
+	redisConf := conf.Sub("redis")
+	host := redisConf.GetString("host")
+	port := redisConf.GetInt("port")
+	addr := fmt.Sprintf("%s:%d", host, port)
+	password := redisConf.GetString("password")
+	db := redisConf.GetInt("db")
+	maxIdle := redisConf.GetInt("maxIdle")
+	return &RedisConf{
+		Host:     host,
+		Port:     port,
+		Addr:     addr,
+		Password: password,
+		Db:       db,
+		MaxIdle:  maxIdle,
+	}
+}
+
+// Get postgres config
+func GetPostgresConf() *PostgresConf {
+	database := conf.Sub("postgres")
+	host := database.GetString("host")
+	port := database.GetInt("port")
+	username := database.GetString("username")
+	password := database.GetString("password")
+	dbname := database.GetString("dbname")
+	return &PostgresConf{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Password: password,
+		Dbname:   dbname,
+	}
+}
+
 func init() {
 	connectPostgreSQL()
 	connectRedis()
@@ -26,12 +81,12 @@ func init() {
 
 func connectPostgreSQL() {
 	var err error
-	database := conf.Sub("postgres")
-	username := database.GetString("username")
-	password := database.GetString("password")
-	databasename := database.GetString("dbname")
-	host := database.GetString("host")
-	port := database.GetInt("port")
+	postgreConf := GetPostgresConf()
+	username := postgreConf.Username
+	password := postgreConf.Password
+	databasename := postgreConf.Dbname
+	host := postgreConf.Host
+	port := postgreConf.Port
 
 	dsn := fmt.Sprintf(`host=%s user=%s
 		password=%s dbname=%s
@@ -55,12 +110,10 @@ func connectPostgreSQL() {
 }
 
 func connectRedis() {
-	redisConf := conf.Sub("redis")
-	host := redisConf.GetString("host")
-	port := redisConf.GetInt("port")
-	Addr := host + ":" + fmt.Sprint(port)
-	Password := redisConf.GetString("password")
-	DB := redisConf.GetInt("db")
+	redisConf := GetRedisConf()
+	Addr := redisConf.Addr
+	Password := redisConf.Password
+	DB := redisConf.Db
 	Rdb = redis.NewClient(&redis.Options{
 		Addr:     Addr,
 		Password: Password,
