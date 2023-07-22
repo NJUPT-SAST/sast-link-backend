@@ -110,9 +110,9 @@ func VerifyAccount(ctx *gin.Context) {
 	// 0 is register
 	// 1 is login
 	if flag == "1" {
-		tKey = "login-ticket"
+		tKey = "login_ticket"
 	} else if flag == "0" {
-		tKey = "register-ticket"
+		tKey = "register_ticket"
 	} else {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.ParamError))
 		return
