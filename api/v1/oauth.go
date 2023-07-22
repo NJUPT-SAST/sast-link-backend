@@ -71,6 +71,7 @@ func Authorize(c *gin.Context) {
 	InitServer(c)
 	r := c.Request
 	w := c.Writer
+	// TODO: redis
 	store := sessions.Default(c)
 	var form url.Values
 	v := store.Get("ReturnUri")

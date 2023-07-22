@@ -5,7 +5,7 @@ username = "xxxxx"
 password = "xxxxx"
 host = "xxxxx"
 dbname = "link"
-port = xxxx
+port = 1234
 
 [redis]
 host = "xxx"
