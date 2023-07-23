@@ -21,22 +21,73 @@ import (
 )
 
 var (
-	srv        *server.Server
-	pgxConn, _ = pgx.Connect(context.TODO(), config.Config.Sub("oauth").GetString("db_uri"))
+	srv            *server.Server
+	pgxConn, _     = pgx.Connect(context.TODO(), config.Config.Sub("oauth").GetString("db_uri"))
+	adapter        = pgx4adapter.NewConn(pgxConn)
+	clientStore, _ = pg.NewClientStore(adapter)
 )
 
-// Create client
-func CreateClient(c *gin.Context) {
-	manager := manage.NewDefaultManager()
+//func newManager() (manager *manage.Manager) {
+//	// use PostgreSQL token store with pgx.Connection adapter
+//	tokenStore, _ := pg.NewTokenStore(adapter, pg.WithTokenStoreGCInterval(time.Minute))
+//	defer tokenStore.Close()
+//
+//	mg := manage.NewDefaultManager()
+//	mg.MapTokenStorage(tokenStore)
+//	mg.SetAuthorizeCodeTokenCfg(manage.DefaultAuthorizeCodeTokenCfg)
+//
+//	return mg
+//}
+
+func InitServer(c *gin.Context) {
 	// use PostgreSQL token store with pgx.Connection adapter
-	adapter := pgx4adapter.NewConn(pgxConn)
 	tokenStore, _ := pg.NewTokenStore(adapter, pg.WithTokenStoreGCInterval(time.Minute))
 	defer tokenStore.Close()
 
-	clientStore, _ := pg.NewClientStore(adapter)
-	manager.MapTokenStorage(tokenStore)
-	manager.MapClientStorage(clientStore)
-	manager.SetAuthorizeCodeTokenCfg(manage.DefaultAuthorizeCodeTokenCfg)
+	mg := manage.NewDefaultManager()
+	mg.MapTokenStorage(tokenStore)
+	mg.SetAuthorizeCodeTokenCfg(manage.DefaultAuthorizeCodeTokenCfg)
+
+	// use PostgreSQL client store with pgx.Connection adapter
+	mg.MapClientStorage(clientStore)
+
+	//clientID, ok := c.GetQuery("client_id")
+	//if !ok {
+	//	c.JSON(http.StatusBadRequest, result.Failed(result.ClientErr))
+	//	return
+	//}
+	//if !ok {
+	//	c.JSON(http.StatusBadRequest, result.Failed(result.ClientErr))
+	//	return
+	//}
+
+	//client, cErr := clientStore.GetByID(c, clientID)
+	//if cErr != nil {
+	//	fmt.Println(cErr)
+	//	return
+	//}
+	//fmt.Println(client)
+
+	//cErr := clientStore.Create(&models.Client{
+	//	ID:     clientID,
+	//	Secret: "test",
+	//	Domain: redirectURI,
+	//})
+	//if cErr != nil {
+	//	fmt.Println(cErr)
+	//	c.JSON(http.StatusBadRequest, result.Failed(result.InternalErr))
+	//	return
+	//}
+
+	srv = server.NewServer(server.NewConfig(), mg)
+	//srv.SetPasswordAuthorizationHandler(PasswordAuthorizationHandler)
+	//srv.SetUserAuthorizationHandler(userAuthorizeHandler)
+	//srv.SetClientInfoHandler(server.ClientFormHandler)
+	srv.SetUserAuthorizationHandler(userAuthorizeHandler)
+}
+
+// Create client
+func CreateClient(c *gin.Context) {
 
 	redirectURI := c.PostForm("redirect_uri")
 	if redirectURI == "" {
@@ -53,50 +104,8 @@ func CreateClient(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, result.Failed(result.InternalErr))
 		return
 	}
-}
-
-func InitServer(c *gin.Context) {
-	manager := manage.NewDefaultManager()
-	// use PostgreSQL token store with pgx.Connection adapter
-	adapter := pgx4adapter.NewConn(pgxConn)
-	tokenStore, _ := pg.NewTokenStore(adapter, pg.WithTokenStoreGCInterval(time.Minute))
-	defer tokenStore.Close()
-
-	clientStore, _ := pg.NewClientStore(adapter)
-	manager.MapTokenStorage(tokenStore)
-	manager.MapClientStorage(clientStore)
-	manager.SetAuthorizeCodeTokenCfg(manage.DefaultAuthorizeCodeTokenCfg)
-
-	clientID, ok := c.GetQuery("client_id")
-	if !ok {
-		c.JSON(http.StatusBadRequest, result.Failed(result.ClientErr))
-		return
-	}
-	if !ok {
-		c.JSON(http.StatusBadRequest, result.Failed(result.ClientErr))
-		return
-	}
-	redirectURI, ok := c.GetQuery("redirect_uri")
-	if !ok {
-		c.JSON(http.StatusBadRequest, result.Failed(result.ClientErr))
-		return
-	}
-
-	cErr := clientStore.Create(&models.Client{
-		ID: clientID,
-		//Secret: util.GetRandomString(32),
-		Domain: redirectURI,
-	})
-	if cErr != nil {
-		c.JSON(http.StatusBadRequest, result.Failed(result.InternalErr))
-		return
-	}
-
-	srv = server.NewServer(server.NewConfig(), manager)
-	//srv.SetPasswordAuthorizationHandler(PasswordAuthorizationHandler)
-	//srv.SetUserAuthorizationHandler(userAuthorizeHandler)
-	//srv.SetClientInfoHandler(server.ClientFormHandler)
-	srv.SetUserAuthorizationHandler(userAuthorizeHandler)
+	// TODO
+	c.JSON(http.StatusOK, result.Success(""))
 }
 
 // redirect user to login for authorization
@@ -134,7 +143,7 @@ func UserAuth(c *gin.Context) {
 
 	token := r.Header.Get("TOKEN")
 	if token == "" {
-		w.Header().Set("Location", "/user/login")
+		w.Header().Set("Location", "/api/v1/verify/account")
 		w.WriteHeader(http.StatusFound)
 		return
 	}
@@ -150,7 +159,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 	// check if user is logged in
 	token := r.Header.Get("TOKEN")
 	if token == "" {
-		w.Header().Set("Location", "/user/login")
+		w.Header().Set("Location", "/api/v1/verify/account")
 		w.WriteHeader(http.StatusFound)
 		return
 	}
@@ -163,7 +172,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		session.Set("ReturnUri", r.Form)
 		_ = session.Save()
 
-		w.Header().Set("Location", "/user/login")
+		w.Header().Set("Location", "/api/v1/verify/account")
 		w.WriteHeader(http.StatusFound)
 		return
 	}
