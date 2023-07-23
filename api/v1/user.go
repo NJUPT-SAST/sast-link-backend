@@ -25,7 +25,7 @@ func Register(ctx *gin.Context) {
 		return
 	}
 	if password == "" {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.UsernameOrPasswordError))
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.PasswordError))
 		return
 	}
 
@@ -151,7 +151,11 @@ func Login(ctx *gin.Context) {
 		return
 	}
 	//transform username
-	compile, err := regexp.Compile("-")
+	compile, unErr := regexp.Compile("-")
+	if unErr != nil {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.UsernameError))
+		return
+	}
 	split := compile.Split(username, 2)
 	username = split[0]
 	//check the password

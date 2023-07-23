@@ -6,6 +6,8 @@ import (
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
+	redisSession "github.com/go-session/redis/v3"
+	"github.com/go-session/session/v3"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -17,6 +19,8 @@ var (
 	Rdb         *redis.Client
 	conf        = config.Config
 	modelLogger = log.Log
+	redisConf   = GetRedisConf()
+	postgreConf = GetPostgresConf()
 )
 
 // Redis config
@@ -36,6 +40,12 @@ type PostgresConf struct {
 	Username string
 	Password string
 	Dbname   string
+}
+
+func init() {
+	connectPostgreSQL()
+	connectRedis()
+	newStore()
 }
 
 // Get redis config
@@ -74,14 +84,18 @@ func GetPostgresConf() *PostgresConf {
 	}
 }
 
-func init() {
-	connectPostgreSQL()
-	connectRedis()
+func newStore() {
+	addr := redisConf.Addr
+	db := redisConf.Db
+	store := redisSession.NewRedisStore(&redisSession.Options{
+		Addr: addr,
+		DB:   db,
+	})
+	session.InitManager(session.SetStore(store))
 }
 
 func connectPostgreSQL() {
 	var err error
-	postgreConf := GetPostgresConf()
 	username := postgreConf.Username
 	password := postgreConf.Password
 	databasename := postgreConf.Dbname
@@ -110,7 +124,6 @@ func connectPostgreSQL() {
 }
 
 func connectRedis() {
-	redisConf := GetRedisConf()
 	Addr := redisConf.Addr
 	Password := redisConf.Password
 	DB := redisConf.Db
