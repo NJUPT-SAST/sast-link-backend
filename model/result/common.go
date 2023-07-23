@@ -16,7 +16,7 @@ func (e LocalError) Error() string {
 // create common error
 var (
 	ParamError               = LocalError{ErrCode: 10001, ErrMsg: "请求参数错误"}
-	UsernameOrPasswordError  = LocalError{ErrCode: 10002, ErrMsg: "用户名或密码错误"}
+	UsernameError            = LocalError{ErrCode: 10002, ErrMsg: "用户名错误"}
 	PasswordError            = LocalError{ErrCode: 10003, ErrMsg: "密码错误"}
 	Password_NOTFOUND        = LocalError{ErrCode: 10004, ErrMsg: "密码为空"}
 	LoginError               = LocalError{ErrCode: 10005, ErrMsg: "登录失败"}
@@ -34,7 +34,7 @@ var (
 	AUTH_PARSE_TOKEN_FAIL    = LocalError{ErrCode: 20006, ErrMsg: "Token解析失败"}
 	TICKET_NOT_CORRECT       = LocalError{ErrCode: 20007, ErrMsg: "Ticket不正确"}
 	CHECK_TICKET_NOTFOUND    = LocalError{ErrCode: 20008, ErrMsg: "Ticket不存在"}
-	InvalidAccToken  = LocalError{ErrCode: 20009, ErrMsg: "无效的access_token"}
+	InvalidAccToken          = LocalError{ErrCode: 20009, ErrMsg: "无效的access_token"}
 	SendEmailError           = LocalError{ErrCode: 30001, ErrMsg: "发送邮件失败"}
 	CaptchaError             = LocalError{ErrCode: 30002, ErrMsg: "验证码错误"}
 	VerifyAccountError       = LocalError{ErrCode: 40001, ErrMsg: "验证账户失败"}
@@ -46,7 +46,7 @@ var (
 
 var errorMap = map[int]LocalError{
 	10001: ParamError,
-	10002: UsernameOrPasswordError,
+	10002: UsernameError,
 	10003: PasswordError,
 	10004: Password_NOTFOUND,
 	10005: LoginError,

@@ -8,12 +8,26 @@ import (
 	"net/mail"
 	"net/smtp"
 	"time"
+
+	"github.com/google/uuid"
 )
+
+// Generate UUID
+func GenerateUUID() string {
+	uuid := uuid.New()
+	return uuid.String()
+}
+
+// Hash string
+func HashString(str string) string {
+	return fmt.Sprintf("%x", str)
+}
 
 // GenerateCode generate a random code
 func GenerateCode() string {
 	seed := time.Now().UnixNano() + int64(rand.Intn(4478))
-	rand.Seed(seed)
+	//rand.NewSource()
+	rand := rand.New(rand.NewSource(seed))
 	// 除去容易混淆的字符
 	chars := "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 
