@@ -52,7 +52,7 @@ func CheckVerifyCode(ctx *gin.Context) {
 		return
 	}
 
-	codeError := service.CheckVerifyCode(ticket, code)
+	codeError := service.CheckVerifyCode(ctx, ticket, code)
 	if codeError != nil {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(codeError)))
 		return
@@ -61,7 +61,7 @@ func CheckVerifyCode(ctx *gin.Context) {
 }
 
 func UserInfo(ctx *gin.Context) {
-	user, err := service.UserInfo(ctx.GetHeader("TOKEN"))
+	user, err := service.UserInfo(ctx)
 	if err != nil {
 		controllerLogger.WithFields(
 			logrus.Fields{
@@ -90,7 +90,7 @@ func SendEmail(ctx *gin.Context) {
 		return
 	}
 
-	err := service.SendEmail(username, ticket)
+	err := service.SendEmail(ctx, username, ticket)
 	if err != nil {
 		controllerLogger.WithFields(
 			logrus.Fields{
@@ -117,7 +117,7 @@ func VerifyAccount(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.ParamError))
 		return
 	}
-	ticket, err := service.VerifyAccount(username, flag)
+	ticket, err := service.VerifyAccount(ctx, username, flag)
 	if err != nil {
 		controllerLogger.WithFields(
 			logrus.Fields{

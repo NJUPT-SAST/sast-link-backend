@@ -81,6 +81,12 @@ func GetUsername(token string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	
+	validError := claims.Valid()
+	if validError != nil {
+		return "", validError
+	}
+	
 	username, claimsError := claims.GetAudience()
 	if claimsError != nil {
 		return "", claimsError
