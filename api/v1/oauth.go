@@ -2,7 +2,6 @@ package v1
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -39,7 +38,11 @@ var (
 //	return mg
 //}
 
-func InitServer(c *gin.Context) {
+func init() {
+	InitServer()
+}
+
+func InitServer() {
 	// use PostgreSQL token store with pgx.Connection adapter
 	tokenStore, _ := pg.NewTokenStore(adapter, pg.WithTokenStoreGCInterval(time.Minute))
 	defer tokenStore.Close()
@@ -110,7 +113,6 @@ func CreateClient(c *gin.Context) {
 
 // redirect user to login for authorization
 func Authorize(c *gin.Context) {
-	InitServer(c)
 	r := c.Request
 	w := c.Writer
 	store, err := session.Start(context.Background(), w, r)
@@ -127,7 +129,6 @@ func Authorize(c *gin.Context) {
 	store.Delete("ReturnUri")
 	_ = store.Save()
 
-	fmt.Print(srv)
 	// redirect user to login page
 	err = srv.HandleAuthorizeRequest(w, r)
 	if err != nil {
@@ -143,7 +144,7 @@ func UserAuth(c *gin.Context) {
 
 	token := r.Header.Get("TOKEN")
 	if token == "" {
-		w.Header().Set("Location", "/api/v1/verify/account")
+		w.Header().Set("Location", "/api/v1/example/verify")
 		w.WriteHeader(http.StatusFound)
 		return
 	}
@@ -159,7 +160,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 	// check if user is logged in
 	token := r.Header.Get("TOKEN")
 	if token == "" {
-		w.Header().Set("Location", "/api/v1/verify/account")
+		w.Header().Set("Location", "/api/v1/example/verify")
 		w.WriteHeader(http.StatusFound)
 		return
 	}
@@ -172,7 +173,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		session.Set("ReturnUri", r.Form)
 		_ = session.Save()
 
-		w.Header().Set("Location", "/api/v1/verify/account")
+		w.Header().Set("Location", "/api/v1/example/verify")
 		w.WriteHeader(http.StatusFound)
 		return
 	}
