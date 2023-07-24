@@ -2,11 +2,13 @@ package v1
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
+	"github.com/NJUPT-SAST/sast-link-backend/model"
 	"github.com/NJUPT-SAST/sast-link-backend/model/result"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/gin-gonic/gin"
@@ -156,14 +158,21 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 	if err != nil {
 		return
 	}
-
 	// check if user is logged in
 	token := r.Header.Get("TOKEN")
 	if token == "" {
+		if r.Form == nil {
+			_ = r.ParseForm()
+		}
+
+		session.Set("ReturnUri", r.Form)
+		_ = session.Save()
+
 		w.Header().Set("Location", "/api/v1/example/verify")
 		w.WriteHeader(http.StatusFound)
 		return
 	}
+
 	username, err := util.GetUsername(token)
 	if err != nil || username == "" {
 		if r.Form == nil {
@@ -177,6 +186,30 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		w.WriteHeader(http.StatusFound)
 		return
 	}
+	rToken, err := model.Rdb.Get(r.Context(), fmt.Sprintf("TOKEN:%s", username)).Result()
+	if err != nil {
+		if r.Form == nil {
+			_ = r.ParseForm()
+		}
 
+		session.Set("ReturnUri", r.Form)
+		_ = session.Save()
+
+		w.Header().Set("Location", "/api/v1/example/verify")
+		w.WriteHeader(http.StatusFound)
+		return
+	}
+	if rToken != token {
+		if r.Form == nil {
+			_ = r.ParseForm()
+		}
+
+		session.Set("ReturnUri", r.Form)
+		_ = session.Save()
+
+		w.Header().Set("Location", "/api/v1/example/verify")
+		w.WriteHeader(http.StatusFound)
+		return
+	}
 	return username, nil
 }

@@ -37,17 +37,18 @@
                 formdata.append("password", password);
 
                 try {
-                    const response = await fetch(
-                        "/api/v1/user/login",
-                        {
-                            method: "POST",
-                            headers: headers,
-                            body: formdata,
-                        }
-                    );
+                    const response = await fetch("/api/v1/user/login", {
+                        method: "POST",
+                        headers: headers,
+                        body: formdata,
+                    });
 
-                    if (response.Errcode == 200) {
+                    if (response.ok) {
                         alert("login success!");
+                        response.json().then((data) => {
+                            localStorage.setItem("token", data.Data.token);
+                        });
+                        window.location.href = "./auth";
                     } else {
                         alert("login fail");
                     }
@@ -59,6 +60,7 @@
             }
         }
     </script>
+</body>
 </body>
 
 </html>

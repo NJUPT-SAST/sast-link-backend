@@ -46,6 +46,7 @@ func InitRouter() *gin.Engine {
 	{
 		example.GET("/verify", examVerify)
 		example.GET("/login", examLogin)
+		example.GET("/auth", examAuth)
 	}
 
 	return r
@@ -59,4 +60,9 @@ func examVerify(ctx *gin.Context) {
 func examLogin(ctx *gin.Context) {
 	// example
 	util.OutputHTML(ctx.Writer, ctx.Request, "example/static/login.html")
+}
+
+func examAuth(ctx *gin.Context) {
+	// example
+	util.OutputHTML(ctx.Writer, ctx.Request, "example/static/auth.html")
 }

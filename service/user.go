@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 
@@ -9,10 +8,10 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/model"
 	"github.com/NJUPT-SAST/sast-link-backend/model/result"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
+	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 )
 
-var ctx = context.Background()
 var serviceLogger = log.Log
 
 func CreateUser(email string, password string) error {
@@ -30,18 +29,18 @@ func CreateUser(email string, password string) error {
 	}
 }
 
-func VerifyAccount(username string, flag string) (string, error) {
+func VerifyAccount(ctx *gin.Context, username, flag string) (string, error) {
 	// 0 is register
 	// 1 is login
 	if flag == "0" {
-		return VerifyAccountRegister(username)
+		return VerifyAccountRegister(ctx, username)
 	} else {
-		return VerifyAccountLogin(username)
+		return VerifyAccountLogin(ctx, username)
 	}
 }
 
 // this function is used to verify the user's email is exist or not when register
-func VerifyAccountRegister(username string) (string, error) {
+func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 	// check if the user is exist
 	exist, err := model.CheckUserByEmail(username)
 	if err != nil {
@@ -63,7 +62,7 @@ func VerifyAccountRegister(username string) (string, error) {
 }
 
 // this function is used to verify the user's email is exist or not when login
-func VerifyAccountLogin(username string) (string, error) {
+func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 	exist, err := model.CheckUserByEmail(username)
 	if err != nil {
 		return "", err
@@ -107,7 +106,8 @@ func Login(username string, password string) (bool, error) {
 
 }
 
-func UserInfo(jwt string) (*model.User, error) {
+func UserInfo(ctx *gin.Context) (*model.User, error) {
+	jwt := ctx.GetHeader("TOKEN")
 	jwtClaims, err := util.ParseToken(jwt)
 	nilUser := &model.User{}
 	if err != nil {
@@ -130,11 +130,11 @@ func UserInfo(jwt string) (*model.User, error) {
 		return nilUser, result.AUTH_ERROR
 	}
 
-	return model.UserInfo(username + "test")
-	//return model.UserInfo(username)
+	//return model.UserInfo(username + "test")
+	return model.UserInfo(username)
 }
 
-func SendEmail(username string, ticket string) error {
+func SendEmail(ctx *gin.Context, username, ticket string) error {
 	val, err := model.Rdb.Get(ctx, ticket).Result()
 	if err != nil {
 		// key does not exists
@@ -162,7 +162,7 @@ func SendEmail(username string, ticket string) error {
 	return nil
 }
 
-func CheckVerifyCode(ticket string, code string) error {
+func CheckVerifyCode(ctx *gin.Context, ticket, code string) error {
 	status, err := model.Rdb.Get(ctx, ticket).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -196,7 +196,7 @@ func CheckVerifyCode(ticket string, code string) error {
 	return nil
 }
 
-func CheckToken(key string, token string) bool {
+func CheckToken(ctx *gin.Context, key, token string) bool {
 	val, err := model.Rdb.Get(ctx, key).Result()
 	if err != nil {
 		return false
