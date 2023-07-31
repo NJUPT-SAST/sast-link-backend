@@ -117,7 +117,7 @@ func CreateClient(c *gin.Context) {
 func Authorize(c *gin.Context) {
 	r := c.Request
 	w := c.Writer
-	store, err := session.Start(context.Background(), w, r)
+	store, err := session.Start(c, w, r)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
 		return
