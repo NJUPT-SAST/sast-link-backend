@@ -22,7 +22,7 @@ const (
 var (
 	config = oauth2.Config{
 		ClientID:     "222222",
-		ClientSecret: "22222222",
+		ClientSecret: "1",
 		Scopes:       []string{"all"},
 		RedirectURL:  "http://localhost:9094/oauth2",
 		Endpoint: oauth2.Endpoint{
@@ -54,7 +54,7 @@ func main() {
 			http.Error(w, "Code not found", http.StatusBadRequest)
 			return
 		}
-		token, err := config.Exchange(context.Background(), code, oauth2.SetAuthURLParam("code_verifier", "s256example"))
+		token, err := config.Exchange(r.Context(), code, oauth2.SetAuthURLParam("code_verifier", "s256example"))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

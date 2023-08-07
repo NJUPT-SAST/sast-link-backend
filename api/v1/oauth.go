@@ -153,7 +153,7 @@ func UserAuth(c *gin.Context) {
 }
 
 func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string, err error) {
-	session, err := session.Start(context.Background(), w, r)
+	session, err := session.Start(r.Context(), w, r)
 	//session := sessions.Default(c)
 	if err != nil {
 		return
@@ -212,4 +212,14 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		return
 	}
 	return username, nil
+}
+
+func AccessToken(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
+	err := srv.HandleTokenRequest(w, r)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
+		return
+	}
 }
