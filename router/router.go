@@ -37,11 +37,16 @@ func InitRouter() *gin.Engine {
 	// }
 
 	// oauth
-	oauth := apiV1.Group("/oauth")
+	oauth := apiV1.Group("/oauth2")
 	{
+		// authorize
 		oauth.Any("/authorize", v1.Authorize)
+		// login
 		oauth.GET("/auth", v1.UserAuth)
 		oauth.POST("/token", v1.AccessToken)
+		oauth.POST("/refresh", v1.RefreshToken)
+		oauth.POST("/create-client", v1.CreateClient)
+		oauth.GET("/userinfo", v1.OauthUserInfo)
 	}
 	example := apiV1.Group("/example")
 	{
