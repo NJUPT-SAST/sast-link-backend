@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	authServerURL = "http://localhost:8080"
+	authServerURL = "http://localhost:3000"
 )
 
 var (
@@ -26,8 +26,8 @@ var (
 		Scopes:       []string{"all"},
 		RedirectURL:  "http://localhost:9094/oauth2",
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  authServerURL + "/api/v1/oauth/authorize",
-			TokenURL: authServerURL + "/api/v1/oauth/token",
+			AuthURL:  authServerURL + "/oauth2/auth",
+			TokenURL: "http://localhost:8080/api/v1" + "/oauth2/token",
 		},
 	}
 	globalToken *oauth2.Token // Non-concurrent security
@@ -36,9 +36,9 @@ var (
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		u := config.AuthCodeURL("xyz",
-			oauth2.SetAuthURLParam("code_challenge", genCodeChallengeS256("s256example")),
+			oauth2.SetAuthURLParam("code_challenge", genCodeChallengeS256("sast_forever")),
 			oauth2.SetAuthURLParam("code_challenge_method", "S256"))
-			fmt.Println("URL:"+u)
+		fmt.Println("URL:" + u)
 		http.Redirect(w, r, u, http.StatusFound)
 	})
 
@@ -54,16 +54,17 @@ func main() {
 			http.Error(w, "Code not found", http.StatusBadRequest)
 			return
 		}
-		token, err := config.Exchange(r.Context(), code, oauth2.SetAuthURLParam("code_verifier", "s256example"))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		globalToken = token
+		fmt.Println("Code:" + code)
+		//token, err := config.Exchange(r.Context(), code, oauth2.SetAuthURLParam("code_verifier", "sast_forever"))
+		//if err != nil {
+		//	http.Error(w, err.Error(), http.StatusInternalServerError)
+		//	return
+		//}
+		//globalToken = token
 
-		e := json.NewEncoder(w)
-		e.SetIndent("", "  ")
-		e.Encode(token)
+		//e := json.NewEncoder(w)
+		//e.SetIndent("", "  ")
+		//e.Encode(token)
 	})
 
 	http.HandleFunc("/refresh", func(w http.ResponseWriter, r *http.Request) {
@@ -79,6 +80,8 @@ func main() {
 			return
 		}
 
+		fmt.Println("AccessToken: " + token.AccessToken)
+		fmt.Println("RefreshToken: " + token.RefreshToken)
 		globalToken = token
 		e := json.NewEncoder(w)
 		e.SetIndent("", "  ")

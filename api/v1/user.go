@@ -3,7 +3,6 @@ package v1
 import (
 	"net/http"
 	"regexp"
-	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/model"
 
@@ -133,7 +132,6 @@ func VerifyAccount(ctx *gin.Context) {
 }
 
 func Login(ctx *gin.Context) {
-	//verify information
 	ticket := ctx.GetHeader("LOGIN_TICKET")
 	password := ctx.PostForm("password")
 	if ticket == "" {
@@ -144,13 +142,13 @@ func Login(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.Password_NOTFOUND))
 		return
 	}
-	//get username from ticket
+	// Get username from ticket
 	username, err := util.GetUsername(ticket)
 	if err != nil || username == "" {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.TICKET_NOT_CORRECT))
 		return
 	}
-	//transform username
+	// Transform username
 	compile, unErr := regexp.Compile("-")
 	if unErr != nil {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.UsernameError))
@@ -158,7 +156,7 @@ func Login(ctx *gin.Context) {
 	}
 	split := compile.Split(username, 2)
 	username = split[0]
-	//check the password
+	// Check the password
 	flag, err := service.Login(username, password)
 	if err != nil {
 		controllerLogger.WithFields(
@@ -173,12 +171,12 @@ func Login(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.PasswordError))
 		return
 	}
-	//set Token with expire time and return
-	token, err := util.GenerateTokenWithExp(username, time.Hour*24)
+	// Set Token with expire time and return
+	token, err := util.GenerateTokenWithExp(username, model.LOGIN_TOKEN_EXP)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.GENERATE_TOKEN))
 	}
-	model.Rdb.Set(ctx, "TOKEN:"+username, token, time.Hour*24)
+	model.Rdb.Set(ctx, "TOKEN:"+username, token, model.LOGIN_TOKEN_EXP)
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
 		"token": token,
 	}))
