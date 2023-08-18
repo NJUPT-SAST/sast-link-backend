@@ -1,9 +1,11 @@
 package util
 
 import (
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
-	"math/rand"
+	mr "math/rand"
 	"net"
 	"net/http"
 	"net/mail"
@@ -31,6 +33,28 @@ func GenerateUUID() string {
 	return uuid.String()
 }
 
+// Generate random string
+func GenerateRandomString(length int) (string, error) {
+	randomBytes := make([]byte, length)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return "", err
+	}
+
+	// Encode the random bytes to base64
+	randomString := base64.URLEncoding.EncodeToString(randomBytes)
+
+	// Remove any characters that might be problematic
+	//randomString = cleanRandomString(randomString)
+
+	// Trim to desired length
+	if len(randomString) > length {
+		randomString = randomString[:length]
+	}
+
+	return randomString, nil
+}
+
 // Hash string
 func HashString(str string) string {
 	return fmt.Sprintf("%x", str)
@@ -38,9 +62,9 @@ func HashString(str string) string {
 
 // GenerateCode generate a random code
 func GenerateCode() string {
-	seed := time.Now().UnixNano() + int64(rand.Intn(4478))
+	seed := time.Now().UnixNano() + int64(mr.Intn(4478))
 	//rand.NewSource()
-	rand := rand.New(rand.NewSource(seed))
+	rand := mr.New(mr.NewSource(seed))
 	// 除去容易混淆的字符
 	chars := "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 

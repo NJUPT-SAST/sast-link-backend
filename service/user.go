@@ -39,7 +39,7 @@ func VerifyAccount(ctx *gin.Context, username, flag string) (string, error) {
 	}
 }
 
-// this function is used to verify the user's email is exist or not when register
+// This function is used to verify the user's email is exist or not when register
 func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 	// check if the user is exist
 	exist, err := model.CheckUserByEmail(username)
@@ -61,7 +61,7 @@ func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 	}
 }
 
-// this function is used to verify the user's email is exist or not when login
+// This function is used to verify the user's email is exist or not when login
 func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 	exist, err := model.CheckUserByEmail(username)
 	if err != nil {
@@ -107,8 +107,8 @@ func Login(username string, password string) (bool, error) {
 }
 
 func UserInfo(ctx *gin.Context) (*model.User, error) {
-	jwt := ctx.GetHeader("TOKEN")
-	jwtClaims, err := util.ParseToken(jwt)
+	token := ctx.GetHeader("TOKEN")
+	jwtClaims, err := util.ParseToken(token)
 	nilUser := &model.User{}
 	if err != nil {
 		return nilUser, err
@@ -126,11 +126,10 @@ func UserInfo(ctx *gin.Context) (*model.User, error) {
 		return nilUser, err
 	}
 
-	if rToken == "" || rToken != jwt {
+	if rToken == "" || rToken != token {
 		return nilUser, result.AUTH_ERROR
 	}
 
-	//return model.UserInfo(username + "test")
 	return model.UserInfo(username)
 }
 
