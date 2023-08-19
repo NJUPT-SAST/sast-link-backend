@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"regexp"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
@@ -51,7 +50,7 @@ func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 		return "", result.UserIsExist
 	} else { // user is not exist and can register
 		// generate token and set expire time
-		ticket, err := util.GenerateTokenWithExp(fmt.Sprintf("%s-register", username), model.REGISTER_TICKET_EXP)
+		ticket, err := util.GenerateTokenWithExp(model.RegisterJWTSubKey(username), model.REGISTER_TICKET_EXP)
 		if err != nil {
 			return "", err
 		}
@@ -69,12 +68,12 @@ func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 	}
 	// user is exist and can login
 	if exist {
-		ticket, err := util.GenerateTokenWithExp(fmt.Sprintf("%s-login", username), model.LOGIN_TICKET_EXP)
+		ticket, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username), model.LOGIN_TICKET_EXP)
 		if err != nil {
 			return "", err
 		}
 		// 5min expire
-		model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, model.LOGIN_TICKET_EXP)
+		model.Rdb.Set(ctx, model.LoginTicketKey(username), ticket, model.LOGIN_TICKET_EXP)
 		return ticket, err
 	} else { // user is not exist and can't login
 		// login can use uid and email
@@ -83,12 +82,12 @@ func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 			return "", err
 		}
 		if uidExist {
-			ticket, err := util.GenerateTokenWithExp(fmt.Sprintf("%s-login", username), model.LOGIN_TICKET_EXP)
+			ticket, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username), model.LOGIN_TICKET_EXP)
 			if err != nil {
 				return "", err
 			}
 			// 5min expire
-			model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, model.LOGIN_TICKET_EXP)
+			model.Rdb.Set(ctx, model.LoginTicketKey(username), ticket, model.LOGIN_TICKET_EXP)
 			return ticket, err
 		} else {
 			return "", result.UserNotExist
@@ -118,7 +117,7 @@ func UserInfo(ctx *gin.Context) (*model.User, error) {
 		return nilUser, claimsError
 	}
 
-	rToken, err := model.Rdb.Get(ctx, fmt.Sprintf("TOKEN:%s", username)).Result()
+	rToken, err := model.Rdb.Get(ctx, model.LoginTokenKey(username)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return nilUser, result.AUTH_ERROR
@@ -148,8 +147,7 @@ func SendEmail(ctx *gin.Context, username, ticket string) error {
 		return result.TICKET_NOT_CORRECT
 	}
 	code := model.GenerateVerifyCode(username)
-	codeKey := "CAPTCHA-" + username
-	model.Rdb.Set(ctx, codeKey, code, model.CAPTCHA_EXP)
+	model.Rdb.Set(ctx, model.CaptchaKey(username), code, model.CAPTCHA_EXP)
 	content := model.InsertCode(code)
 	emailErr := model.SendEmail(username, content)
 	if emailErr != nil {
@@ -177,8 +175,7 @@ func CheckVerifyCode(ctx *gin.Context, ticket, code string) error {
 		return uErr
 	}
 
-	codeKey := "CAPTCHA-" + username
-	rCode, cErr := model.Rdb.Get(ctx, codeKey).Result()
+	rCode, cErr := model.Rdb.Get(ctx, model.CaptchaKey(username)).Result()
 	if cErr != nil {
 		if cErr == redis.Nil {
 			return result.CaptchaError
