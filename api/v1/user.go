@@ -2,7 +2,6 @@ package v1
 
 import (
 	"net/http"
-	"regexp"
 
 	"github.com/NJUPT-SAST/sast-link-backend/model"
 
@@ -148,14 +147,6 @@ func Login(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.TICKET_NOT_CORRECT))
 		return
 	}
-	// Transform username
-	compile, unErr := regexp.Compile("-")
-	if unErr != nil {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.UsernameError))
-		return
-	}
-	split := compile.Split(username, 2)
-	username = split[0]
 	// Check the password
 	flag, err := service.Login(username, password)
 	if err != nil {
@@ -176,7 +167,7 @@ func Login(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.GENERATE_TOKEN))
 	}
-	model.Rdb.Set(ctx, "TOKEN:"+username, token, model.LOGIN_TOKEN_EXP)
+	model.Rdb.Set(ctx, model.LoginTokenKey(username), token, model.LOGIN_TOKEN_EXP)
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
 		"token": token,
 	}))
@@ -196,6 +187,6 @@ func Logout(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, result.TICKET_NOT_CORRECT)
 		return
 	}
-	model.Rdb.Del(ctx, "TOKEN:"+username)
+	model.Rdb.Del(ctx, model.LoginTokenKey(username))
 	ctx.JSON(http.StatusOK, result.Success(nil))
 }
