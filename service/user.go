@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 
@@ -9,10 +8,10 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/model"
 	"github.com/NJUPT-SAST/sast-link-backend/model/result"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
+	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 )
 
-var ctx = context.Background()
 var serviceLogger = log.Log
 
 func CreateUser(email string, password string) error {
@@ -30,18 +29,18 @@ func CreateUser(email string, password string) error {
 	}
 }
 
-func VerifyAccount(username string, flag string) (string, error) {
+func VerifyAccount(ctx *gin.Context, username, flag string) (string, error) {
 	// 0 is register
 	// 1 is login
 	if flag == "0" {
-		return VerifyAccountRegister(username)
+		return VerifyAccountRegister(ctx, username)
 	} else {
-		return VerifyAccountLogin(username)
+		return VerifyAccountLogin(ctx, username)
 	}
 }
 
-// this function is used to verify the user's email is exist or not when register
-func VerifyAccountRegister(username string) (string, error) {
+// This function is used to verify the user's email is exist or not when register
+func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 	// check if the user is exist
 	exist, err := model.CheckUserByEmail(username)
 	if err != nil {
@@ -52,30 +51,30 @@ func VerifyAccountRegister(username string) (string, error) {
 		return "", result.UserIsExist
 	} else { // user is not exist and can register
 		// generate token and set expire time
-		ticket, err := util.GenerateTokenWithExpireTime(fmt.Sprintf("%s-register", username), model.REGISTER_TICKET_EXPIRE_TIME)
+		ticket, err := util.GenerateTokenWithExp(fmt.Sprintf("%s-register", username), model.REGISTER_TICKET_EXP)
 		if err != nil {
 			return "", err
 		}
 		// set token to redis
-		model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["VERIFY_ACCOUNT"], model.REGISTER_TICKET_EXPIRE_TIME)
+		model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["VERIFY_ACCOUNT"], model.REGISTER_TICKET_EXP)
 		return ticket, err
 	}
 }
 
-// this function is used to verify the user's email is exist or not when login
-func VerifyAccountLogin(username string) (string, error) {
+// This function is used to verify the user's email is exist or not when login
+func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 	exist, err := model.CheckUserByEmail(username)
 	if err != nil {
 		return "", err
 	}
 	// user is exist and can login
 	if exist {
-		ticket, err := util.GenerateTokenWithExpireTime(fmt.Sprintf("%s-login", username), model.LOGIN_TICKET_EXPIRE)
+		ticket, err := util.GenerateTokenWithExp(fmt.Sprintf("%s-login", username), model.LOGIN_TICKET_EXP)
 		if err != nil {
 			return "", err
 		}
 		// 5min expire
-		model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, model.LOGIN_TICKET_EXPIRE)
+		model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, model.LOGIN_TICKET_EXP)
 		return ticket, err
 	} else { // user is not exist and can't login
 		// login can use uid and email
@@ -84,12 +83,12 @@ func VerifyAccountLogin(username string) (string, error) {
 			return "", err
 		}
 		if uidExist {
-			ticket, err := util.GenerateTokenWithExpireTime(fmt.Sprintf("%s-login", username), model.LOGIN_TICKET_EXPIRE)
+			ticket, err := util.GenerateTokenWithExp(fmt.Sprintf("%s-login", username), model.LOGIN_TICKET_EXP)
 			if err != nil {
 				return "", err
 			}
 			// 5min expire
-			model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, model.LOGIN_TICKET_EXPIRE)
+			model.Rdb.Set(ctx, "LOGIN_TICKET:"+username, ticket, model.LOGIN_TICKET_EXP)
 			return ticket, err
 		} else {
 			return "", result.UserNotExist
@@ -107,8 +106,9 @@ func Login(username string, password string) (bool, error) {
 
 }
 
-func UserInfo(jwt string) (*model.User, error) {
-	jwtClaims, err := util.ParseToken(jwt)
+func UserInfo(ctx *gin.Context) (*model.User, error) {
+	token := ctx.GetHeader("TOKEN")
+	jwtClaims, err := util.ParseToken(token)
 	nilUser := &model.User{}
 	if err != nil {
 		return nilUser, err
@@ -126,15 +126,14 @@ func UserInfo(jwt string) (*model.User, error) {
 		return nilUser, err
 	}
 
-	if rToken == "" || rToken != jwt {
+	if rToken == "" || rToken != token {
 		return nilUser, result.AUTH_ERROR
 	}
 
-	return model.UserInfo(username + "test")
-	//return model.UserInfo(username)
+	return model.UserInfo(username)
 }
 
-func SendEmail(username string, ticket string) error {
+func SendEmail(ctx *gin.Context, username, ticket string) error {
 	val, err := model.Rdb.Get(ctx, ticket).Result()
 	if err != nil {
 		// key does not exists
@@ -150,7 +149,7 @@ func SendEmail(username string, ticket string) error {
 	}
 	code := model.GenerateVerifyCode(username)
 	codeKey := "CAPTCHA-" + username
-	model.Rdb.Set(ctx, codeKey, code, model.CAPTCHA_EXPIRE_TIME)
+	model.Rdb.Set(ctx, codeKey, code, model.CAPTCHA_EXP)
 	content := model.InsertCode(code)
 	emailErr := model.SendEmail(username, content)
 	if emailErr != nil {
@@ -158,11 +157,11 @@ func SendEmail(username string, ticket string) error {
 	}
 	serviceLogger.Infof("Send Email to [%s] with code [%s]\n", username, code)
 	// Update the status of the ticket
-	model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["SEND_EMAIL"], model.REGISTER_TICKET_EXPIRE_TIME)
+	model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["SEND_EMAIL"], model.REGISTER_TICKET_EXP)
 	return nil
 }
 
-func CheckVerifyCode(ticket string, code string) error {
+func CheckVerifyCode(ctx *gin.Context, ticket, code string) error {
 	status, err := model.Rdb.Get(ctx, ticket).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -192,11 +191,11 @@ func CheckVerifyCode(ticket string, code string) error {
 	}
 
 	// Update the status of the ticket
-	model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["VERIFY_CAPTCHA"], model.REGISTER_TICKET_EXPIRE_TIME)
+	model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["VERIFY_CAPTCHA"], model.REGISTER_TICKET_EXP)
 	return nil
 }
 
-func CheckToken(key string, token string) bool {
+func CheckToken(ctx *gin.Context, key, token string) bool {
 	val, err := model.Rdb.Get(ctx, key).Result()
 	if err != nil {
 		return false
