@@ -1,4 +1,4 @@
-description = "xxx's development configuration"
+description = "sast link's development configuration"
 
 [postgres]
 username = "xxxxx"
@@ -22,3 +22,8 @@ level = "debug"
 [email]
 sender = "xxxxx"
 secret = "xxxxx"
+
+[oauth]
+# urlExample := "postgres://username:password@localhost:5432/database_name"
+db_uri = "xxxx"
+front_url = "http://localhost:3000"
