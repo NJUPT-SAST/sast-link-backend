@@ -39,7 +39,6 @@ func GenerateToken(username string) (string, error) {
 // GenerateToken with expireTime
 func GenerateTokenWithExp(username string, expireTime time.Duration) (string, error) {
 	signingKey := []byte(jwtSigningKey)
-	// you can use 512
 	gen := NewJWTAccessGenerate("", signingKey, jwt.SigningMethodHS256)
 	access, _, err := gen.Token(context.Background(), username, expireTime, false)
 	return access, err
