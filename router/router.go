@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	v1 "github.com/NJUPT-SAST/sast-link-backend/api/v1"
-	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/gin-gonic/gin"
 )
 
@@ -48,27 +47,6 @@ func InitRouter() *gin.Engine {
 		oauth.POST("/create-client", v1.CreateClient)
 		oauth.GET("/userinfo", v1.OauthUserInfo)
 	}
-	example := apiV1.Group("/example")
-	{
-		example.GET("/verify", examVerify)
-		example.GET("/login", examLogin)
-		example.GET("/auth", examAuth)
-	}
 
 	return r
-}
-
-func examVerify(ctx *gin.Context) {
-	// example
-	util.OutputHTML(ctx.Writer, ctx.Request, "example/static/verify.html")
-}
-
-func examLogin(ctx *gin.Context) {
-	// example
-	util.OutputHTML(ctx.Writer, ctx.Request, "example/static/login.html")
-}
-
-func examAuth(ctx *gin.Context) {
-	// example
-	util.OutputHTML(ctx.Writer, ctx.Request, "example/static/auth.html")
 }
