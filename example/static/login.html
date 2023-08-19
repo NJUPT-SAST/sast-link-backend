@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Login</title>
+    <!-- <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" /> -->
+    <script src="//code.jquery.com/jquery-2.2.4.min.js"></script>
+    <!-- <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script> -->
+</head>
+
+<body>
+    <div class="container">
+        <h1>Login In</h1>
+        <div class="form-group">
+            <label for="username">User Name</label>
+            <input id="username" type="text" class="form-control" name="username" required
+                placeholder="Please enter your user name" />
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input id="password" type="password" class="form-control" name="password"
+                placeholder="Please enter your password" />
+        </div>
+        <button onclick="login()" class="btn btn-success">Login</button>
+    </div>
+
+    <script>
+        async function login() {
+            const token = new URLSearchParams(window.location.search).get("token");
+            const password = document.getElementById("password").value;
+
+            if (token) {
+                const headers = new Headers();
+                headers.append("LOGIN_TICKET", token);
+                var formdata = new FormData();
+                formdata.append("password", password);
+
+                try {
+                    const response = await fetch("/api/v1/user/login", {
+                        method: "POST",
+                        headers: headers,
+                        body: formdata,
+                    });
+
+                    if (response.ok) {
+                        alert("login success!");
+                        response.json().then((data) => {
+                            localStorage.setItem("token", data.Data.token);
+                        });
+                        window.location.href = "./auth";
+                    } else {
+                        alert("login fail");
+                    }
+                } catch (error) {
+                    alert("error：" + error);
+                }
+            } else {
+                alert("invalid token");
+            }
+        }
+    </script>
+</body>
+</body>
+
+</html>
