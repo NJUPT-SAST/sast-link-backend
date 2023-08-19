@@ -11,3 +11,11 @@ func TestGenerateCode(t *testing.T) {
 		fmt.Println(code)
 	}
 }
+
+func TestGenerateRandomString(t *testing.T) {
+	randomString, err := GenerateRandomString(32)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(randomString)
+}
