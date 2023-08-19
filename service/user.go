@@ -107,14 +107,10 @@ func Login(username string, password string) (bool, error) {
 
 func UserInfo(ctx *gin.Context) (*model.User, error) {
 	token := ctx.GetHeader("TOKEN")
-	jwtClaims, err := util.ParseToken(token)
 	nilUser := &model.User{}
+	username, err := util.GetUsername(token)
 	if err != nil {
 		return nilUser, err
-	}
-	username, claimsError := jwtClaims.GetSubject()
-	if claimsError != nil {
-		return nilUser, claimsError
 	}
 
 	rToken, err := model.Rdb.Get(ctx, model.LoginTokenKey(username)).Result()
