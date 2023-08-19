@@ -198,11 +198,11 @@ func AccessToken(c *gin.Context) {
 func RefreshToken(c *gin.Context) {
 	w := c.Writer
 	r := c.Request
-	_ = srv.HandleTokenRequest(w, r)
-	// if err == nil {
-	// 	c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
-	// 	return
-	// }
+	err := srv.HandleTokenRequest(w, r)
+	if err == nil {
+		c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
+		return
+	}
 }
 
 func clientInfoHandler(r *http.Request) (clientID, clientSecret string, err error) {
@@ -277,7 +277,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		return
 	}
 
-	rToken, err := model.Rdb.Get(r.Context(), fmt.Sprintf("TOKEN:%s", username)).Result()
+	rToken, err := model.Rdb.Get(r.Context(), model.LoginTokenKey(username)).Result()
 	if err != nil {
 		if r.Form == nil {
 			_ = r.ParseForm()
