@@ -84,7 +84,7 @@ func SendEmail(sender string, secret string, recipient string, content string) e
 	// https://gist.github.com/chrisgillis/10888032
 	from := mail.Address{"", sender}
 	to := mail.Address{"", recipient}
-	subj := "确认电子邮件注册SAST-Link账户"
+	subj := "确认电子邮件注册SAST-Link账户（无需回复）"
 	body := content
 
 	// Setup headers

@@ -44,6 +44,7 @@ func main() {
 
 	http.HandleFunc("/oauth2", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
+		println(r.URL.RawQuery)
 		state := r.Form.Get("state")
 		if state != "xyz" {
 			http.Error(w, "State invalid", http.StatusBadRequest)
