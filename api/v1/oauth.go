@@ -57,12 +57,11 @@ func InitServer() {
 	// TODO: error handler
 	srv.SetInternalErrorHandler(func(err error) (re *errors.Response) {
 		log.Println("Internal Error:", err.Error())
-		//error := errors.NewResponse(err, http.StatusInternalServerError)
-		//error.ErrorCode = 500
-		//error.StatusCode = http.StatusInternalServerError
-		//error.Description = err.Error()
-		//return error
-		return
+		error := errors.NewResponse(err, http.StatusInternalServerError)
+		error.ErrorCode = 500
+		error.StatusCode = http.StatusInternalServerError
+		error.Description = err.Error()
+		return error
 	})
 
 	srv.SetResponseErrorHandler(func(re *errors.Response) {
