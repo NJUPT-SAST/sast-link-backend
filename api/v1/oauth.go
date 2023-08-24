@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -31,7 +32,6 @@ var (
 	pgxConn, _     = pgx.Connect(context.TODO(), config.Config.Sub("oauth").GetString("db_uri"))
 	adapter        = pgx4adapter.NewConn(pgxConn)
 	clientStore, _ = pg.NewClientStore(adapter)
-	frontUrl       = config.Config.Sub("oauth").GetString("front_url")
 )
 
 func init() {
@@ -174,9 +174,10 @@ func UserAuth(c *gin.Context) {
 	_ = r.ParseMultipartForm(0)
 	token := c.PostForm("token")
 	if token == "" {
-		//w.Header().Set("Location", "/api/v1/verify")
-		w.Header().Set("Location", fmt.Sprintf("%s/verify", frontUrl))
-		w.WriteHeader(http.StatusFound)
+		w.Header().Set("Content-Type", "application/json")
+		response := result.Failed(result.AUTH_ERROR)
+		json, _ := json.Marshal(response)
+		w.Write(json)
 		return
 	}
 }
@@ -257,8 +258,10 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		session.Set("ReturnUri", r.Form)
 		_ = session.Save()
 
-		w.Header().Set("Location", fmt.Sprintf("%s/verify", frontUrl))
-		w.WriteHeader(http.StatusFound)
+		w.Header().Set("Content-Type", "application/json")
+		response := result.Failed(result.AUTH_ERROR)
+		json, _ := json.Marshal(response)
+		w.Write(json)
 		return
 	}
 
@@ -271,8 +274,10 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		session.Set("ReturnUri", r.Form)
 		_ = session.Save()
 
-		w.Header().Set("Location", fmt.Sprintf("%s/verify", frontUrl))
-		w.WriteHeader(http.StatusFound)
+		w.Header().Set("Content-Type", "application/json")
+		response := result.Failed(result.AUTH_ERROR)
+		json, _ := json.Marshal(response)
+		w.Write(json)
 		return
 	}
 
@@ -285,8 +290,10 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		session.Set("ReturnUri", r.Form)
 		_ = session.Save()
 
-		w.Header().Set("Location", fmt.Sprintf("%s/verify", frontUrl))
-		w.WriteHeader(http.StatusFound)
+		w.Header().Set("Content-Type", "application/json")
+		response := result.Failed(result.AUTH_ERROR)
+		json, _ := json.Marshal(response)
+		w.Write(json)
 		return
 	}
 	if rToken != token {
@@ -297,8 +304,10 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		session.Set("ReturnUri", r.Form)
 		_ = session.Save()
 
-		w.Header().Set("Location", fmt.Sprintf("%s/verify", frontUrl))
-		w.WriteHeader(http.StatusFound)
+		w.Header().Set("Content-Type", "application/json")
+		response := result.Failed(result.AUTH_ERROR)
+		json, _ := json.Marshal(response)
+		w.Write(json)
 		return
 	}
 	return username, nil
