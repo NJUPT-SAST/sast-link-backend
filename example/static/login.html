@@ -32,7 +32,7 @@
 
             if (token) {
                 const headers = new Headers();
-                headers.append("LOGIN_TICKET", token);
+                headers.append("LOGIN-TICKET", token);
                 var formdata = new FormData();
                 formdata.append("password", password);
 
