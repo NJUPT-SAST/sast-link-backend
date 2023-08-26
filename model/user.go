@@ -94,9 +94,10 @@ func CheckUserByUid(uid string) (bool, error) {
 
 func UserInfo(username string) (*User, error) {
 	var user = User{Uid: &username}
-	if err := Db.First(&user).Error; err != nil {
+	if err := Db.Where("email = ?", username).First(&user).Error; err != nil {
 		return nil, fmt.Errorf("%v: User [%s] Not Exist\n", err, username)
 	}
+
 	return &user, nil
 }
 
