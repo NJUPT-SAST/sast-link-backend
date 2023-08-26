@@ -71,6 +71,7 @@ func UserInfo(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
 		"email": user.Email,
+		"user_id": user.Uid,
 	}))
 }
 
