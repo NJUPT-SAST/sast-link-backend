@@ -134,7 +134,6 @@ func OauthUserInfo(c *gin.Context) {
 	}))
 }
 
-// redirect user to login for authorization
 func Authorize(c *gin.Context) {
 	r := c.Request
 	w := c.Writer
