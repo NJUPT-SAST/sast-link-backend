@@ -2,6 +2,7 @@ package v1
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/NJUPT-SAST/sast-link-backend/model"
 
@@ -70,7 +71,7 @@ func UserInfo(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
-		"email": user.Email,
+		"email":   user.Email,
 		"user_id": user.Uid,
 	}))
 }
@@ -104,6 +105,9 @@ func SendEmail(ctx *gin.Context) {
 
 func VerifyAccount(ctx *gin.Context) {
 	username := ctx.Query("username")
+	// Capitalize the username
+	username = strings.ToLower(username)
+
 	flag := ctx.Query("flag")
 	tKey := ""
 	// 0 is register

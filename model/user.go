@@ -66,7 +66,7 @@ func CheckPassword(username string, password string) (bool, error) {
 // return true if user exist
 func CheckUserByEmail(email string) (bool, error) {
 	var user User
-	err := Db.Where("email = ?", email).First(&user).Error
+	err := Db.Where("email = ?", email).Where("is_deleted = ?", false).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			userLogger.Infof("User [%s] Not Exist\n", email)
