@@ -42,6 +42,22 @@ func main() {
 		http.Redirect(w, r, u, http.StatusFound)
 	})
 
+	http.HandleFunc("/api/auth/callback/sastlink", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		println(r.URL.RawQuery)
+		state := r.Form.Get("state")
+		if state != "xyz" {
+			http.Error(w, "State invalid", http.StatusBadRequest)
+			return
+		}
+		code := r.Form.Get("code")
+		if code == "" {
+			http.Error(w, "Code not found", http.StatusBadRequest)
+			return
+		}
+		fmt.Println("Code:" + code)
+	})
+
 	http.HandleFunc("/oauth2", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		println(r.URL.RawQuery)

@@ -2,6 +2,7 @@ package service
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/model"
@@ -16,6 +17,7 @@ var serviceLogger = log.Log
 func CreateUser(email string, password string) error {
 	split := regexp.MustCompile(`@`)
 	uid := split.Split(email, 2)[0]
+	uid = strings.ToLower(uid)
 	err := model.CreateUser(&model.User{
 		Email:    &email,
 		Password: &password,
