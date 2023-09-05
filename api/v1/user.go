@@ -2,6 +2,7 @@ package v1
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/NJUPT-SAST/sast-link-backend/model"
 
@@ -27,7 +28,7 @@ func Register(ctx *gin.Context) {
 		return
 	}
 
-	ticket := ctx.GetHeader("REGISTER_TICKET")
+	ticket := ctx.GetHeader("REGISTER-TICKET")
 	username, usernameErr := util.GetUsername(ticket)
 	if usernameErr != nil {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(usernameErr)))
@@ -44,7 +45,7 @@ func Register(ctx *gin.Context) {
 
 func CheckVerifyCode(ctx *gin.Context) {
 	code, codeFlag := ctx.GetPostForm("captcha")
-	ticket := ctx.GetHeader("REGISTER_TICKET")
+	ticket := ctx.GetHeader("REGISTER-TICKET")
 	if !codeFlag {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.ParamError))
 		return
@@ -70,12 +71,13 @@ func UserInfo(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
-		"email": user.Email,
+		"email":   user.Email,
+		"user_id": user.Uid,
 	}))
 }
 
 func SendEmail(ctx *gin.Context) {
-	ticket := ctx.GetHeader("REGISTER_TICKET")
+	ticket := ctx.GetHeader("REGISTER-TICKET")
 	username, usernameErr := util.GetUsername(ticket)
 	// 错误处理机制写玉玉了
 	// 我开始乱写了啊啊啊啊
@@ -103,6 +105,9 @@ func SendEmail(ctx *gin.Context) {
 
 func VerifyAccount(ctx *gin.Context) {
 	username := ctx.Query("username")
+	// Capitalize the username
+	username = strings.ToLower(username)
+
 	flag := ctx.Query("flag")
 	tKey := ""
 	// 0 is register
@@ -131,7 +136,7 @@ func VerifyAccount(ctx *gin.Context) {
 }
 
 func Login(ctx *gin.Context) {
-	ticket := ctx.GetHeader("LOGIN_TICKET")
+	ticket := ctx.GetHeader("LOGIN-TICKET")
 	password := ctx.PostForm("password")
 	if ticket == "" {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.CHECK_TICKET_NOTFOUND))
