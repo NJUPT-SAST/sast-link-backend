@@ -80,18 +80,20 @@ func GetUsername(token string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	validError := claims.Valid()
 	if validError != nil {
 		return "", validError
 	}
-	
+
 	username, claimsError := claims.GetAudience()
 	if claimsError != nil {
 		return "", claimsError
 	}
 	// redis ticket is username-register
-	return strings.Split(username[0], "-")[0], nil
+	uid, err := strings.Split(username[0], "-")[0], nil
+
+	return strings.ToLower(uid), err
 }
 
 // JWTAccessClaims jwt claims
