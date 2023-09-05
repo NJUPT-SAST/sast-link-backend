@@ -4,11 +4,15 @@ import (
 	"net/http"
 
 	v1 "github.com/NJUPT-SAST/sast-link-backend/api/v1"
+	"github.com/NJUPT-SAST/sast-link-backend/log"
+	"github.com/NJUPT-SAST/sast-link-backend/middleware"
 	"github.com/gin-gonic/gin"
 )
 
 func InitRouter() *gin.Engine {
 	r := gin.New()
+	var midLog = log.Log
+	r.Use(middleware.MiddlewareLogging(midLog))
 	// FIXME: need discuss on web log
 	// r.Use(middleware.WebLogger)
 	r.GET("/ping", func(c *gin.Context) {
@@ -39,7 +43,7 @@ func InitRouter() *gin.Engine {
 	oauth := apiV1.Group("/oauth2")
 	{
 		// authorize
-		oauth.Any("/authorize", v1.Authorize)
+		oauth.GET("/authorize", v1.Authorize)
 		// login
 		oauth.GET("/auth", v1.UserAuth)
 		oauth.POST("/token", v1.AccessToken)

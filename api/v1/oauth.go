@@ -134,21 +134,18 @@ func OauthUserInfo(c *gin.Context) {
 	}))
 }
 
-// redirect user to login for authorization
 func Authorize(c *gin.Context) {
 	r := c.Request
 	w := c.Writer
-	_ = r.ParseMultipartForm(0)
-	_ = r.ParseForm()
 	store, err := session.Start(c, w, r)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
 		return
 	}
+	_ = r.ParseForm()
 	var form url.Values
 	if v, ok := store.Get("ReturnUri"); ok {
 		form = v.(url.Values)
-		form.Add("token", r.Form.Get("token"))
 	}
 	r.Form = form
 
@@ -245,12 +242,11 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		return
 	}
 
-	// check if user is logged in
-	_ = r.ParseMultipartForm(0)
-	_ = r.ParseForm()
-	token := r.Form.Get("token")
+	token := r.Form.Get("part")
 	if token == "" {
 		if r.Form == nil {
+			// check if user is logged in
+			_ = r.ParseMultipartForm(0)
 			_ = r.ParseForm()
 		}
 
