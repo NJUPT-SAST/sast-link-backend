@@ -6,7 +6,7 @@ name: Go
 on:
   pull_request:
     types:
-      - closed
+      - closed 
 
 jobs:
 
