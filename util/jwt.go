@@ -47,18 +47,18 @@ func GenerateTokenWithExp(username string, expireTime time.Duration) (string, er
 func ParseToken(token string) (*JWTAccessClaims, error) {
 	tokenClaims, err := jwt.ParseWithClaims(token, &JWTAccessClaims{}, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, result.AUTH_PARSE_TOKEN_FAIL
+			return nil, result.AuthParseTokenFail
 		}
 		return []byte(jwtSigningKey), nil
 	})
 	if err != nil {
-		return nil, result.AUTH_PARSE_TOKEN_FAIL.Wrap(err)
+		return nil, result.AuthParseTokenFail.Wrap(err)
 	}
 
 	if claims, ok := tokenClaims.Claims.(*JWTAccessClaims); ok && tokenClaims.Valid {
 		return claims, nil
 	} else {
-		return nil, result.AUTH_PARSE_TOKEN_FAIL.Wrap(err)
+		return nil, result.AuthParseTokenFail.Wrap(err)
 	}
 }
 
