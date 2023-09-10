@@ -3,6 +3,8 @@ package util
 import (
 	"crypto/rand"
 	"crypto/tls"
+	"crypto/sha512"
+	"encoding/hex"
 	"encoding/base64"
 	"fmt"
 	mr "math/rand"
@@ -158,4 +160,11 @@ func SendEmail(sender string, secret string, recipient string, content string) e
 
 	c.Quit()
 	return nil
+}
+
+
+// ShaHashing use sha512 to hash input.
+func ShaHashing(in string) string {
+	sha512Hash := sha512.Sum512([]byte(in))	
+	return hex.EncodeToString(sha512Hash[:])
 }
