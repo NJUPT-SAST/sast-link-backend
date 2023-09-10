@@ -17,15 +17,11 @@ var Config *viper.Viper = viper.New()
 
 func init() {
 	fileName := os.Getenv("CONFIG_FILE")
-	if fileName == "" {
-		fileName = "dev-xun"
-	}
 	Config.AddConfigPath(".")
 	Config.AddConfigPath("../../config")
 	Config.AddConfigPath("../../../config")
 	Config.AddConfigPath("../config")
 	Config.AddConfigPath("./config")
-	Config.AddConfigPath("$HOME/Workspace/go/sast/sast-link-backend/config/")
 	Config.SetConfigName(fileName)
 	Config.SetConfigType("toml")
 
