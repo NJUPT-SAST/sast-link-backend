@@ -1,7 +1,6 @@
 package model
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -13,14 +12,13 @@ import (
 	"gorm.io/gorm"
 )
 
-var ctx = context.Background()
 var userLogger = log.Log
 
 type User struct {
 	ID        uint      `json:"id,omitempty" gorm:"primaryKey"`
 	Uid       *string   `json:"uid,omitempty" gorm:"not null"`
-	Email     *string   `json:"email,omitempty" gorm: "not null"`
-	Password  *string   `json:"passowrd,omitempty" grom:"not null"`
+	Email     *string   `json:"email,omitempty" gorm:"not null"`
+	Password  *string   `json:"password,omitempty" gorm:"not null"`
 	QQId      *string   `json:"qq_id,omitempty"`
 	LarkId    *string   `json:"lark_id,omitempty"`
 	GithubId  *string   `json:"github_id,omitempty"`
@@ -37,6 +35,7 @@ func CreateUser(user *User) error {
 }
 
 func CheckPassword(username string, password string) (bool, error) {
+	//get uid from username by regexp
 	var user User
 	matched, err2 := regexp.MatchString("@", username)
 	if err2 != nil {
@@ -45,6 +44,7 @@ func CheckPassword(username string, password string) (bool, error) {
 	}
 	exist := true
 	var err error = nil
+	//get user by email/uid
 	if matched {
 		err = Db.Where("email = ?", username).First(&user).Error
 	} else {
@@ -56,7 +56,9 @@ func CheckPassword(username string, password string) (bool, error) {
 			exist = false
 		}
 	}
-	if *user.Password != password {
+	//encrypt and verify password
+	pwdEncrypted := util.ShaHashing(password)
+	if *user.Password != pwdEncrypted {
 		exist = false
 	}
 	return exist, err
@@ -101,12 +103,12 @@ func UserInfo(username string) (*User, error) {
 	return &user, nil
 }
 
-func GenerateVerifyCode(username string) string {
+func GenerateVerifyCode() string {
 	code := util.GenerateCode()
 	return code
 }
 
-func SendEmail(recipient string, content string) error {
+func SendEmail(recipient, content string) error {
 	emailInfo := conf.Sub("email")
 	sender := emailInfo.GetString("sender")
 	secret := emailInfo.GetString("secret")
