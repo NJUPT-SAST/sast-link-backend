@@ -2,10 +2,10 @@ package util
 
 import (
 	"crypto/rand"
-	"crypto/tls"
 	"crypto/sha512"
-	"encoding/hex"
+	"crypto/tls"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	mr "math/rand"
 	"net"
@@ -55,11 +55,6 @@ func GenerateRandomString(length int) (string, error) {
 	}
 
 	return randomString, nil
-}
-
-// Hash string
-func HashString(str string) string {
-	return fmt.Sprintf("%x", str)
 }
 
 // GenerateCode generate a random code
@@ -162,9 +157,8 @@ func SendEmail(sender string, secret string, recipient string, content string) e
 	return nil
 }
 
-
 // ShaHashing use sha512 to hash input.
 func ShaHashing(in string) string {
-	sha512Hash := sha512.Sum512([]byte(in))	
+	sha512Hash := sha512.Sum512([]byte(in))
 	return hex.EncodeToString(sha512Hash[:])
 }
