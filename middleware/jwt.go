@@ -22,9 +22,9 @@ var (
 )
 
 // JWT deal with the token passed in
-// if token is nil,or can`t pass the check,or timeout,it will return error
+// if token is nil,or can't pass the check,or timeout,it will return error
 // query expire time in redis
-// todo refresh jwt expire time in redis
+// TODO: refresh jwt expire time in redis
 func JWT(c *gin.Context) {
 	curPath := c.Request.URL.Path
 	// if the path is in excludePath,then skip the check
