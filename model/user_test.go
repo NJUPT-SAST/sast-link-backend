@@ -6,13 +6,13 @@ import (
 )
 
 func TestGenerateCode(t *testing.T) {
-	code := GenerateVerifyCode("B21030518@njupt.edu.cn")
+	code := GenerateVerifyCode()
 	fmt.Println(code)
 }
 
 func TestSendEmail(t *testing.T) {
 	testEmail := "xunop@qq.com"
-	code := GenerateVerifyCode(testEmail)
+	code := GenerateVerifyCode()
 	SendEmail(testEmail, code)
 }
 

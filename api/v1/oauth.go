@@ -73,7 +73,7 @@ func InitServer() {
 func CreateClient(c *gin.Context) {
 	redirectURI := c.PostForm("redirect_uri")
 	if redirectURI == "" {
-		c.JSON(http.StatusBadRequest, result.Failed(result.ParamError))
+		c.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
 		return
 	}
 
@@ -124,7 +124,7 @@ func OauthUserInfo(c *gin.Context) {
 			logrus.Fields{
 				"username": user.Uid,
 			}).Error(err)
-		c.JSON(http.StatusOK, result.Failed(result.GET_USERINFO_FAIL))
+		c.JSON(http.StatusOK, result.Failed(result.GetUserinfoFail))
 		return
 	}
 
@@ -171,7 +171,7 @@ func UserAuth(c *gin.Context) {
 	token := c.PostForm("token")
 	if token == "" {
 		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.AUTH_ERROR)
+		response := result.Failed(result.AuthError)
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -254,7 +254,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		_ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.AUTH_ERROR)
+		response := result.Failed(result.AuthError)
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -270,7 +270,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		_ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.AUTH_ERROR)
+		response := result.Failed(result.AuthError)
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -286,7 +286,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		_ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.AUTH_ERROR)
+		response := result.Failed(result.AuthError)
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -300,7 +300,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		_ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.AUTH_ERROR)
+		response := result.Failed(result.AuthError)
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
