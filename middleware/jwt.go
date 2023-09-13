@@ -22,9 +22,9 @@ var (
 )
 
 // JWT deal with the token passed in
-// if token is nil,or can`t pass the check,or timeout,it will return error
+// if token is nil,or can't pass the check,or timeout,it will return error
 // query expire time in redis
-// todo refresh jwt expire time in redis
+// TODO: refresh jwt expire time in redis
 func JWT(c *gin.Context) {
 	curPath := c.Request.URL.Path
 	// if the path is in excludePath,then skip the check
@@ -35,15 +35,15 @@ func JWT(c *gin.Context) {
 	token := c.GetHeader("TOKEN")
 	// token is nil
 	if token == "" {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.AUTH_PARSE_TOKEN_FAIL))
+		c.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.AuthParseTokenFail))
 	}
 	claims, err := util.ParseToken(token)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.AUTH_PARSE_TOKEN_FAIL))
+		c.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.AuthParseTokenFail))
 	}
 	username, claimsError := claims.GetSubject()
 	if claimsError != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.AUTH_PARSE_TOKEN_FAIL))
+		c.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.AuthParseTokenFail))
 	}
 	//refresh token
 	_, err = rdb.Get(ctx, "TOKEN:"+username).Result()
@@ -58,7 +58,7 @@ func JWT(c *gin.Context) {
 		if dbErr == gorm.ErrRecordNotFound {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.UserNotExist))
 		}
-		c.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.AUTH_PARSE_TOKEN_FAIL))
+		c.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.AuthParseTokenFail))
 	}
 }
 
