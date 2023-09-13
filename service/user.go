@@ -15,12 +15,22 @@ import (
 var serviceLogger = log.Log
 
 func CreateUser(email string, password string) error {
+	// split email with @
 	split := regexp.MustCompile(`@`)
 	uid := split.Split(email, 2)[0]
 	uid = strings.ToLower(uid)
+
+	// password can just contain ascii character
+	passReg := regexp.MustCompile(`^[a-zA-Z0-9!@#$%^&*()_=+]{6,32}$`)
+	if !passReg.MatchString(password) {
+		return result.PasswordIllegal
+	}
+
+	//encrypt password
+	pwdEncrypt := util.ShaHashing(password)
 	err := model.CreateUser(&model.User{
 		Email:    &email,
-		Password: &password,
+		Password: &pwdEncrypt,
 		Uid:      &uid,
 	})
 	if err != nil {
@@ -68,7 +78,7 @@ func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// user is exist and can login
+	// user is existed and can login
 	if exist {
 		ticket, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username), model.LOGIN_TICKET_EXP)
 		if err != nil {
@@ -118,13 +128,13 @@ func UserInfo(ctx *gin.Context) (*model.User, error) {
 	rToken, err := model.Rdb.Get(ctx, model.LoginTokenKey(username)).Result()
 	if err != nil {
 		if err == redis.Nil {
-			return nilUser, result.AUTH_ERROR
+			return nilUser, result.AuthError
 		}
 		return nilUser, err
 	}
 
 	if rToken == "" || rToken != token {
-		return nilUser, result.AUTH_ERROR
+		return nilUser, result.AuthError
 	}
 
 	return model.UserInfo(username)
@@ -135,16 +145,16 @@ func SendEmail(ctx *gin.Context, username, ticket string) error {
 	if err != nil {
 		// key does not exists
 		if err == redis.Nil {
-			return result.CHECK_TICKET_NOTFOUND
+			return result.CheckTicketNotfound
 		}
 		return err
 	}
 
 	// Determine if the ticket is correct
 	if val != model.REGISTER_STATUS["VERIFY_ACCOUNT"] {
-		return result.TICKET_NOT_CORRECT
+		return result.TicketNotCorrect
 	}
-	code := model.GenerateVerifyCode(username)
+	code := model.GenerateVerifyCode()
 	model.Rdb.Set(ctx, model.CaptchaKey(username), code, model.CAPTCHA_EXP)
 	content := model.InsertCode(code)
 	emailErr := model.SendEmail(username, content)
@@ -161,12 +171,12 @@ func CheckVerifyCode(ctx *gin.Context, ticket, code string) error {
 	status, err := model.Rdb.Get(ctx, ticket).Result()
 	if err != nil {
 		if err == redis.Nil {
-			return result.CHECK_TICKET_NOTFOUND
+			return result.CheckTicketNotfound
 		}
 		return err
 	}
 	if status != model.REGISTER_STATUS["SEND_EMAIL"] {
-		return result.TICKET_NOT_CORRECT
+		return result.TicketNotCorrect
 	}
 	username, uErr := util.GetUsername(ticket)
 	if uErr != nil {

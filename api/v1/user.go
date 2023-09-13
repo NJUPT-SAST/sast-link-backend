@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -20,7 +21,7 @@ func Register(ctx *gin.Context) {
 	// get Body from request
 	password, passwordFlag := ctx.GetPostForm("password")
 	if !passwordFlag {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.ParamError))
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
 		return
 	}
 	if password == "" {
@@ -29,6 +30,19 @@ func Register(ctx *gin.Context) {
 	}
 
 	ticket := ctx.GetHeader("REGISTER-TICKET")
+
+	currentPhase, _ := model.Rdb.Get(ctx, ticket).Result()
+	fmt.Println("================", currentPhase, "====================")
+	// check which phase current in
+	switch currentPhase {
+	case model.REGISTER_STATUS["VERIFY_ACCOUNT"], model.REGISTER_STATUS["SEND_EMAIL"]:
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.RegisterPhaseError))
+		return
+	case model.REGISTER_STATUS["SUCCESS"]:
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.UserAlreadyExist))
+		return
+	}
+
 	username, usernameErr := util.GetUsername(ticket)
 	if usernameErr != nil {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(usernameErr)))
@@ -41,13 +55,16 @@ func Register(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, result.Success(nil))
+
+	// set REGISTER_STATUS to 3 if successes
+	model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["SUCCESS"], model.REGISTER_TICKET_EXP)
 }
 
 func CheckVerifyCode(ctx *gin.Context) {
 	code, codeFlag := ctx.GetPostForm("captcha")
 	ticket := ctx.GetHeader("REGISTER-TICKET")
 	if !codeFlag {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.ParamError))
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
 		return
 	}
 
@@ -66,7 +83,7 @@ func UserInfo(ctx *gin.Context) {
 			logrus.Fields{
 				"username": user.Uid,
 			}).Error(err)
-		ctx.JSON(http.StatusOK, result.Failed(result.GET_USERINFO_FAIL))
+		ctx.JSON(http.StatusOK, result.Failed(result.GetUserinfoFail))
 		return
 	}
 
@@ -86,7 +103,7 @@ func SendEmail(ctx *gin.Context) {
 			logrus.Fields{
 				"username": username,
 			}).Error(usernameErr)
-		ctx.JSON(http.StatusUnauthorized, result.Failed(result.TICKET_NOT_CORRECT))
+		ctx.JSON(http.StatusUnauthorized, result.Failed(result.TicketNotCorrect))
 		return
 	}
 
@@ -117,7 +134,7 @@ func VerifyAccount(ctx *gin.Context) {
 	} else if flag == "0" {
 		tKey = "register_ticket"
 	} else {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.ParamError))
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
 		return
 	}
 	ticket, err := service.VerifyAccount(ctx, username, flag)
@@ -139,19 +156,22 @@ func Login(ctx *gin.Context) {
 	ticket := ctx.GetHeader("LOGIN-TICKET")
 	password := ctx.PostForm("password")
 	if ticket == "" {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.CHECK_TICKET_NOTFOUND))
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.CheckTicketNotfound))
 		return
 	}
 	if password == "" {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.Password_NOTFOUND))
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.PasswordEmpty))
 		return
 	}
+
 	// Get username from ticket
 	username, err := util.GetUsername(ticket)
 	if err != nil || username == "" {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.TICKET_NOT_CORRECT))
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.TicketNotCorrect))
 		return
 	}
+	//verify if the user is deleted
+
 	// Check the password
 	flag, err := service.Login(username, password)
 	if err != nil {
@@ -170,7 +190,7 @@ func Login(ctx *gin.Context) {
 	// Set Token with expire time and return
 	token, err := util.GenerateTokenWithExp(username, model.LOGIN_TOKEN_EXP)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.GENERATE_TOKEN))
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.GenerateToken))
 	}
 	model.Rdb.Set(ctx, model.LoginTokenKey(username), token, model.LOGIN_TOKEN_EXP)
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
@@ -183,13 +203,13 @@ func Logout(ctx *gin.Context) {
 	token := ctx.GetHeader("TOKEN")
 
 	if token == "" {
-		ctx.JSON(http.StatusBadRequest, result.TICKET_NOT_CORRECT)
+		ctx.JSON(http.StatusBadRequest, result.TicketNotCorrect)
 		return
 	}
 	//remove Token from username
 	username, err := util.GetUsername(token)
 	if err != nil || username == "" {
-		ctx.JSON(http.StatusBadRequest, result.TICKET_NOT_CORRECT)
+		ctx.JSON(http.StatusBadRequest, result.TicketNotCorrect)
 		return
 	}
 	model.Rdb.Del(ctx, model.LoginTokenKey(username))

@@ -9,7 +9,7 @@ port = 1234
 
 [redis]
 host = "xxx"
-port = "11451"
+port = 11451
 password = "xxxxx"
 db = 0
 
