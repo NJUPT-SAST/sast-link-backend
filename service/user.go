@@ -14,15 +14,19 @@ import (
 
 var serviceLogger = log.Log
 
+// password can just contain ascii character
+func CheckPasswordFormat(password string) bool {
+	passReg := regexp.MustCompile(`^[a-zA-Z0-9!@#$%^&*()_=+]{6,32}$`)
+	return passReg.MatchString(password)
+}
+
 func CreateUser(email string, password string) error {
 	// split email with @
 	split := regexp.MustCompile(`@`)
 	uid := split.Split(email, 2)[0]
 	uid = strings.ToLower(uid)
 
-	// password can just contain ascii character
-	passReg := regexp.MustCompile(`^[a-zA-Z0-9!@#$%^&*()_=+]{6,32}$`)
-	if !passReg.MatchString(password) {
+	if !CheckPasswordFormat(password) {
 		return result.PasswordIllegal
 	}
 
@@ -115,6 +119,19 @@ func Login(username string, password string) (bool, error) {
 	}
 	return true, err
 
+}
+
+func ModifyPassword(ctx *gin.Context, username, oldPassword, newPassword string) error {
+	//check password
+	flag, err := model.CheckPassword(username, oldPassword)
+	if !flag {
+		return err
+	}
+	pErr := model.ChangePassword(username, newPassword)
+	if pErr != nil {
+		return pErr
+	}
+	return nil
 }
 
 func UserInfo(ctx *gin.Context) (*model.User, error) {

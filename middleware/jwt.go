@@ -52,7 +52,7 @@ func JWT(c *gin.Context) {
 	}
 	// query user in database
 	var user model.User
-	dbErr := model.Db.Where("email = ?", username).First(&user).Error
+	dbErr := model.Db.Where("email = ?", username).Where("is_deleted = ?", false).First(&user).Error
 	if dbErr != nil {
 		// if the user is not exist
 		if dbErr == gorm.ErrRecordNotFound {

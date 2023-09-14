@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	REGISTER_TICKET_EXP = time.Minute * 3
+	REGISTER_TICKET_EXP = time.Minute * 5
 	CAPTCHA_EXP         = time.Minute * 3
 	// This is not login token expire time, this is login ticket expire time
 	LOGIN_TICKET_EXP = time.Minute * 5
