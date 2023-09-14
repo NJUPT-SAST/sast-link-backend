@@ -1,22 +1,31 @@
 package model
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
-var (
+const (
 	REGISTER_TICKET_EXP = time.Minute * 3
-	REGISTER_STATUS     = map[string]string{
-		"VERIFY_ACCOUNT": "0",
-		"SEND_EMAIL":     "1",
-		"VERIFY_CAPTCHA": "2",
-		"SUCCESS":        "3",
-	}
-	CAPTCHA_EXP = time.Minute * 3
+	CAPTCHA_EXP         = time.Minute * 3
 	// This is not login token expire time, this is login ticket expire time
 	LOGIN_TICKET_EXP = time.Minute * 5
 	// This is login token expire time
 	LOGIN_TOKEN_EXP = time.Hour * 24 * 7
 	// Login token key in redis
 	LOGIN_TOKEN_IN_REDIS = "LOGIN"
+	LOGIN_SUB            = "login"
+	LOGIN_TICKET_SUB     = "loginTicket"
+	REGIST_SUB           = "register"
+)
+
+var (
+	REGISTER_STATUS = map[string]string{
+		"VERIFY_ACCOUNT": "0",
+		"SEND_EMAIL":     "1",
+		"VERIFY_CAPTCHA": "2",
+		"SUCCESS":        "3",
+	}
 )
 
 func RegisterTicketKey(ticket string) string {
@@ -28,11 +37,15 @@ func LoginTicketKey(username string) string {
 }
 
 func RegisterJWTSubKey(username string) string {
-	return username + "-register"
+	return fmt.Sprintf("%s-%s", username, REGIST_SUB)
+}
+
+func LoginTicketJWTSubKey(username string) string {
+	return fmt.Sprintf("%s-%s", username, LOGIN_TICKET_SUB)
 }
 
 func LoginJWTSubKey(username string) string {
-	return username + "-login"
+	return fmt.Sprintf("%s-%s", username, LOGIN_SUB)
 }
 
 func LoginTokenKey(username string) string {
