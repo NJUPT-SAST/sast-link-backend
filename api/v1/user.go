@@ -43,7 +43,7 @@ func Register(ctx *gin.Context) {
 		return
 	}
 
-	username, usernameErr := util.GetUsername(ticket)
+	username, usernameErr := util.GetUsername(ticket, model.REGIST_SUB)
 	if usernameErr != nil {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(usernameErr)))
 		return
@@ -95,7 +95,7 @@ func UserInfo(ctx *gin.Context) {
 
 func SendEmail(ctx *gin.Context) {
 	ticket := ctx.GetHeader("REGISTER-TICKET")
-	username, usernameErr := util.GetUsername(ticket)
+	username, usernameErr := util.GetUsername(ticket, model.REGIST_SUB)
 	// 错误处理机制写玉玉了
 	// 我开始乱写了啊啊啊啊
 	if usernameErr != nil {
@@ -165,7 +165,7 @@ func Login(ctx *gin.Context) {
 	}
 
 	// Get username from ticket
-	username, err := util.GetUsername(ticket)
+	username, err := util.GetUsername(ticket, model.LOGIN_TICKET_SUB)
 	if err != nil || username == "" {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.TicketNotCorrect))
 		return
@@ -188,7 +188,7 @@ func Login(ctx *gin.Context) {
 		return
 	}
 	// Set Token with expire time and return
-	token, err := util.GenerateTokenWithExp(username, model.LOGIN_TOKEN_EXP)
+	token, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username), model.LOGIN_TOKEN_EXP)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.GenerateToken))
 	}
@@ -207,7 +207,7 @@ func Logout(ctx *gin.Context) {
 		return
 	}
 	//remove Token from username
-	username, err := util.GetUsername(token)
+	username, err := util.GetUsername(token, model.LOGIN_SUB)
 	if err != nil || username == "" {
 		ctx.JSON(http.StatusBadRequest, result.TicketNotCorrect)
 		return

@@ -80,7 +80,7 @@ func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 	}
 	// user is existed and can login
 	if exist {
-		ticket, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username), model.LOGIN_TICKET_EXP)
+		ticket, err := util.GenerateTokenWithExp(model.LoginTicketJWTSubKey(username), model.LOGIN_TICKET_EXP)
 		if err != nil {
 			return "", err
 		}
@@ -94,7 +94,7 @@ func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 			return "", err
 		}
 		if uidExist {
-			ticket, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username), model.LOGIN_TICKET_EXP)
+			ticket, err := util.GenerateTokenWithExp(model.LoginTicketJWTSubKey(username), model.LOGIN_TICKET_EXP)
 			if err != nil {
 				return "", err
 			}
@@ -120,7 +120,7 @@ func Login(username string, password string) (bool, error) {
 func UserInfo(ctx *gin.Context) (*model.User, error) {
 	token := ctx.GetHeader("TOKEN")
 	nilUser := &model.User{}
-	username, err := util.GetUsername(token)
+	username, err := util.GetUsername(token, model.LOGIN_SUB)
 	if err != nil {
 		return nilUser, err
 	}
@@ -178,7 +178,7 @@ func CheckVerifyCode(ctx *gin.Context, ticket, code string) error {
 	if status != model.REGISTER_STATUS["SEND_EMAIL"] {
 		return result.TicketNotCorrect
 	}
-	username, uErr := util.GetUsername(ticket)
+	username, uErr := util.GetUsername(ticket, model.REGIST_SUB)
 	if uErr != nil {
 		return uErr
 	}

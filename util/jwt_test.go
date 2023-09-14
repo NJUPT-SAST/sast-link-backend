@@ -10,7 +10,7 @@ import (
 
 func TestJWT(t *testing.T) {
 	Convey("Test JWT Access Generate", t, func() {
-		token, err := GenerateTokenWithExp("xunop@qq.com", time.Minute*3)
+		token, err := GenerateTokenWithExp("xunop@qq.com-login", time.Minute*3)
 		So(err, ShouldBeNil)
 		fmt.Println("token:", token)
 		So(token, ShouldNotBeEmpty)
@@ -19,7 +19,7 @@ func TestJWT(t *testing.T) {
 		fmt.Println("claims:", claims)
 		So(claims, ShouldNotBeEmpty)
 		fmt.Println(claims.GetExpirationTime())
-		username, _ := GetUsername(token)
+		username, _ := GetUsername(token, "login")
 		So(username, ShouldEqual, "xunop@qq.com")
 	})
 }
