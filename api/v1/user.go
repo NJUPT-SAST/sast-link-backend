@@ -41,6 +41,9 @@ func Register(ctx *gin.Context) {
 	case model.REGISTER_STATUS["SUCCESS"]:
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.UserAlreadyExist))
 		return
+	case "":
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.CheckTicketNotfound))
+		return
 	}
 
 	username, usernameErr := util.GetUsername(ticket, model.REGIST_SUB)
@@ -51,7 +54,7 @@ func Register(ctx *gin.Context) {
 
 	creErr := service.CreateUser(username, password)
 	if creErr != nil {
-		ctx.JSON(http.StatusBadRequest, result.InternalErr)
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(creErr)))
 		return
 	}
 	ctx.JSON(http.StatusOK, result.Success(nil))
@@ -88,7 +91,7 @@ func UserInfo(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
-		"email":   user.Email,
+		"email":  user.Email,
 		"userId": user.Uid,
 	}))
 }
@@ -196,6 +199,31 @@ func Login(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
 		"token": token,
 	}))
+}
+
+// Modify paassword
+func ChangePassword(ctx *gin.Context) {
+	// Get username from token
+	token := ctx.GetHeader("TOKEN")
+	username, err := util.GetUsername(token, model.LOGIN_SUB)
+	if err != nil || username == "" {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.TicketNotCorrect))
+		return
+	}
+	// Get password from form
+	oldPassword := ctx.PostForm("oldPassword")
+	newPassword := ctx.PostForm("newPassword")
+	if oldPassword == "" || newPassword == "" {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.PasswordEmpty))
+		return
+	}
+	// Modify password
+	err = service.ModifyPassword(ctx, username, oldPassword, newPassword)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(err)))
+		return
+	}
+	ctx.JSON(http.StatusOK, result.Success(nil))
 }
 
 func Logout(ctx *gin.Context) {
