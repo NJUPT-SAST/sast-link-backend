@@ -39,9 +39,12 @@ func Register(ctx *gin.Context) {
 	case model.REGISTER_STATUS["SUCCESS"]:
 		ctx.JSON(http.StatusOK, result.Failed(result.UserAlreadyExist))
 		return
+	case "":
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.CheckTicketNotfound))
+		return
 	}
 
-	username, usernameErr := util.GetUsername(ticket)
+	username, usernameErr := util.GetUsername(ticket, model.REGIST_SUB)
 	if usernameErr != nil {
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(usernameErr)))
 		return
@@ -49,7 +52,7 @@ func Register(ctx *gin.Context) {
 
 	creErr := service.CreateUser(username, password)
 	if creErr != nil {
-		ctx.JSON(http.StatusOK, result.InternalErr)
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(creErr)))
 		return
 	}
 	ctx.JSON(http.StatusOK, result.Success(nil))
@@ -86,14 +89,14 @@ func UserInfo(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
-		"email":   user.Email,
+		"email":  user.Email,
 		"userId": user.Uid,
 	}))
 }
 
 func SendEmail(ctx *gin.Context) {
 	ticket := ctx.GetHeader("REGISTER-TICKET")
-	username, usernameErr := util.GetUsername(ticket)
+	username, usernameErr := util.GetUsername(ticket, model.REGIST_SUB)
 	// 错误处理机制写玉玉了
 	// 我开始乱写了啊啊啊啊
 	if usernameErr != nil {
@@ -163,7 +166,7 @@ func Login(ctx *gin.Context) {
 	}
 
 	// Get username from ticket
-	username, err := util.GetUsername(ticket)
+	username, err := util.GetUsername(ticket, model.LOGIN_TICKET_SUB)
 	if err != nil || username == "" {
 		ctx.JSON(http.StatusOK, result.Failed(result.TicketNotCorrect))
 		return
@@ -186,7 +189,7 @@ func Login(ctx *gin.Context) {
 		return
 	}
 	// Set Token with expire time and return
-	token, err := util.GenerateTokenWithExp(username, model.LOGIN_TOKEN_EXP)
+	token, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username), model.LOGIN_TOKEN_EXP)
 	if err != nil {
 		ctx.JSON(http.StatusOK, result.Failed(result.GenerateToken))
 	}
@@ -194,6 +197,31 @@ func Login(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
 		"token": token,
 	}))
+}
+
+// Modify paassword
+func ChangePassword(ctx *gin.Context) {
+	// Get username from token
+	token := ctx.GetHeader("TOKEN")
+	username, err := util.GetUsername(token, model.LOGIN_SUB)
+	if err != nil || username == "" {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.TicketNotCorrect))
+		return
+	}
+	// Get password from form
+	oldPassword := ctx.PostForm("oldPassword")
+	newPassword := ctx.PostForm("newPassword")
+	if oldPassword == "" || newPassword == "" {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.PasswordEmpty))
+		return
+	}
+	// Modify password
+	err = service.ModifyPassword(ctx, username, oldPassword, newPassword)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(err)))
+		return
+	}
+	ctx.JSON(http.StatusOK, result.Success(nil))
 }
 
 func Logout(ctx *gin.Context) {
@@ -205,7 +233,7 @@ func Logout(ctx *gin.Context) {
 		return
 	}
 	//remove Token from username
-	username, err := util.GetUsername(token)
+	username, err := util.GetUsername(token, model.LOGIN_SUB)
 	if err != nil || username == "" {
 		ctx.JSON(http.StatusOK, result.TicketNotCorrect)
 		return
