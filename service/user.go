@@ -14,15 +14,19 @@ import (
 
 var serviceLogger = log.Log
 
+// password can just contain ascii character
+func CheckPasswordFormat(password string) bool {
+	passReg := regexp.MustCompile(`^[a-zA-Z0-9!@#$%^&*()_=+]{6,32}$`)
+	return passReg.MatchString(password)
+}
+
 func CreateUser(email string, password string) error {
 	// split email with @
 	split := regexp.MustCompile(`@`)
 	uid := split.Split(email, 2)[0]
 	uid = strings.ToLower(uid)
 
-	// password can just contain ascii character
-	passReg := regexp.MustCompile(`^[a-zA-Z0-9!@#$%^&*()_=+]{6,32}$`)
-	if !passReg.MatchString(password) {
+	if !CheckPasswordFormat(password) {
 		return result.PasswordIllegal
 	}
 
@@ -80,7 +84,7 @@ func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 	}
 	// user is existed and can login
 	if exist {
-		ticket, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username), model.LOGIN_TICKET_EXP)
+		ticket, err := util.GenerateTokenWithExp(model.LoginTicketJWTSubKey(username), model.LOGIN_TICKET_EXP)
 		if err != nil {
 			return "", err
 		}
@@ -94,7 +98,7 @@ func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 			return "", err
 		}
 		if uidExist {
-			ticket, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username), model.LOGIN_TICKET_EXP)
+			ticket, err := util.GenerateTokenWithExp(model.LoginTicketJWTSubKey(username), model.LOGIN_TICKET_EXP)
 			if err != nil {
 				return "", err
 			}
@@ -117,10 +121,23 @@ func Login(username string, password string) (bool, error) {
 
 }
 
+func ModifyPassword(ctx *gin.Context, username, oldPassword, newPassword string) error {
+	//check password
+	flag, err := model.CheckPassword(username, oldPassword)
+	if !flag {
+		return err
+	}
+	pErr := model.ChangePassword(username, newPassword)
+	if pErr != nil {
+		return pErr
+	}
+	return nil
+}
+
 func UserInfo(ctx *gin.Context) (*model.User, error) {
 	token := ctx.GetHeader("TOKEN")
 	nilUser := &model.User{}
-	username, err := util.GetUsername(token)
+	username, err := util.GetUsername(token, model.LOGIN_SUB)
 	if err != nil {
 		return nilUser, err
 	}
@@ -178,7 +195,7 @@ func CheckVerifyCode(ctx *gin.Context, ticket, code string) error {
 	if status != model.REGISTER_STATUS["SEND_EMAIL"] {
 		return result.TicketNotCorrect
 	}
-	username, uErr := util.GetUsername(ticket)
+	username, uErr := util.GetUsername(ticket, model.REGIST_SUB)
 	if uErr != nil {
 		return uErr
 	}
