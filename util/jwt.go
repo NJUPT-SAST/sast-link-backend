@@ -75,7 +75,7 @@ func RefreshToken(token string) (string, error) {
 	return token, err
 }
 
-func GetUsername(token string) (string, error) {
+func GetUsername(token, flag string) (string, error) {
 	claims, err := ParseToken(token)
 	if err != nil {
 		return "", err
@@ -91,8 +91,12 @@ func GetUsername(token string) (string, error) {
 		return "", claimsError
 	}
 	// redis ticket is username-register
-	uid, err := strings.Split(username[0], "-")[0], nil
-
+	reg := strings.Split(username[0], "-")
+	uid, err := reg[0], nil
+	if reg[1] != "" &&
+		flag != reg[1] {
+		return "", nil
+	}
 	return strings.ToLower(uid), err
 }
 

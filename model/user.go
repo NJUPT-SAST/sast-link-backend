@@ -46,9 +46,9 @@ func CheckPassword(username string, password string) (bool, error) {
 	var err error = nil
 	//get user by email/uid
 	if matched {
-		err = Db.Where("email = ?", username).First(&user).Error
+		err = Db.Where("email = ?", username).Where("is_deleted = ?", false).First(&user).Error
 	} else {
-		err = Db.Where("uid = ?", username).First(&user).Error
+		err = Db.Where("uid = ?", username).Where("is_deleted = ?", false).First(&user).Error
 	}
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -62,6 +62,25 @@ func CheckPassword(username string, password string) (bool, error) {
 		exist = false
 	}
 	return exist, err
+}
+
+func ChangePassword(username string, password string) error {
+	pwdEncrypted := util.ShaHashing(password)
+	matched, err := regexp.MatchString("@", username)
+	if err != nil {
+		userLogger.Infof("regexp matchiong error")
+		return err
+	}
+	//get user by email/uid
+	if matched {
+		err = Db.Model(&User{}).Where("email = ?", username).Where("is_deleted = ?", false).Update("password", pwdEncrypted).Error
+	} else {
+		err = Db.Model(&User{}).Where("uid = ?", username).Where("is_deleted = ?", false).Update("password", pwdEncrypted).Error
+	}
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // CheckUserByEmail find user by email
@@ -83,7 +102,7 @@ func CheckUserByEmail(email string) (bool, error) {
 // return true if user exist
 func CheckUserByUid(uid string) (bool, error) {
 	var user User
-	err := Db.Where("uid = ?", uid).First(&user).Error
+	err := Db.Where("uid = ?", uid).Where("is_deleted = ?", false).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			userLogger.Infof("User [%s] Not Exist\n", uid)
@@ -96,7 +115,7 @@ func CheckUserByUid(uid string) (bool, error) {
 
 func UserInfo(username string) (*User, error) {
 	var user = User{Uid: &username}
-	if err := Db.Where("email = ?", username).First(&user).Error; err != nil {
+	if err := Db.Where("email = ?", username).Where("is_deleted = ?", false).First(&user).Error; err != nil {
 		return nil, fmt.Errorf("%v: User [%s] Not Exist\n", err, username)
 	}
 
