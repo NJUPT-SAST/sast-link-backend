@@ -75,7 +75,8 @@ func RefreshToken(token string) (string, error) {
 	return token, err
 }
 
-func GetUsername(token, flag string) (string, error) {
+// GetUsername return username(user email)
+func GetUsername(token string) (string, error) {
 	claims, err := ParseToken(token)
 	if err != nil {
 		return "", err
@@ -93,16 +94,17 @@ func GetUsername(token, flag string) (string, error) {
 	// redis ticket is username-register
 	reg := strings.Split(username[0], "-")
 	uid, err := reg[0], nil
-	if reg[1] != "" &&
-		flag != reg[1] {
-		return "", nil
-	}
 	return strings.ToLower(uid), err
 }
 
-// JWTAccessClaims jwt claims
+// JWTAccessClaims jwt claims, encapsulation RegisteredClaims
 type JWTAccessClaims struct {
+	//include base token info
 	jwt.RegisteredClaims
+	//mapping model/common.gp
+	TokenType string
+	//use to distinguish different role(user,admin)
+	Role string
 }
 
 // JWTAccessGenerate generate the jwt access token

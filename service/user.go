@@ -137,7 +137,7 @@ func ModifyPassword(ctx *gin.Context, username, oldPassword, newPassword string)
 func UserInfo(ctx *gin.Context) (*model.User, error) {
 	token := ctx.GetHeader("TOKEN")
 	nilUser := &model.User{}
-	username, err := util.GetUsername(token, model.LOGIN_SUB)
+	username, err := util.GetUsername(token)
 	if err != nil {
 		return nilUser, err
 	}
@@ -195,12 +195,9 @@ func CheckVerifyCode(ctx *gin.Context, ticket, code string) error {
 	if status != model.REGISTER_STATUS["SEND_EMAIL"] {
 		return result.TicketNotCorrect
 	}
-	username, uErr := util.GetUsername(ticket, model.REGIST_SUB)
-	if uErr != nil {
-		return uErr
-	}
+	username, _ := ctx.Get("username")
 
-	rCode, cErr := model.Rdb.Get(ctx, model.CaptchaKey(username)).Result()
+	rCode, cErr := model.Rdb.Get(ctx, model.CaptchaKey(username.(string))).Result()
 	if cErr != nil {
 		if cErr == redis.Nil {
 			return result.CaptchaError

@@ -28,9 +28,8 @@ func Register(ctx *gin.Context) {
 		return
 	}
 
-	ticket := ctx.GetHeader("REGISTER-TICKET")
-
-	currentPhase, _ := model.Rdb.Get(ctx, ticket).Result()
+	ticket, _ := ctx.Get("token")
+	currentPhase, _ := model.Rdb.Get(ctx, ticket.(string)).Result()
 	// check which phase current in
 	switch currentPhase {
 	case model.REGISTER_STATUS["VERIFY_ACCOUNT"], model.REGISTER_STATUS["SEND_EMAIL"]:
@@ -44,9 +43,10 @@ func Register(ctx *gin.Context) {
 		return
 	}
 
-	username, usernameErr := util.GetUsername(ticket, model.REGIST_SUB)
-	if usernameErr != nil {
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(usernameErr)))
+	value, exists := ctx.Get("username")
+	username := value.(string)
+	if exists == false {
+		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(result.UserNameEmpty)))
 		return
 	}
 
@@ -58,18 +58,18 @@ func Register(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, result.Success(nil))
 
 	// set REGISTER_STATUS to 3 if successes
-	model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["SUCCESS"], model.REGISTER_TICKET_EXP)
+	model.Rdb.Set(ctx, username, model.REGISTER_STATUS["SUCCESS"], model.REGISTER_TICKET_EXP)
 }
 
 func CheckVerifyCode(ctx *gin.Context) {
 	code, codeFlag := ctx.GetPostForm("captcha")
-	ticket := ctx.GetHeader("REGISTER-TICKET")
+	ticket, _ := ctx.Get("token")
 	if !codeFlag {
 		ctx.JSON(http.StatusOK, result.Failed(result.RequestParamError))
 		return
 	}
 
-	codeError := service.CheckVerifyCode(ctx, ticket, code)
+	codeError := service.CheckVerifyCode(ctx, ticket.(string), code)
 	if codeError != nil {
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(codeError)))
 		return
@@ -95,20 +95,20 @@ func UserInfo(ctx *gin.Context) {
 }
 
 func SendEmail(ctx *gin.Context) {
-	ticket := ctx.GetHeader("REGISTER-TICKET")
-	username, usernameErr := util.GetUsername(ticket, model.REGIST_SUB)
+	ticket, _ := ctx.Get("token")
+	username, _ := ctx.Get("username")
 	// 错误处理机制写玉玉了
 	// 我开始乱写了啊啊啊啊
-	if usernameErr != nil {
-		controllerLogger.WithFields(
-			logrus.Fields{
-				"username": username,
-			}).Error(usernameErr)
-		ctx.JSON(http.StatusUnauthorized, result.Failed(result.TicketNotCorrect))
-		return
-	}
+	//if exists == false {
+	//	controllerLogger.WithFields(
+	//		logrus.Fields{
+	//			"username": username,
+	//		}).Error(result.UserNameEmpty)
+	//	ctx.JSON(http.StatusUnauthorized, result.Failed(result.TicketNotCorrect))
+	//	return
+	//}
 
-	err := service.SendEmail(ctx, username, ticket)
+	err := service.SendEmail(ctx, username.(string), ticket.(string))
 	if err != nil {
 		controllerLogger.WithFields(
 			logrus.Fields{
@@ -166,15 +166,15 @@ func Login(ctx *gin.Context) {
 	}
 
 	// Get username from ticket
-	username, err := util.GetUsername(ticket, model.LOGIN_TICKET_SUB)
-	if err != nil || username == "" {
+	username, exists := ctx.Get("username")
+	if exists == false {
 		ctx.JSON(http.StatusOK, result.Failed(result.TicketNotCorrect))
 		return
 	}
 	//verify if the user is deleted
 
 	// Check the password
-	flag, err := service.Login(username, password)
+	flag, err := service.Login(username.(string), password)
 	if err != nil {
 		controllerLogger.WithFields(
 			logrus.Fields{
@@ -189,11 +189,11 @@ func Login(ctx *gin.Context) {
 		return
 	}
 	// Set Token with expire time and return
-	token, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username), model.LOGIN_TOKEN_EXP)
+	token, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username.(string)), model.LOGIN_TOKEN_EXP)
 	if err != nil {
 		ctx.JSON(http.StatusOK, result.Failed(result.GenerateToken))
 	}
-	model.Rdb.Set(ctx, model.LoginTokenKey(username), token, model.LOGIN_TOKEN_EXP)
+	model.Rdb.Set(ctx, model.LoginTokenKey(username.(string)), token, model.LOGIN_TOKEN_EXP)
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
 		"token": token,
 	}))
@@ -202,10 +202,9 @@ func Login(ctx *gin.Context) {
 // Modify paassword
 func ChangePassword(ctx *gin.Context) {
 	// Get username from token
-	token := ctx.GetHeader("TOKEN")
-	username, err := util.GetUsername(token, model.LOGIN_SUB)
-	if err != nil || username == "" {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.TicketNotCorrect))
+	username, exists := ctx.Get("username")
+	if exists == false {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.AuthError))
 		return
 	}
 	// Get password from form
@@ -216,7 +215,7 @@ func ChangePassword(ctx *gin.Context) {
 		return
 	}
 	// Modify password
-	err = service.ModifyPassword(ctx, username, oldPassword, newPassword)
+	err := service.ModifyPassword(ctx, username.(string), oldPassword, newPassword)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(err)))
 		return
@@ -227,17 +226,16 @@ func ChangePassword(ctx *gin.Context) {
 func Logout(ctx *gin.Context) {
 	//verify information
 	token := ctx.GetHeader("TOKEN")
-
 	if token == "" {
-		ctx.JSON(http.StatusOK, result.TicketNotCorrect)
+		ctx.JSON(http.StatusOK, result.AuthIncomingTokenFail)
 		return
 	}
 	//remove Token from username
-	username, err := util.GetUsername(token, model.LOGIN_SUB)
-	if err != nil || username == "" {
-		ctx.JSON(http.StatusOK, result.TicketNotCorrect)
+	username, exists := ctx.Get("username")
+	if exists == false {
+		ctx.JSON(http.StatusOK, result.AuthError)
 		return
 	}
-	model.Rdb.Del(ctx, model.LoginTokenKey(username))
+	model.Rdb.Del(ctx, model.LoginTokenKey(username.(string)))
 	ctx.JSON(http.StatusOK, result.Success(nil))
 }

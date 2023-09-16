@@ -8,15 +8,16 @@ import (
 const (
 	REGISTER_TICKET_EXP = time.Minute * 5
 	CAPTCHA_EXP         = time.Minute * 3
-	// This is not login token expire time, this is login ticket expire time
+	// LOGIN_TICKET_EXP This is not login token expire time, this is login ticket expire time
+	// LOGIN_TICKET_EXP This is not login token expire time, this is login ticket expire time
 	LOGIN_TICKET_EXP = time.Minute * 5
-	// This is login token expire time
+	// LOGIN_TOKEN_EXP This is login token expire time
 	LOGIN_TOKEN_EXP = time.Hour * 24 * 7
-	// Login token key in redis
+	// LOGIN_TOKEN_IN_REDIS Login token key in redis
 	LOGIN_TOKEN_IN_REDIS = "LOGIN"
-	LOGIN_SUB            = "login"
+	LOGIN_TOKEN_SUB      = "loginToken"
 	LOGIN_TICKET_SUB     = "loginTicket"
-	REGIST_SUB           = "register"
+	REGIST_TICKET_SUB    = "registerTicket"
 )
 
 var (
@@ -37,7 +38,7 @@ func LoginTicketKey(username string) string {
 }
 
 func RegisterJWTSubKey(username string) string {
-	return fmt.Sprintf("%s-%s", username, REGIST_SUB)
+	return fmt.Sprintf("%s-%s", username, REGIST_TICKET_SUB)
 }
 
 func LoginTicketJWTSubKey(username string) string {
@@ -45,7 +46,7 @@ func LoginTicketJWTSubKey(username string) string {
 }
 
 func LoginJWTSubKey(username string) string {
-	return fmt.Sprintf("%s-%s", username, LOGIN_SUB)
+	return fmt.Sprintf("%s-%s", username, LOGIN_TOKEN_SUB)
 }
 
 func LoginTokenKey(username string) string {

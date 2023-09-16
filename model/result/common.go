@@ -28,11 +28,12 @@ var (
 	DeleteUserFail        = LocalError{ErrCode: 10014, ErrMsg: "删除用户失败"}
 	GetUserinfoFail       = LocalError{ErrCode: 10015, ErrMsg: "获取用户信息失败"}
 	UserIsExist           = LocalError{ErrCode: 10016, ErrMsg: "用户已存在"}
+	UserNameEmpty         = LocalError{ErrCode: 10016, ErrMsg: "用户邮箱获取失败"}
 	AuthCheckTokenFail    = LocalError{ErrCode: 20001, ErrMsg: "Token鉴权失败"}
 	AuthCheckTokenTimeout = LocalError{ErrCode: 20002, ErrMsg: "Token已超时"}
 	GenerateToken         = LocalError{ErrCode: 20003, ErrMsg: "Token生成失败"}
 	AuthError             = LocalError{ErrCode: 20004, ErrMsg: "Token错误"}
-	AuthIncomingTokenFail = LocalError{ErrCode: 20005, ErrMsg: "Token 为空"}
+	AuthIncomingTokenFail = LocalError{ErrCode: 20005, ErrMsg: "Token为空"}
 	AuthParseTokenFail    = LocalError{ErrCode: 20006, ErrMsg: "Token解析失败"}
 	TicketNotCorrect      = LocalError{ErrCode: 20007, ErrMsg: "Ticket不正确"}
 	CheckTicketNotfound   = LocalError{ErrCode: 20008, ErrMsg: "Ticket不存在"}
