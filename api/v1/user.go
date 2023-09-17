@@ -28,28 +28,8 @@ func Register(ctx *gin.Context) {
 		return
 	}
 
-	ticket, _ := ctx.Get("token")
-	currentPhase, _ := model.Rdb.Get(ctx, ticket.(string)).Result()
-	// check which phase current in
-	switch currentPhase {
-	case model.REGISTER_STATUS["VERIFY_ACCOUNT"], model.REGISTER_STATUS["SEND_EMAIL"]:
-		ctx.JSON(http.StatusOK, result.Failed(result.RegisterPhaseError))
-		return
-	case model.REGISTER_STATUS["SUCCESS"]:
-		ctx.JSON(http.StatusOK, result.Failed(result.UserAlreadyExist))
-		return
-	case "":
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.CheckTicketNotfound))
-		return
-	}
-
-	value, exists := ctx.Get("username")
+	value, _ := ctx.Get("username")
 	username := value.(string)
-	if exists == false {
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(result.UserNameEmpty)))
-		return
-	}
-
 	creErr := service.CreateUser(username, password)
 	if creErr != nil {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(creErr)))
@@ -96,7 +76,8 @@ func UserInfo(ctx *gin.Context) {
 
 func SendEmail(ctx *gin.Context) {
 	ticket, _ := ctx.Get("token")
-	username, _ := ctx.Get("username")
+	value, _ := ctx.Get("username")
+	username := value.(string)
 	// 错误处理机制写玉玉了
 	// 我开始乱写了啊啊啊啊
 	//if exists == false {
@@ -107,8 +88,7 @@ func SendEmail(ctx *gin.Context) {
 	//	ctx.JSON(http.StatusUnauthorized, result.Failed(result.TicketNotCorrect))
 	//	return
 	//}
-
-	err := service.SendEmail(ctx, username.(string), ticket.(string))
+	err := service.SendEmail(ctx, username, ticket.(string))
 	if err != nil {
 		controllerLogger.WithFields(
 			logrus.Fields{
@@ -189,7 +169,8 @@ func Login(ctx *gin.Context) {
 		return
 	}
 	// Set Token with expire time and return
-	token, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username.(string)), model.LOGIN_TOKEN_EXP)
+	// TODO: role
+	token, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username.(string)), model.LOGIN_TOKEN_SUB, 0, model.LOGIN_TOKEN_EXP)
 	if err != nil {
 		ctx.JSON(http.StatusOK, result.Failed(result.GenerateToken))
 	}

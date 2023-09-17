@@ -37,10 +37,11 @@ func GenerateToken(username string) (string, error) {
 }
 
 // GenerateToken with expireTime
-func GenerateTokenWithExp(username string, expireTime time.Duration) (string, error) {
+func GenerateTokenWithExp(username, tokenType string, role int, expireTime time.Duration) (string, error) {
 	signingKey := []byte(jwtSigningKey)
 	gen := NewJWTAccessGenerate("", signingKey, jwt.SigningMethodHS256)
-	access, _, err := gen.Token(context.Background(), username, expireTime, false)
+	access, _, err := gen.Token(context.Background(), username, tokenType,
+		role, expireTime, false)
 	return access, err
 }
 
@@ -104,7 +105,7 @@ type JWTAccessClaims struct {
 	//mapping model/common.gp
 	TokenType string
 	//use to distinguish different role(user,admin)
-	Role string
+	Role int
 }
 
 // JWTAccessGenerate generate the jwt access token
@@ -131,7 +132,7 @@ func NewJWTAccessGenerate(kid string, key []byte, method jwt.SigningMethod) *JWT
 }
 
 // Token based on the UUID generate the jwt access token
-func (a *JWTAccessGenerate) Token(ctx context.Context, username string, expireTime time.Duration, isGenRenfresh bool) (string, string, error) {
+func (a *JWTAccessGenerate) Token(ctx context.Context, username, tokenType string, role int, expireTime time.Duration, isGenRenfresh bool) (string, string, error) {
 	claims := &JWTAccessClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expireTime)),
@@ -139,6 +140,8 @@ func (a *JWTAccessGenerate) Token(ctx context.Context, username string, expireTi
 			Issuer:    "sast",
 			Audience:  jwt.ClaimStrings{username},
 		},
+		TokenType: tokenType,
+		Role:      role,
 	}
 
 	token := jwt.NewWithClaims(a.SignedMethod, claims)

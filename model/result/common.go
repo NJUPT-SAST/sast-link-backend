@@ -2,6 +2,13 @@ package result
 
 import "fmt"
 
+type Result struct {
+	Success bool
+	ErrCode int
+	ErrMsg  string
+	Data    any
+}
+
 type LocalError struct {
 	ErrCode int
 	ErrMsg  string
@@ -35,6 +42,7 @@ var (
 	AuthError             = LocalError{ErrCode: 20004, ErrMsg: "Token错误"}
 	AuthIncomingTokenFail = LocalError{ErrCode: 20005, ErrMsg: "Token为空"}
 	AuthParseTokenFail    = LocalError{ErrCode: 20006, ErrMsg: "Token解析失败"}
+	AuthTokenTypeError    = LocalError{ErrCode: 20010, ErrMsg: "Token类型错误"}
 	TicketNotCorrect      = LocalError{ErrCode: 20007, ErrMsg: "Ticket不正确"}
 	CheckTicketNotfound   = LocalError{ErrCode: 20008, ErrMsg: "Ticket不存在"}
 	InvalidAccToken       = LocalError{ErrCode: 20009, ErrMsg: "无效的token"}
@@ -57,6 +65,7 @@ var errorMap = map[int]LocalError{
 	10003: PasswordError,
 	10004: PasswordEmpty,
 	10005: LoginError,
+	10006: PasswordIllegal,
 	10011: UserNotExist,
 	10012: CheckExistUserFail,
 	10013: AddUserFail,
@@ -72,6 +81,7 @@ var errorMap = map[int]LocalError{
 	20007: TicketNotCorrect,
 	20008: CheckTicketNotfound,
 	20009: InvalidAccToken,
+	20010: AuthTokenTypeError,
 	30001: SendEmailError,
 	30002: CaptchaError,
 	40001: VerifyAccountError,

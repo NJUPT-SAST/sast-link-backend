@@ -25,7 +25,7 @@ func InitRouter() *gin.Engine {
 	usergroup := apiV1.Group("/user")
 	{
 		usergroup.GET("/info", v1.UserInfo)
-		usergroup.POST("/register", v1.Register)
+		usergroup.POST("/register", middleware.RegisterAuth, v1.Register)
 		usergroup.POST("/login", v1.Login)
 		usergroup.POST("/logout", v1.Logout)
 		usergroup.POST("/changePassword", v1.ChangePassword)
@@ -33,9 +33,9 @@ func InitRouter() *gin.Engine {
 	verify := apiV1.Group("/verify")
 	{
 		verify.GET("/account", v1.VerifyAccount)
-		verify.POST("/captcha", v1.CheckVerifyCode)
+		verify.POST("/captcha", middleware.RegisterAuth, v1.CheckVerifyCode)
 	}
-	apiV1.GET("/sendEmail", v1.SendEmail)
+	apiV1.GET("/sendEmail", middleware.RegisterAuth, v1.SendEmail)
 	//S-LYPL7 admingroup := apiV1.Group("/admin")
 	// {
 	// }
@@ -53,7 +53,7 @@ func InitRouter() *gin.Engine {
 		oauth.GET("/userinfo", v1.OauthUserInfo)
 	}
 
-	profile := apiV1.Group("/profile", middleware.Auth)
+	profile := apiV1.Group("/profile", middleware.RegisterAuth)
 	{
 		profile.GET("/getProfile", v1.GetProfile)
 		profile.POST("/updateProfile", v1.UpdateProfile)
