@@ -13,7 +13,8 @@ func TestGenerateCode(t *testing.T) {
 func TestSendEmail(t *testing.T) {
 	testEmail := "xunop@qq.com"
 	code := GenerateVerifyCode()
-	SendEmail(testEmail, code)
+	title := "发送邮件测试"
+	SendEmail(testEmail, code, title)
 }
 
 func TestVerifyCode(t *testing.T) {
