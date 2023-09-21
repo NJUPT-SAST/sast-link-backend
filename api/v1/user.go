@@ -33,10 +33,10 @@ func Register(ctx *gin.Context) {
 	currentPhase, _ := model.Rdb.Get(ctx, ticket).Result()
 	// check which phase current in
 	switch currentPhase {
-	case model.REGISTER_STATUS["VERIFY_ACCOUNT"], model.REGISTER_STATUS["SEND_EMAIL"]:
+	case model.VERIFY_STATUS["VERIFY_ACCOUNT"], model.VERIFY_STATUS["SEND_EMAIL"]:
 		ctx.JSON(http.StatusOK, result.Failed(result.RegisterPhaseError))
 		return
-	case model.REGISTER_STATUS["SUCCESS"]:
+	case model.VERIFY_STATUS["SUCCESS"]:
 		ctx.JSON(http.StatusOK, result.Failed(result.UserAlreadyExist))
 		return
 	case "":
@@ -44,7 +44,7 @@ func Register(ctx *gin.Context) {
 		return
 	}
 
-	username, usernameErr := util.GetUsername(ticket, model.REGIST_SUB)
+	username, usernameErr := util.GetUsername(ticket, model.REGIST_TICKET_SUB)
 	if usernameErr != nil {
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(usernameErr)))
 		return
@@ -57,19 +57,29 @@ func Register(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, result.Success(nil))
 
-	// set REGISTER_STATUS to 3 if successes
-	model.Rdb.Set(ctx, ticket, model.REGISTER_STATUS["SUCCESS"], model.REGISTER_TICKET_EXP)
+	// set VERIFY_STATUS to 3 if successes
+	model.Rdb.Set(ctx, ticket, model.VERIFY_STATUS["SUCCESS"], model.REGISTER_TICKET_EXP)
 }
 
 func CheckVerifyCode(ctx *gin.Context) {
 	code, codeFlag := ctx.GetPostForm("captcha")
-	ticket := ctx.GetHeader("REGISTER-TICKET")
+	var ticket, flag string
+	if ctx.GetHeader("REGISTER-TICKET") != "" {
+		ticket = ctx.GetHeader("REGISTER-TICKET")
+		flag = model.REGIST_TICKET_SUB
+	} else if ctx.GetHeader("RESETPWD-TICKET") != "" {
+		ticket = ctx.GetHeader("RESETPWD-TICKET")
+		flag = model.RESETPWD_TICKET_SUB
+	} else {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
+	}
+
 	if !codeFlag {
 		ctx.JSON(http.StatusOK, result.Failed(result.RequestParamError))
 		return
 	}
 
-	codeError := service.CheckVerifyCode(ctx, ticket, code)
+	codeError := service.CheckVerifyCode(ctx, ticket, code, flag)
 	if codeError != nil {
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(codeError)))
 		return
@@ -95,8 +105,20 @@ func UserInfo(ctx *gin.Context) {
 }
 
 func SendEmail(ctx *gin.Context) {
-	ticket := ctx.GetHeader("REGISTER-TICKET")
-	username, usernameErr := util.GetUsername(ticket, model.REGIST_SUB)
+	//获取传入TICKET参数
+	var ticket, flag string
+	if ctx.GetHeader("REGISTER-TICKET") != "" {
+		ticket = ctx.GetHeader("REGISTER-TICKET")
+		flag = model.REGIST_TICKET_SUB
+	} else if ctx.GetHeader("RESETPWD-TICKET") != "" {
+		ticket = ctx.GetHeader("RESETPWD-TICKET")
+		flag = model.RESETPWD_TICKET_SUB
+	} else {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
+		return
+	}
+
+	username, usernameErr := util.GetUsername(ticket, flag)
 	// 错误处理机制写玉玉了
 	// 我开始乱写了啊啊啊啊
 	if usernameErr != nil {
@@ -108,7 +130,13 @@ func SendEmail(ctx *gin.Context) {
 		return
 	}
 
-	err := service.SendEmail(ctx, username, ticket)
+	var title string
+	if flag == model.REGIST_TICKET_SUB {
+		title = "确认电子邮件注册SAST-Link账户（无需回复）"
+	} else {
+		title = "确认电子邮件重置SAST-Link账户密码（无需回复）"
+	}
+	err := service.SendEmail(ctx, username, ticket, title)
 	if err != nil {
 		controllerLogger.WithFields(
 			logrus.Fields{
@@ -131,9 +159,11 @@ func VerifyAccount(ctx *gin.Context) {
 	// 0 is register
 	// 1 is login
 	if flag == "1" {
-		tKey = "login_ticket"
+		tKey = model.LOGIN_TICKET_SUB
 	} else if flag == "0" {
-		tKey = "register_ticket"
+		tKey = model.REGIST_TICKET_SUB
+	} else if flag == "2" {
+		tKey = model.RESETPWD_TICKET_SUB
 	} else {
 		ctx.JSON(http.StatusOK, result.Failed(result.RequestParamError))
 		return
@@ -148,9 +178,7 @@ func VerifyAccount(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
 		return
 	}
-	ctx.JSON(http.StatusOK, result.Success(gin.H{
-		tKey: ticket,
-	}))
+	ctx.JSON(http.StatusOK, result.Success(gin.H{tKey: ticket}))
 }
 
 func Login(ctx *gin.Context) {
@@ -222,6 +250,51 @@ func ChangePassword(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, result.Success(nil))
+}
+
+func ResetPassword(ctx *gin.Context) {
+	// get Body from request
+	newPassword, passwordFlag := ctx.GetPostForm("newPassword")
+	if !passwordFlag {
+		ctx.JSON(http.StatusOK, result.Failed(result.RequestParamError))
+		return
+	}
+	if newPassword == "" {
+		ctx.JSON(http.StatusOK, result.Failed(result.PasswordError))
+		return
+	}
+
+	ticket := ctx.GetHeader("RESETPWD-TICKET")
+
+	currentPhase, _ := model.Rdb.Get(ctx, ticket).Result()
+	// check which phase current in
+	switch currentPhase {
+	case model.VERIFY_STATUS["VERIFY_ACCOUNT"], model.VERIFY_STATUS["SEND_EMAIL"]:
+		ctx.JSON(http.StatusOK, result.Failed(result.ResetPasswordEror))
+		return
+	case model.VERIFY_STATUS["SUCCESS"]:
+		ctx.JSON(http.StatusOK, result.Failed(result.AlreadySetPasswordErr))
+		return
+	case "":
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.CheckTicketNotfound))
+		return
+	}
+
+	username, usernameErr := util.GetUsername(ticket, model.RESETPWD_TICKET_SUB)
+	if usernameErr != nil {
+		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(usernameErr)))
+		return
+	}
+
+	creErr := service.ResetPassword(username, newPassword)
+	if creErr != nil {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(creErr)))
+		return
+	}
+	ctx.JSON(http.StatusOK, result.Success(nil))
+
+	// set VERIFY_STATUS to 3 if successes
+	model.Rdb.Set(ctx, ticket, model.VERIFY_STATUS["SUCCESS"], model.REGISTER_TICKET_EXP)
 }
 
 func Logout(ctx *gin.Context) {
