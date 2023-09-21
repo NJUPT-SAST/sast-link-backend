@@ -22,3 +22,4 @@ go.work
 
 # Config
 dev-*.toml
+.idea/

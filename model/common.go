@@ -7,6 +7,7 @@ import (
 
 const (
 	REGISTER_TICKET_EXP = time.Minute * 5
+	RESETPWD_TICKET_EXP = time.Minute * 6
 	CAPTCHA_EXP         = time.Minute * 3
 	// This is not login token expire time, this is login ticket expire time
 	LOGIN_TICKET_EXP = time.Minute * 5
@@ -16,11 +17,12 @@ const (
 	LOGIN_TOKEN_IN_REDIS = "LOGIN"
 	LOGIN_SUB            = "login"
 	LOGIN_TICKET_SUB     = "loginTicket"
-	REGIST_SUB           = "register"
+	RESETPWD_TICKET_SUB  = "resetPwd"
+	REGIST_TICKET_SUB    = "register"
 )
 
 var (
-	REGISTER_STATUS = map[string]string{
+	VERIFY_STATUS = map[string]string{
 		"VERIFY_ACCOUNT": "0",
 		"SEND_EMAIL":     "1",
 		"VERIFY_CAPTCHA": "2",
@@ -37,7 +39,10 @@ func LoginTicketKey(username string) string {
 }
 
 func RegisterJWTSubKey(username string) string {
-	return fmt.Sprintf("%s-%s", username, REGIST_SUB)
+	return fmt.Sprintf("%s-%s", username, REGIST_TICKET_SUB)
+}
+func ResetPwdJWTSubkey(username string) string {
+	return fmt.Sprintf("%s-%s", username, RESETPWD_TICKET_SUB)
 }
 
 func LoginTicketJWTSubKey(username string) string {

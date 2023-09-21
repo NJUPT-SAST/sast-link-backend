@@ -93,9 +93,8 @@ func GetUsername(token, flag string) (string, error) {
 	// redis ticket is username-register
 	reg := strings.Split(username[0], "-")
 	uid, err := reg[0], nil
-	if reg[1] != "" &&
-		flag != reg[1] {
-		return "", nil
+	if reg[1] != "" && flag != "" && flag != reg[1] {
+		return "", result.TicketNotCorrect
 	}
 	return strings.ToLower(uid), err
 }
