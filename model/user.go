@@ -127,9 +127,9 @@ func GenerateVerifyCode() string {
 	return code
 }
 
-func SendEmail(recipient, content string) error {
+func SendEmail(recipient, content, title string) error {
 	emailInfo := conf.Sub("email")
 	sender := emailInfo.GetString("sender")
 	secret := emailInfo.GetString("secret")
-	return util.SendEmail(sender, secret, recipient, content)
+	return util.SendEmail(sender, secret, recipient, content, title)
 }
