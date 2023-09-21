@@ -29,6 +29,7 @@ func InitRouter() *gin.Engine {
 		usergroup.POST("/login", v1.Login)
 		usergroup.POST("/logout", v1.Logout)
 		usergroup.POST("/changePassword", v1.ChangePassword)
+		usergroup.POST("/resetPassword", v1.ResetPassword)
 	}
 	verify := apiV1.Group("/verify")
 	{

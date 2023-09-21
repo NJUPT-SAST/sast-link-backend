@@ -77,18 +77,18 @@ func GenerateCode() string {
 }
 
 // sendEmail send email to user
-func SendEmail(sender string, secret string, recipient string, content string) error {
+func SendEmail(sender string, secret string, recipient string, content, title string) error {
 	// https://gist.github.com/chrisgillis/10888032
 	from := mail.Address{"", sender}
 	to := mail.Address{"", recipient}
-	subj := "确认电子邮件注册SAST-Link账户（无需回复）"
+	//title := "确认电子邮件注册SAST-Link账户（无需回复）"
 	body := content
 
 	// Setup headers
 	headers := make(map[string]string)
 	headers["From"] = from.String()
 	headers["To"] = to.String()
-	headers["Subject"] = subj
+	headers["Subject"] = title
 
 	// setup message
 	message := ""
