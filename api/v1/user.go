@@ -223,7 +223,7 @@ func Login(ctx *gin.Context) {
 	}
 	model.Rdb.Set(ctx, model.LoginTokenKey(username), token, model.LOGIN_TOKEN_EXP)
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
-		"token": token,
+		model.LOGIN_TOKEN_SUB: token,
 	}))
 }
 

@@ -67,7 +67,7 @@ func VerifyAccountResetPWD(ctx *gin.Context, username string) (string, error) {
 
 	//user exist and try to reset password
 	if exist {
-		ticket, err := util.GenerateTokenWithExp(model.ResetPwdJWTSubkey(username), model.RESETPWD_TICKET_EXP)
+		ticket, err := util.GenerateTokenWithExp(ctx, model.ResetPwdJWTSubkey(username), model.RESETPWD_TICKET_EXP)
 		if err != nil {
 			return "", err
 		}
