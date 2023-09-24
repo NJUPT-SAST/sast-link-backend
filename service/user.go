@@ -66,7 +66,7 @@ func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 		return "", result.UserIsExist
 	} else { // user is not exist and can register
 		// generate token and set expire time
-		ticket, err := util.GenerateTokenWithExp(model.RegisterJWTSubKey(username), model.REGISTER_TICKET_EXP)
+		ticket, err := util.GenerateTokenWithExp(ctx, model.RegisterJWTSubKey(username), model.REGISTER_TICKET_EXP)
 		if err != nil {
 			return "", err
 		}
@@ -84,7 +84,7 @@ func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 	}
 	// user is existed and can login
 	if exist {
-		ticket, err := util.GenerateTokenWithExp(model.LoginTicketJWTSubKey(username), model.LOGIN_TICKET_EXP)
+		ticket, err := util.GenerateTokenWithExp(ctx, model.LoginTicketJWTSubKey(username), model.LOGIN_TICKET_EXP)
 		if err != nil {
 			return "", err
 		}
@@ -98,7 +98,7 @@ func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 			return "", err
 		}
 		if uidExist {
-			ticket, err := util.GenerateTokenWithExp(model.LoginTicketJWTSubKey(username), model.LOGIN_TICKET_EXP)
+			ticket, err := util.GenerateTokenWithExp(ctx, model.LoginTicketJWTSubKey(username), model.LOGIN_TICKET_EXP)
 			if err != nil {
 				return "", err
 			}
