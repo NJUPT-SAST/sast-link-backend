@@ -15,10 +15,10 @@ const (
 	LOGIN_TOKEN_EXP = time.Hour * 24 * 7
 	// Login token key in redis
 	LOGIN_TOKEN_IN_REDIS = "LOGIN"
-	LOGIN_SUB            = "login"
+	LOGIN_TOKEN_SUB      = "loginToken"
 	LOGIN_TICKET_SUB     = "loginTicket"
-	RESETPWD_TICKET_SUB  = "resetPwd"
-	REGIST_TICKET_SUB    = "register"
+	REGIST_TICKET_SUB    = "registerTicket"
+	RESETPWD_TICKET_SUB  = "resetPwdTicket"
 )
 
 var (
@@ -50,7 +50,7 @@ func LoginTicketJWTSubKey(username string) string {
 }
 
 func LoginJWTSubKey(username string) string {
-	return fmt.Sprintf("%s-%s", username, LOGIN_SUB)
+	return fmt.Sprintf("%s-%s", username, LOGIN_TOKEN_SUB)
 }
 
 func LoginTokenKey(username string) string {

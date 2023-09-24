@@ -176,7 +176,7 @@ func ResetPassword(username, newPassword string) error {
 func UserInfo(ctx *gin.Context) (*model.User, error) {
 	token := ctx.GetHeader("TOKEN")
 	nilUser := &model.User{}
-	username, err := util.GetUsername(token, model.LOGIN_SUB)
+	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
 	if err != nil {
 		return nilUser, err
 	}

@@ -231,7 +231,7 @@ func Login(ctx *gin.Context) {
 func ChangePassword(ctx *gin.Context) {
 	// Get username from token
 	token := ctx.GetHeader("TOKEN")
-	username, err := util.GetUsername(token, model.LOGIN_SUB)
+	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
 	if err != nil || username == "" {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.TicketNotCorrect))
 		return
@@ -306,7 +306,7 @@ func Logout(ctx *gin.Context) {
 		return
 	}
 	//remove Token from username
-	username, err := util.GetUsername(token, model.LOGIN_SUB)
+	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
 	if err != nil || username == "" {
 		ctx.JSON(http.StatusOK, result.TicketNotCorrect)
 		return
