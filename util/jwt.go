@@ -37,10 +37,10 @@ func GenerateToken(username string) (string, error) {
 }
 
 // GenerateToken with expireTime
-func GenerateTokenWithExp(username string, expireTime time.Duration) (string, error) {
+func GenerateTokenWithExp(ctx context.Context, username string, expireTime time.Duration) (string, error) {
 	signingKey := []byte(jwtSigningKey)
 	gen := NewJWTAccessGenerate("", signingKey, jwt.SigningMethodHS256)
-	access, _, err := gen.Token(context.Background(), username, expireTime, false)
+	access, _, err := gen.Token(ctx, username, expireTime, false)
 	return access, err
 }
 
