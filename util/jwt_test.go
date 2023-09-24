@@ -10,7 +10,7 @@ import (
 
 func TestJWT(t *testing.T) {
 	Convey("Test JWT Access Generate", t, func() {
-		token, err := GenerateTokenWithExp("xunop@qq.com-login", time.Minute*3)
+		token, err := GenerateTokenWithExp(nil, "xunop@qq.com-login", time.Minute*3)
 		So(err, ShouldBeNil)
 		fmt.Println("token:", token)
 		So(token, ShouldNotBeEmpty)
