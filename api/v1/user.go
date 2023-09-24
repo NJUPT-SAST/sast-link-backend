@@ -2,6 +2,7 @@ package v1
 
 import (
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/NJUPT-SAST/sast-link-backend/model"
@@ -129,6 +130,12 @@ func SendEmail(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, result.Failed(result.TicketNotCorrect))
 		return
 	}
+	// verify if the user email correct
+	matched, _ := regexp.MatchString("^[a-zA-Z][0-9]{8}@njupt.edu.cn$", username)
+	if !matched {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.UserEmailError))
+		return
+	}
 
 	var title string
 	if flag == model.REGIST_TICKET_SUB {
@@ -142,7 +149,6 @@ func SendEmail(ctx *gin.Context) {
 			logrus.Fields{
 				"username": username,
 			}).Error(err)
-
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
 	} else {
 		ctx.JSON(http.StatusOK, result.Success(nil))
