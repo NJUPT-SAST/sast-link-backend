@@ -217,7 +217,7 @@ func Login(ctx *gin.Context) {
 		return
 	}
 	// Set Token with expire time and return
-	token, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username), model.LOGIN_TOKEN_EXP)
+	token, err := util.GenerateTokenWithExp(ctx, model.LoginJWTSubKey(username), model.LOGIN_TOKEN_EXP)
 	if err != nil {
 		ctx.JSON(http.StatusOK, result.Failed(result.GenerateToken))
 	}
