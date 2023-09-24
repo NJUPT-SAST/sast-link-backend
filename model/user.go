@@ -2,7 +2,6 @@ package model
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 	"time"
 
@@ -115,10 +114,23 @@ func CheckUserByUid(uid string) (bool, error) {
 
 func UserInfo(username string) (*User, error) {
 	var user = User{Uid: &username}
-	if err := Db.Where("email = ?", username).Where("is_deleted = ?", false).First(&user).Error; err != nil {
-		return nil, fmt.Errorf("%v: User [%s] Not Exist\n", err, username)
+	matched, err2 := regexp.MatchString("@", username)
+	if err2 != nil {
+		userLogger.Infof("regexp matchiong error")
+		return nil, err2
 	}
-
+	var err error = nil
+	if matched {
+		err = Db.Where("email = ?", username).Where("is_deleted = ?", false).First(&user).Error
+	} else {
+		err = Db.Where("uid = ?", username).Where("is_deleted = ?", false).First(&user).Error
+	}
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			userLogger.Infof("User [%s] Not Exist\n", username)
+			return nil, err
+		}
+	}
 	return &user, nil
 }
 

@@ -39,6 +39,7 @@ var (
 	InvalidAccToken       = LocalError{ErrCode: 20009, ErrMsg: "无效的token"}
 	SendEmailError        = LocalError{ErrCode: 30001, ErrMsg: "发送邮件失败"}
 	CaptchaError          = LocalError{ErrCode: 30002, ErrMsg: "验证码错误"}
+	UserEmailError        = LocalError{ErrCode: 30003, ErrMsg: "邮箱格式错误"}
 	VerifyAccountError    = LocalError{ErrCode: 40001, ErrMsg: "验证账户失败"}
 	VerifyPasswordError   = LocalError{ErrCode: 40002, ErrMsg: "验证账户密码失败"}
 	// this is default error
@@ -75,6 +76,7 @@ var errorMap = map[int]LocalError{
 	20009: InvalidAccToken,
 	30001: SendEmailError,
 	30002: CaptchaError,
+	30003: UserEmailError,
 	40001: VerifyAccountError,
 	40002: VerifyPasswordError,
 	60001: ClientErr,
