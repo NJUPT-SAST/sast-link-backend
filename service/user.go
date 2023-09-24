@@ -59,6 +59,11 @@ func VerifyAccount(ctx *gin.Context, username, flag string) (string, error) {
 }
 
 func VerifyAccountResetPWD(ctx *gin.Context, username string) (string, error) {
+	// verify if the user email correct
+	matched, _ := regexp.MatchString("^[a-zA-Z][0-9]{8}@njupt.edu.cn$", username)
+	if !matched {
+		return "", result.UserEmailError
+	}
 	// check if the user is exist
 	exist, err := model.CheckUserByEmail(username)
 	if err != nil {
@@ -78,11 +83,15 @@ func VerifyAccountResetPWD(ctx *gin.Context, username string) (string, error) {
 		// user not exist	and can`t resetPWD
 		return "", result.UserNotExist
 	}
-
 }
 
 // This function is used to verify the user's email is exist or not when register
 func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
+	// verify if the user email correct
+	matched, _ := regexp.MatchString("^[a-zA-Z][0-9]{8}@njupt.edu.cn$", username)
+	if !matched {
+		return "", result.UserEmailError
+	}
 	// check if the user is exist
 	exist, err := model.CheckUserByEmail(username)
 	if err != nil {
