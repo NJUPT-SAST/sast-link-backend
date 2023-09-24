@@ -129,7 +129,7 @@ func OauthUserInfo(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, result.Success(gin.H{
-		"email":   user.Email,
+		"email":  user.Email,
 		"userId": user.Uid,
 	}))
 }
@@ -260,7 +260,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		return
 	}
 
-	username, err := util.GetUsername(token, model.LOGIN_SUB)
+	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
 	if err != nil || username == "" {
 		if r.Form == nil {
 			_ = r.ParseForm()
