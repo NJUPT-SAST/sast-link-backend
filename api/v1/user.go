@@ -131,7 +131,7 @@ func SendEmail(ctx *gin.Context) {
 		return
 	}
 	// verify if the user email correct
-	matched, _ := regexp.MatchString("^[a-zA-Z][0-9]{8}@njupt.edu.cn$", username)
+	matched, _ := regexp.MatchString("^[BPFQbpfq](1[7-9]|2[0-9])([0-3])\\d{5}@njupt.edu.cn$", username)
 	if !matched {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.UserEmailError))
 		return
