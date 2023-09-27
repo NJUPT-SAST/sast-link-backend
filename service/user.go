@@ -60,7 +60,7 @@ func VerifyAccount(ctx *gin.Context, username, flag string) (string, error) {
 
 func VerifyAccountResetPWD(ctx *gin.Context, username string) (string, error) {
 	// verify if the user email correct
-	matched, _ := regexp.MatchString("^[a-zA-Z][0-9]{8}@njupt.edu.cn$", username)
+	matched, _ := regexp.MatchString("^[BPFQbpfq](1[7-9]|2[0-9])([0-3])\\d{5}@njupt.edu.cn$", username)
 	if !matched {
 		return "", result.UserEmailError
 	}
@@ -88,7 +88,7 @@ func VerifyAccountResetPWD(ctx *gin.Context, username string) (string, error) {
 // This function is used to verify the user's email is exist or not when register
 func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 	// verify if the user email correct
-	matched, _ := regexp.MatchString("^[a-zA-Z][0-9]{8}@njupt.edu.cn$", username)
+	matched, _ := regexp.MatchString("^[BPFQbpfq](1[7-9]|2[0-9])([0-3])\\d{5}@njupt.edu.cn$", username)
 	if !matched {
 		return "", result.UserEmailError
 	}
