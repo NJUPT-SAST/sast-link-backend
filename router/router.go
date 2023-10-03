@@ -47,12 +47,20 @@ func InitRouter() *gin.Engine {
 		// authorize
 		oauth.GET("/authorize", v1.Authorize)
 		// login
-		oauth.GET("/auth", v1.UserAuth)
+		// oauth.GET("/auth", v1.UserAuth)
 		oauth.POST("/token", v1.AccessToken)
 		oauth.POST("/refresh", v1.RefreshToken)
 		oauth.POST("/create-client", v1.CreateClient)
 		oauth.GET("/userinfo", v1.OauthUserInfo)
 	}
 
+	// third party login
+	login := apiV1.Group("/login")
+	{
+		login.GET("/lark", v1.OauthLarkLogin)
+		login.GET("/lark/callback", v1.OauthLarkCallback)
+		// login.POST("/github", v1.OauthGithubLogin)
+		// login.POST("/qq", v1.OauthQQLogin)
+	}
 	return r
 }
