@@ -66,7 +66,6 @@ func RegisterAuth(c *gin.Context) {
 			return
 		}
 	}
-
 	//refresh token
 	//_, err = rdb.Get(ctx, "TOKEN:"+username).Result()
 	//if err != nil {
@@ -86,13 +85,18 @@ func RegisterAuth(c *gin.Context) {
 
 }
 
-// LoginCheckAuth The router of Login Process use this Auth, Token type:Login-TICKET
-func LoginCheckAuth(c *gin.Context) {
-
-}
-
 // LoginAuth The router of user/admin operations use this Auth,Token type:Login-TOKEN
 func LoginAuth(c *gin.Context) {
+	_, tokenType, _, checkRes := checkToken(c)
+	if !checkRes.Success {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, checkRes)
+		return
+	}
+	//verify tokenType
+	if tokenType != model.LOGIN_TICKET_SUB {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.AuthTokenTypeError))
+		return
+	}
 
 }
 

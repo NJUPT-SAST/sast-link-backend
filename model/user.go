@@ -34,17 +34,17 @@ func CreateUser(user *User) error {
 	return nil
 }
 
-func CheckPassword(username string, password string) (bool, error) {
+func CheckPassword(username string, password string) error {
 	//get uid from username by regexp
 	var user User
 	matched, err2 := regexp.MatchString("@", username)
 	if err2 != nil {
+		//print err log
 		userLogger.Infof("regexp matchiong error")
-		return false, err2
+		return err2
 	}
-	exist := true
-	var err error = nil
 	//get user by email/uid
+	var err error = nil
 	if matched {
 		err = Db.Where("email = ?", username).Where("is_deleted = ?", false).First(&user).Error
 	} else {
@@ -53,15 +53,17 @@ func CheckPassword(username string, password string) (bool, error) {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			userLogger.Infof("User [%s] Not Exist\n", username)
-			exist = false
 		}
+		userLogger.Infof("gorm search user fail")
+		return err
 	}
 	//encrypt and verify password
 	pwdEncrypted := util.ShaHashing(password)
 	if *user.Password != pwdEncrypted {
-		exist = false
+		//return err to front
+		err = result.PasswordError
 	}
-	return exist, err
+	return err
 }
 
 func ChangePassword(username string, password string) error {

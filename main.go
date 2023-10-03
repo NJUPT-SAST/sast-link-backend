@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/router"
 )
@@ -8,5 +9,5 @@ import (
 func main() {
 	router := router.InitRouter()
 	// _ = router.Run()
-	log.Log.Errorln(router.Run())
+	log.Log.Errorln(router.Run(config.Config.GetString("server.addr")))
 }

@@ -111,27 +111,20 @@ func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 	}
 }
 
-func Login(username string, password string) (bool, error) {
+func Login(username string, password string) error {
 	//check password
-	flag, err := model.CheckPassword(username, password)
-	if !flag {
-		return false, err
-	}
-	return true, err
-
+	err := model.CheckPassword(username, password)
+	return err
 }
 
 func ModifyPassword(ctx *gin.Context, username, oldPassword, newPassword string) error {
 	//check password
-	flag, err := model.CheckPassword(username, oldPassword)
-	if !flag {
+	err := model.CheckPassword(username, oldPassword)
+	if err != nil {
 		return err
 	}
 	pErr := model.ChangePassword(username, newPassword)
-	if pErr != nil {
-		return pErr
-	}
-	return nil
+	return pErr
 }
 
 func UserInfo(ctx *gin.Context) (*model.User, error) {

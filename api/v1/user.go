@@ -134,47 +134,28 @@ func VerifyAccount(ctx *gin.Context) {
 }
 
 func Login(ctx *gin.Context) {
-	ticket := ctx.GetHeader("LOGIN-TICKET")
 	password := ctx.PostForm("password")
-	if ticket == "" {
-		ctx.JSON(http.StatusOK, result.Failed(result.CheckTicketNotfound))
-		return
-	}
 	if password == "" {
 		ctx.JSON(http.StatusOK, result.Failed(result.PasswordEmpty))
 		return
 	}
 
-	// Get username from ticket
-	username, exists := ctx.Get("username")
-	if exists == false {
-		ctx.JSON(http.StatusOK, result.Failed(result.TicketNotCorrect))
-		return
-	}
-	//verify if the user is deleted
-
+	// Get username from gin.Context
+	value, _ := ctx.Get("username")
+	username := value.(string)
 	// Check the password
-	flag, err := service.Login(username.(string), password)
+	err := service.Login(username, password)
 	if err != nil {
-		controllerLogger.WithFields(
-			logrus.Fields{
-				"username": username,
-			}).Error(err)
-		//ctx.JSON(http.StatusUnauthorized, result.Failed(result.VerifyAccountError))
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.VerifyPasswordError))
-		return
-	}
-	if !flag {
-		ctx.JSON(http.StatusOK, result.Failed(result.PasswordError))
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.HandleError(err)))
 		return
 	}
 	// Set Token with expire time and return
 	// TODO: role
-	token, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username.(string)), model.LOGIN_TOKEN_SUB, 0, model.LOGIN_TOKEN_EXP)
+	token, err := util.GenerateTokenWithExp(model.LoginJWTSubKey(username), model.LOGIN_TOKEN_SUB, 0, model.LOGIN_TOKEN_EXP)
 	if err != nil {
 		ctx.JSON(http.StatusOK, result.Failed(result.GenerateToken))
 	}
-	model.Rdb.Set(ctx, model.LoginTokenKey(username.(string)), token, model.LOGIN_TOKEN_EXP)
+	model.Rdb.Set(ctx, model.LoginTokenKey(username), token, model.LOGIN_TOKEN_EXP)
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
 		"token": token,
 	}))

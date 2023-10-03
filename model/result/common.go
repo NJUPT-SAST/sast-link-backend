@@ -51,7 +51,7 @@ var (
 	VerifyAccountError    = LocalError{ErrCode: 40001, ErrMsg: "验证账户失败"}
 	VerifyPasswordError   = LocalError{ErrCode: 40002, ErrMsg: "验证账户密码失败"}
 	// this is default error
-	InternalErr     = LocalError{ErrCode: 50000, ErrMsg: "未知错误"}
+	InternalErr     = LocalError{ErrCode: 50000, ErrMsg: "内部错误，请找开发人员反馈"}
 	ClientErr       = LocalError{ErrCode: 60001, ErrMsg: "客户端错误"}
 	AccessTokenErr  = LocalError{ErrCode: 60002, ErrMsg: "access_token错误"}
 	RefreshTokenErr = LocalError{ErrCode: 60003, ErrMsg: "refresh_token错误"}

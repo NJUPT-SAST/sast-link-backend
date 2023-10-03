@@ -22,5 +22,6 @@ go.work
 
 # Config
 dev-*.toml
+Dockerfile
 
 .idea
