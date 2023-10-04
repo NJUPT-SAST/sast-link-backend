@@ -11,12 +11,12 @@ import (
 func PostWithHeader(url string, header map[string]string, body any) (*http.Response, error) {
 	jsonData, err := json.Marshal(body);
 	if err != nil {
-		log.Logger.Errorln("json.Marshal ::: ", err)
+		log.Log.Errorln("json.Marshal ::: ", err)
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Logger.Errorln("http.NewRequest ::: ", err)
+		log.Log.Errorln("http.NewRequest ::: ", err)
 		return nil, err
 	}
 	for k, v := range header {
@@ -28,7 +28,7 @@ func PostWithHeader(url string, header map[string]string, body any) (*http.Respo
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Logger.Errorln("http.DefaultClient.Do ::: ", err)
+		log.Log.Errorln("http.DefaultClient.Do ::: ", err)
 		return nil, err
 	}
 
