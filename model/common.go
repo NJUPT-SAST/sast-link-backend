@@ -15,6 +15,8 @@ const (
 	LOGIN_TOKEN_EXP = time.Hour * 24 * 7
 	// Login token key in redis
 	LOGIN_TOKEN_IN_REDIS = "LOGIN"
+
+	// For JWT
 	LOGIN_TOKEN_SUB      = "loginToken"
 	LOGIN_TICKET_SUB     = "loginTicket"
 	REGIST_TICKET_SUB    = "registerTicket"
