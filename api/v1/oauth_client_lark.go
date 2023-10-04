@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	AppAccessTokenURL = "https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal"
-	UserAccessTokenURL = "https://open.feishu.cn/open-apis/authen/v1/oidc/access_token"
+	appAccessTokenURL = "https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal"
+	userAccessTokenURL = "https://open.feishu.cn/open-apis/authen/v1/oidc/access_token"
 )
 
 var (
@@ -36,23 +36,32 @@ var (
 
 // OauthLarkLogin redirect url to lark auth page.
 func OauthLarkLogin(c *gin.Context) {
-	url := larkConf.AuthCodeURL("state")
+	oauthState := GenerateStateOauthCookie(c.Writer)
+	url := larkConf.AuthCodeURL(oauthState)
 
-	log.Log.Warnf("Visit the URL for the auth dialog: %v\n", url)
+	log.Logger.Warnf("Visit the URL for the auth dialog: %v\n", url)
 
-	c.Redirect(http.StatusPermanentRedirect, url) 
+	c.Redirect(http.StatusFound, url) 
 }
 
 // OauthLarkCallback read url from lark callback, 
 // get `code`, request app_access_token,
 // at last request lark url to get user_access_token.
 func OauthLarkCallback(c *gin.Context) {
+	oauthState, _ := c.Request.Cookie("oauthstate")
+
+	if c.Request.FormValue("state") != oauthState.Value {
+		log.Logger.Errorln("invalid oauth state, expected '%s', got '%s'\n", oauthState.Value, c.Request.FormValue("state"))
+		c.Redirect(http.StatusFound, "/")
+		return
+	}
+
 	code := c.Query("code")
-	log.Log.Debugf("\ncode ::: %s\n", code)
+	log.Logger.Debugf("\ncode ::: %s\n", code)
 	accessToken, err := getLarkAppAccessToken()
 
 	if err != nil {
-		log.Log.Errorln("getLarkAppAccessToken ::: ", err)
+		log.Logger.Errorln("getLarkAppAccessToken ::: ", err)
 		c.JSON(http.StatusInternalServerError, result.Failed(result.HandleError(err)))
 		return
 	}
@@ -67,21 +76,21 @@ func OauthLarkCallback(c *gin.Context) {
 		"Content-Type": "application/json; charset=utf-8",
 	}
 
-	res, err := util.PostWithHeader(UserAccessTokenURL, header, data)
+	res, err := util.PostWithHeader(userAccessTokenURL, header, data)
 	if err != nil {
-		log.Log.Errorln("util.PostWithHeader ::: ", err)
+		log.Logger.Errorln("util.PostWithHeader ::: ", err)
 		c.JSON(http.StatusOK, result.Failed(result.HandleError(result.AccessTokenErr)))
 	}
 
 	body, err := io.ReadAll(res.Body)
 	defer res.Body.Close()
 	if err != nil {
-		log.Log.Errorln("io.ReadAll ::: ", err)
+		log.Logger.Errorln("io.ReadAll ::: ", err)
 		c.JSON(http.StatusInternalServerError, result.Failed(result.HandleError(err)))
 		return
 	}
 	if resCode := gjson.Get(string(body), "code").Int(); resCode != 0 {
-		log.Log.Errorf("gjson.Get ::: response code: %d\n", resCode)
+		log.Logger.Errorf("gjson.Get ::: response code: %d\n", resCode)
 		c.JSON(http.StatusOK, result.Failed(result.HandleError(errors.New(fmt.Sprintf("OauthLarkCallback resCode: %d", resCode)))))
 		return
 	}
@@ -90,7 +99,8 @@ func OauthLarkCallback(c *gin.Context) {
 	expire := gjson.Get(string(body), "data.expire_in").Int()
 
 	model.Rdb.Set(model.RedisCtx, "lark_user_access_token", userAccessToken, time.Duration(expire))
-	c.JSON(http.StatusOK, data)
+
+	c.JSON(http.StatusOK, result.Success(map[string]string{"user_access_token": userAccessToken}))
 
 }
 
@@ -103,9 +113,9 @@ func getLarkAppAccessToken() (string, error) {
 	params.Add("app_id", appId)
 	params.Add("app_secret", appSecret)
 
-	res, error := http.PostForm(AppAccessTokenURL, params)
+	res, error := http.PostForm(appAccessTokenURL, params)
 	if error != nil {
-		log.Log.Errorln("http.PostForm ::: ", error)
+		log.Logger.Errorln("http.PostForm ::: ", error)
 		return "", error
 	}
 	log.LogRes(res)
@@ -113,13 +123,13 @@ func getLarkAppAccessToken() (string, error) {
 	body, error := io.ReadAll(res.Body)
 	defer res.Body.Close()
 	if error != nil {
-		log.Log.Errorln("io.ReadAll ::: ", error)
+		log.Logger.Errorln("io.ReadAll ::: ", error)
 		return "", error
 	}
 
 
 	if code := gjson.Get(string(body), "code").Int(); code != 0 {
-		log.Log.Errorln("gjson.Get ::: code:", code)
+		log.Logger.Errorln("gjson.Get ::: code:", code)
 		return "", result.InternalErr
 	}
 
@@ -132,4 +142,4 @@ func getLarkAppAccessToken() (string, error) {
 }
 
 
-func getUserInfo(user_access_token string) 
+// func getUserInfo(user_access_token string) 
