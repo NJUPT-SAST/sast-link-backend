@@ -18,7 +18,7 @@ var (
 	Db          *gorm.DB
 	Rdb         *redis.Client
 	conf        = config.Config
-	modelLogger = log.Log
+	modelLogger = log.Logger
 	redisConf   = GetRedisConf()
 	postgreConf = GetPostgresConf()
 	RedisCtx = context.Background()
