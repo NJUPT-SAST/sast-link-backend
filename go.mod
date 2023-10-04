@@ -25,7 +25,7 @@ require (
 	github.com/tidwall/gjson v1.12.1
 	github.com/vgarvardt/go-oauth2-pg/v4 v4.4.3
 	github.com/vgarvardt/go-pg-adapter v1.0.0
-	golang.org/x/oauth2 v0.10.0
+	golang.org/x/oauth2 v0.12.0
 )
 
 require (
@@ -106,10 +106,10 @@ require (
 	github.com/vgarvardt/pgx-helpers/v4 v4.0.0-20200225100150-876aee3d1a22 // indirect
 	go.starlark.net v0.0.0-20230302034142-4b1e35fe2254 // indirect
 	golang.org/x/arch v0.3.0 // indirect
-	golang.org/x/crypto v0.11.0 // indirect
-	golang.org/x/net v0.12.0 // indirect
-	golang.org/x/sys v0.10.0 // indirect
-	golang.org/x/text v0.11.0 // indirect
+	golang.org/x/crypto v0.13.0 // indirect
+	golang.org/x/net v0.15.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
