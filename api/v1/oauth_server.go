@@ -28,7 +28,7 @@ import (
 
 var (
 	srv            *server.Server
-	pgxConn, _     = pgx.Connect(context.TODO(), config.Config.Sub("oauth").GetString("db_uri"))
+	pgxConn, _     = pgx.Connect(context.TODO(), config.Config.Sub("oauth.server").GetString("db_uri"))
 	adapter        = pgx4adapter.NewConn(pgxConn)
 	clientStore, _ = pg.NewClientStore(adapter)
 )

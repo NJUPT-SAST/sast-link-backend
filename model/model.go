@@ -21,6 +21,7 @@ var (
 	modelLogger = log.Log
 	redisConf   = GetRedisConf()
 	postgreConf = GetPostgresConf()
+	RedisCtx = context.Background()
 )
 
 // Redis config
@@ -133,8 +134,7 @@ func connectRedis() {
 		DB:       DB, // use default DB
 	})
 
-	ctx := context.Background()
-	_, err := Rdb.Ping(ctx).Result()
+	_, err := Rdb.Ping(RedisCtx).Result()
 	if err != nil || Rdb == nil {
 		modelLogger.Panicln("redis connect failed")
 
