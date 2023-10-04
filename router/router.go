@@ -11,7 +11,7 @@ import (
 
 func InitRouter() *gin.Engine {
 	r := gin.New()
-	var midLog = log.Logger
+	var midLog = log.Log
 	r.Use(middleware.MiddlewareLogging(midLog))
 	// FIXME: need discuss on web log
 	// r.Use(middleware.WebLogger)
@@ -57,13 +57,10 @@ func InitRouter() *gin.Engine {
 	// third party login
 	login := apiV1.Group("/login")
 	{
-		// github
 		login.GET("/github", v1.OauthGithubLogin)
 		login.GET("/github/callback", v1.OauthGithubCallback)
-
-		// lark
-		login.GET("/lark", v1.OauthLarkLogin)
-		login.GET("/lark/callback", v1.OauthLarkCallback)
+		// login.POST("/github", v1.OauthGithubLogin)
+		// login.POST("/qq", v1.OauthQQLogin)
 	}
 	return r
 }

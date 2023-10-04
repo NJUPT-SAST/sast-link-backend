@@ -13,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/redis/go-redis/v9"
 )
-Logger
+
 var serviceLogger = log.Log
 
 // password can just contain ascii character

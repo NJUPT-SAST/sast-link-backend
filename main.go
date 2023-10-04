@@ -8,5 +8,5 @@ import (
 func main() {
 	router := router.InitRouter()
 	// _ = router.Run()
-	log.Logger.Errorln(router.Run())
+	log.Log.Errorln(router.Run())
 }

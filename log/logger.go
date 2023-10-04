@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	Logger = logrus.New()
+	Log = logrus.New()
 	logLevel = config.Config.GetString("log.level")
 )
 
@@ -23,11 +23,11 @@ func init() {
 
 func initLogger() {
 	// use ansicolor to add console color
-	Logger.SetOutput(ansicolor.NewAnsiColorWriter(os.Stdout))
-	Logger.SetLevel(logLevelSwitcher(logLevel))
+	Log.SetOutput(ansicolor.NewAnsiColorWriter(os.Stdout))
+	Log.SetLevel(logLevelSwitcher(logLevel))
 	// add caller message(method and file)
-	Logger.SetReportCaller(true)
-	Logger.SetFormatter(&logrus.TextFormatter{
+	Log.SetReportCaller(true)
+	Log.SetFormatter(&logrus.TextFormatter{
 		ForceColors:     true,
 		ForceQuote:      true,
 		TimestampFormat: "2006-01-02 15:04:05",
@@ -77,7 +77,7 @@ func LogReq(req *http.Request) {
 	req.URL.Path,
 	)
 	reqFormat += `
-		    Header:
+		Header:
 	`
 	for k, v := range req.Header {
 		reqFormat += fmt.Sprintf(
@@ -92,7 +92,7 @@ func LogReq(req *http.Request) {
 			Body:
 				%s
 	`
-	Logger.Warnf(reqFormat, string(reqBody))
+	Log.Warnf(reqFormat, string(reqBody))
 }
 
 // LogRes print response header and body with `debug` level log
@@ -102,7 +102,7 @@ func LogReq(req *http.Request) {
 func LogRes(res *http.Response) {
 	resBody, err := io.ReadAll(res.Body)
 	if err != nil {
-		Logger.Errorln("io.ReadAll: ", err)
+		Log.Errorln("io.ReadAll: ", err)
 	}
 
 	res.Body = io.NopCloser(bytes.NewReader(resBody))
@@ -126,5 +126,5 @@ func LogRes(res *http.Response) {
 	        Body:
 		        %s
 	`
-	Logger.Warnf(resFormat, string(resBody))
+	Log.Warnf(resFormat, string(resBody))
 }

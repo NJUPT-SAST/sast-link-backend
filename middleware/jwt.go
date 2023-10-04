@@ -17,7 +17,7 @@ var (
 	ctx              = context.Background()
 	db               = model.Db
 	rdb              = model.Rdb
-	middlewareLogger = log.Logger
+	middlewareLogger = log.Log
 	excludePath      = []string{"/login", "/register"}
 )
 
