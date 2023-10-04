@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"time"
 
@@ -33,17 +34,18 @@ func CreateUser(user *User) error {
 	return nil
 }
 
-func CheckPassword(username string, password string) (bool, error) {
+func CheckPassword(username string, password string) (string, error) {
 	//get uid from username by regexp
 	var user User
-	matched, err2 := regexp.MatchString("@", username)
-	if err2 != nil {
+	matched, regErr := regexp.MatchString("@", username)
+	if regErr != nil {
 		userLogger.Infof("regexp matchiong error")
-		return false, err2
+		return "", regErr
 	}
-	exist := true
+
 	var err error = nil
-	//get user by email/uid
+	// Get user by email/uid
+	// If matched, get user by email
 	if matched {
 		err = Db.Where("email = ?", username).Where("is_deleted = ?", false).First(&user).Error
 	} else {
@@ -52,64 +54,54 @@ func CheckPassword(username string, password string) (bool, error) {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			userLogger.Infof("User [%s] Not Exist\n", username)
-			exist = false
+			return "", result.UserNotExist
 		}
 	}
+
 	//encrypt and verify password
 	pwdEncrypted := util.ShaHashing(password)
 	if *user.Password != pwdEncrypted {
-		exist = false
+		return "", result.PasswordError
 	}
-	return exist, err
+	return *user.Uid, err
 }
 
 func ChangePassword(username string, password string) error {
 	pwdEncrypted := util.ShaHashing(password)
-	matched, err := regexp.MatchString("@", username)
-	if err != nil {
-		userLogger.Infof("regexp matchiong error")
-		return err
-	}
-	//get user by email/uid
-	if matched {
-		err = Db.Model(&User{}).Where("email = ?", username).Where("is_deleted = ?", false).Update("password", pwdEncrypted).Error
-	} else {
-		err = Db.Model(&User{}).Where("uid = ?", username).Where("is_deleted = ?", false).Update("password", pwdEncrypted).Error
-	}
+	err := Db.Model(&User{}).Where("uid = ?", username).Where("is_deleted = ?", false).Update("password", pwdEncrypted).Error
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// CheckUserByEmail find user by email
-// return true if user exist
-func CheckUserByEmail(email string) (bool, error) {
+// GetUserByEmail find user by email
+func GetUserByEmail(email string) (*User, error) {
 	var user User
 	err := Db.Where("email = ?", email).Where("is_deleted = ?", false).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			userLogger.Infof("User [%s] Not Exist\n", email)
-			return false, nil
+			return nil, nil
 		}
-		return false, err
+		return nil, result.InternalErr
 	}
-	return true, nil
+	return &user, nil
 }
 
 // CheckUserByUid find user by uid
 // return true if user exist
-func CheckUserByUid(uid string) (bool, error) {
+func GetUserByUid(uid string) (*User, error) {
 	var user User
 	err := Db.Where("uid = ?", uid).Where("is_deleted = ?", false).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			userLogger.Infof("User [%s] Not Exist\n", uid)
-			return false, result.UserNotExist
+			return nil, result.UserNotExist
 		}
-		return false, err
+		return nil, err
 	}
-	return true, nil
+	return &user, nil
 }
 
 func UserInfo(username string) (*User, error) {
@@ -130,6 +122,42 @@ func UserInfo(username string) (*User, error) {
 			userLogger.Infof("User [%s] Not Exist\n", username)
 			return nil, err
 		}
+	}
+	return &user, nil
+}
+
+// Add github id to user
+func UpdateGithubId(username string, githubId string) error {
+	matched, err := regexp.MatchString("@", username)
+	if err != nil {
+		userLogger.Error("regexp matchiong error")
+		return err
+	}
+
+	//get user by email/uid
+	if matched {
+		err = Db.Model(&User{}).Where("email = ?", username).Where("is_deleted = ?", false).Update("github_id", githubId).Error
+	} else {
+		err = Db.Model(&User{}).Where("uid = ?", username).Where("is_deleted = ?", false).Update("github_id", githubId).Error
+	}
+	if err != nil {
+		return fmt.Errorf("add github id error: %s", err.Error())
+	}
+	return nil
+}
+
+// Find user by github id
+// Use it need to check if the user is nil
+// Since the RecordNotFound error is nil
+func FindUserByGithubId(githubId string) (*User, error) {
+	var user User
+	err := Db.Where("github_id = ?", githubId).Where("is_deleted = ?", false).First(&user).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			userLogger.Infof("User [%s] Not Exist\n", githubId)
+			return nil, nil
+		}
+		return nil, err
 	}
 	return &user, nil
 }
