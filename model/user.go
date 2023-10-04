@@ -11,7 +11,7 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"gorm.io/gorm"
 )
-
+Logger
 var userLogger = log.Log
 
 type User struct {
