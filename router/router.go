@@ -54,5 +54,13 @@ func InitRouter() *gin.Engine {
 		oauth.GET("/userinfo", v1.OauthUserInfo)
 	}
 
+	profile := apiV1.Group("/profile")
+	{
+		profile.GET("/getProfile", v1.GetProfile)
+		profile.POST("/changeProfile", v1.ChangeProfile)
+		profile.POST("/uploadAvatar", v1.UploadAvatar)
+		profile.POST("/changeEmail", v1.ChangeEmail)
+	}
+
 	return r
 }
