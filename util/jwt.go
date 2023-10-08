@@ -75,6 +75,7 @@ func RefreshToken(token string) (string, error) {
 	return token, err
 }
 
+// GetUsername flag: verify token type
 func GetUsername(token, flag string) (string, error) {
 	claims, err := ParseToken(token)
 	if err != nil {
