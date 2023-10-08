@@ -21,7 +21,7 @@ func CheckPasswordFormat(password string) bool {
 	return passReg.MatchString(password)
 }
 
-func CreateUser(email string, password string) error {
+func CreateUserAndProfile(email string, password string) error {
 	// split email with @
 	split := regexp.MustCompile(`@`)
 	uid := split.Split(email, 2)[0]
@@ -30,14 +30,19 @@ func CreateUser(email string, password string) error {
 	if !CheckPasswordFormat(password) {
 		return result.PasswordIllegal
 	}
-
+	var err error
 	//encrypt password
 	pwdEncrypt := util.ShaHashing(password)
-	err := model.CreateUser(&model.User{
+
+	err = model.CreateUserAndProfile(&model.User{
 		Email:    &email,
 		Password: &pwdEncrypt,
 		Uid:      &uid,
+	}, &model.Profile{
+		Nickname: &uid,
+		Email:    &email,
 	})
+
 	if err != nil {
 		return err
 	} else {
@@ -193,13 +198,13 @@ func UserInfo(ctx *gin.Context) (*model.User, error) {
 	rToken, err := model.Rdb.Get(ctx, model.LoginTokenKey(username)).Result()
 	if err != nil {
 		if err == redis.Nil {
-			return nilUser, result.AuthError
+			return nilUser, result.TokenError
 		}
 		return nilUser, err
 	}
 
 	if rToken == "" || rToken != token {
-		return nilUser, result.AuthError
+		return nilUser, result.TokenError
 	}
 
 	return model.UserInfo(username)
