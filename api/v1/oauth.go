@@ -171,7 +171,7 @@ func UserAuth(c *gin.Context) {
 	token := c.PostForm("token")
 	if token == "" {
 		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.AuthError)
+		response := result.Failed(result.TokenError)
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -254,7 +254,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		_ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.AuthError)
+		response := result.Failed(result.TokenError)
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -270,7 +270,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		_ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.AuthError)
+		response := result.Failed(result.TokenError)
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -286,7 +286,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		_ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.AuthError)
+		response := result.Failed(result.TokenError)
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -300,7 +300,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		_ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.AuthError)
+		response := result.Failed(result.TokenError)
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
