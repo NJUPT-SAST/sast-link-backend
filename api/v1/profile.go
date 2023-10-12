@@ -35,7 +35,6 @@ func GetProfile(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(serErr)))
 		return
 	}
-
 	if dep, org, getOrgErr := service.GetProfileOrg(profileInfo.OrgId); getOrgErr != nil {
 		controllerLogger.Errorln("GetProfileOrg Err", getOrgErr)
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(getOrgErr)))
