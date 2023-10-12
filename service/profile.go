@@ -14,7 +14,7 @@ var cos = util.T_cos
 
 func ChangeProfile(profile *model.Profile, uid string) error {
 	// check org_id
-	if profile.OrgId > 26 {
+	if profile.OrgId > 26 || profile.OrgId < 1 {
 		serviceLogger.Infof("org_id input Err")
 		return result.OrgIdError
 	}
@@ -80,14 +80,16 @@ func GetProfileOrg(OrgId int) (string, string, error) {
 	if OrgId > 26 {
 		serviceLogger.Errorln("org_id input Err")
 		return "", "", result.OrgIdError
-	}
-
-	//get dep and org
-	if dep, org, err := model.GetDepAndOrgByOrgId(OrgId); err != nil {
-		serviceLogger.Errorln("GetDepAndOrgByOrgId Err", err)
-		return "", "", err
+	} else if OrgId == 0 {
+		return "", "", nil
 	} else {
-		return dep, org, nil
+		//get dep and org
+		if dep, org, err := model.GetDepAndOrgByOrgId(OrgId); err != nil {
+			serviceLogger.Errorln("GetDepAndOrgByOrgId Err", err)
+			return "", "", err
+		} else {
+			return dep, org, nil
+		}
 	}
 }
 
