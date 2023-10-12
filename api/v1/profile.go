@@ -20,7 +20,7 @@ func GetProfile(ctx *gin.Context) {
 	}
 	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
 	if username == "" || err != nil {
-		controllerLogger.Errorln("Can`t get username by token")
+		controllerLogger.Errorln("Can`t get username by token", err)
 		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
 		return
 	}
@@ -36,8 +36,10 @@ func GetProfile(ctx *gin.Context) {
 		return
 	}
 
-	if dep, org, err := service.GetProfileOrg(profileInfo.OrgId); err != nil {
-
+	if dep, org, getOrgErr := service.GetProfileOrg(profileInfo.OrgId); getOrgErr != nil {
+		controllerLogger.Errorln("GetProfileOrg Err", getOrgErr)
+		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(getOrgErr)))
+		return
 	} else {
 		ctx.JSON(http.StatusOK, result.Success(gin.H{
 			"nickname": profileInfo.Nickname,
@@ -62,7 +64,7 @@ func ChangeProfile(ctx *gin.Context) {
 
 	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
 	if username == "" || err != nil {
-		controllerLogger.Errorln("Can`t get username by token")
+		controllerLogger.Errorln("Can`t get username by token", err)
 		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
 		return
 	}
@@ -88,8 +90,43 @@ func ChangeProfile(ctx *gin.Context) {
 }
 
 func UploadAvatar(ctx *gin.Context) {
-	ctx.JSON(200, "success")
+	token := ctx.GetHeader("TOKEN")
+	if token == "" {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
+		return
+	}
+
+	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	if username == "" || err != nil {
+		controllerLogger.Errorln("Can`t get username by token", err)
+		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
+		return
+	}
+	// split email with @
+	split := regexp.MustCompile(`@`)
+	uid := split.Split(username, 2)[0]
+	uid = strings.ToLower(uid)
+
+	//obtain avatar file from body
+	avatar, err := ctx.FormFile("avatarFile")
+	if err != nil || avatar == nil {
+		controllerLogger.Errorln("get avatarFile Error", err)
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
+		return
+	}
+
+	if err := service.UploadAvatar(avatar, uid, ctx); err != nil {
+		controllerLogger.Errorln("uploadAvatar Error", err)
+		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, result.Success(nil))
 }
 func ChangeEmail(ctx *gin.Context) {
 	ctx.JSON(200, "success")
+}
+
+func DealCensorRes(ctx *gin.Context) {
+
 }

@@ -3,8 +3,14 @@ package service
 import (
 	"github.com/NJUPT-SAST/sast-link-backend/model"
 	"github.com/NJUPT-SAST/sast-link-backend/model/result"
+	"github.com/NJUPT-SAST/sast-link-backend/util"
+	"github.com/gin-gonic/gin"
+	"mime/multipart"
 	"regexp"
+	"strconv"
 )
+
+var cos = util.T_cos
 
 func ChangeProfile(profile *model.Profile, uid string) error {
 	// check org_id
@@ -84,6 +90,46 @@ func GetProfileOrg(OrgId int) (string, string, error) {
 		return dep, org, nil
 	}
 }
+
+func UploadAvatar(avatar *multipart.FileHeader, uid string, ctx *gin.Context) error {
+	//construct fileName
+	userInfo, userInfoErr := model.UserInfo(uid)
+	if userInfoErr != nil {
+		serviceLogger.Errorln("user not exist", userInfoErr)
+		return userInfoErr
+	}
+	fileName := strconv.Itoa(int(userInfo.ID))
+
+	//get file stream
+	fd, fileIOErr := avatar.Open()
+	if fileIOErr != nil {
+		serviceLogger.Errorln("get file stream err", fileIOErr)
+		return fileIOErr
+	}
+	defer fd.Close()
+
+	//upload to cos
+	uploadKey := "/avatar/" + fileName + ".jpg"
+	if _, cosUpErr := cos.Object.Put(ctx, uploadKey, fd, nil); cosUpErr != nil {
+		serviceLogger.Errorln("upload avatar to cos fail", cosUpErr)
+		return cosUpErr
+	}
+
+	//write to database, file url refer:tencent cos bucket file
+	if dBUpErr := model.UpdateAvatar("https://sast-link-1309205610.cos.ap-shanghai.myqcloud.com"+uploadKey, userInfo.ID); dBUpErr != nil {
+		//del cos file
+		if _, cosDelErr := cos.Object.Delete(ctx, uploadKey); cosDelErr != nil {
+			serviceLogger.Errorln("upload avatar to cos fail", cosDelErr)
+			return cosDelErr
+		}
+
+		serviceLogger.Errorln("write file url to database Err", dBUpErr)
+		return dBUpErr
+	}
+
+	return nil
+}
+
 func checkHideLegal(hide []string) error {
 	// declare allow hide field: bio,link,badge
 	var hideFiledPattern = []string{
