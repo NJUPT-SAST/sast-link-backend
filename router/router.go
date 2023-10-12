@@ -60,6 +60,7 @@ func InitRouter() *gin.Engine {
 		profile.POST("/changeProfile", v1.ChangeProfile)
 		profile.POST("/uploadAvatar", v1.UploadAvatar)
 		profile.POST("/changeEmail", v1.ChangeEmail)
+		profile.POST("/DealCensorRes", v1.DealCensorRes)
 	}
 
 	return r

@@ -29,6 +29,14 @@ type Organize struct {
 	Org string `json:"org"`
 }
 
+func UpdateAvatar(avatar string, userId uint) error {
+	if err := Db.Table("profile").Where("profile.user_id = ?", userId).Update("avatar", avatar).Error; err != nil {
+		profileLogger.Errorln("update profile avatar filed Err", err)
+		return err
+	}
+	return nil
+}
+
 func SelectProfileByUid(uid string) (*Profile, error) {
 	var profile Profile
 	err := Db.Table("profile").
@@ -50,6 +58,7 @@ func SelectProfileByUid(uid string) (*Profile, error) {
 func UpdateProfile(oldProfile, newProfile *Profile) error {
 	newProfile.ID = oldProfile.ID
 	if err := Db.Table("profile").Model(&Profile{}).Where("profile.id = ?", oldProfile.ID).Updates(newProfile).Error; err != nil {
+		profileLogger.Errorln("updateProfile Err", err)
 		return err
 	}
 	return nil
