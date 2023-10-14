@@ -132,4 +132,4 @@ func getLarkAppAccessToken() (string, error) {
 }
 
 
-func getUserInfo(user_access_token string) 
+func getUserInfo(user_access_token string) {}
