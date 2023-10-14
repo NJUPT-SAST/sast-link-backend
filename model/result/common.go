@@ -60,6 +60,7 @@ var errorMap = map[int]LocalError{
 	10003: PasswordError,
 	10004: PasswordEmpty,
 	10005: LoginError,
+	10006: PasswordIllegal,
 	10011: UserNotExist,
 	10012: CheckExistUserFail,
 	10013: AddUserFail,
