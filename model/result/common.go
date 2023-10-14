@@ -28,11 +28,9 @@ var (
 	DeleteUserFail        = LocalError{ErrCode: 10014, ErrMsg: "删除用户失败"}
 	GetUserinfoFail       = LocalError{ErrCode: 10015, ErrMsg: "获取用户信息失败"}
 	UserIsExist           = LocalError{ErrCode: 10016, ErrMsg: "用户已存在"}
-	AuthCheckTokenFail    = LocalError{ErrCode: 20001, ErrMsg: "Token鉴权失败"}
 	AuthCheckTokenTimeout = LocalError{ErrCode: 20002, ErrMsg: "Token已超时"}
 	GenerateToken         = LocalError{ErrCode: 20003, ErrMsg: "Token生成失败"}
-	AuthError             = LocalError{ErrCode: 20004, ErrMsg: "Token错误"}
-	AuthIncomingTokenFail = LocalError{ErrCode: 20005, ErrMsg: "Token 为空"}
+	TokenError            = LocalError{ErrCode: 20004, ErrMsg: "Token错误"}
 	AuthParseTokenFail    = LocalError{ErrCode: 20006, ErrMsg: "Token解析失败"}
 	TicketNotCorrect      = LocalError{ErrCode: 20007, ErrMsg: "Ticket不正确"}
 	CheckTicketNotfound   = LocalError{ErrCode: 20008, ErrMsg: "Ticket不存在"}
@@ -50,6 +48,10 @@ var (
 	RegisterPhaseError    = LocalError{ErrCode: 70003, ErrMsg: "注册失败 （！！！！hack？？？？）"}
 	ResetPasswordEror     = LocalError{ErrCode: 70004, ErrMsg: "重置密码失败 （！！！！hack？？？？）"}
 	AlreadySetPasswordErr = LocalError{ErrCode: 70004, ErrMsg: "重复设置密码"}
+
+	ProfileNotExist  = LocalError{ErrCode: 80000, ErrMsg: "用户profile不存在"}
+	OrgIdError       = LocalError{ErrCode: 80001, ErrMsg: "组织填写错误"}
+	CheckHideIllegal = LocalError{ErrCode: 80002, ErrMsg: "填写隐藏信息不合法"}
 )
 
 var errorMap = map[int]LocalError{
@@ -64,11 +66,9 @@ var errorMap = map[int]LocalError{
 	10014: DeleteUserFail,
 	10015: GetUserinfoFail,
 	10016: UserIsExist,
-	20001: AuthCheckTokenFail,
 	20002: AuthCheckTokenTimeout,
 	20003: GenerateToken,
-	20004: AuthError,
-	20005: AuthIncomingTokenFail,
+	20004: TokenError,
 	20006: AuthParseTokenFail,
 	20007: TicketNotCorrect,
 	20008: CheckTicketNotfound,
@@ -82,6 +82,9 @@ var errorMap = map[int]LocalError{
 	60002: AccessTokenErr,
 	60003: RefreshTokenErr,
 	50000: InternalErr,
+	80000: ProfileNotExist,
+	80001: OrgIdError,
+	80002: CheckHideIllegal,
 }
 
 // warp error
