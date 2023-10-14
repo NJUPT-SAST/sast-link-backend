@@ -51,7 +51,7 @@ func Register(ctx *gin.Context) {
 		return
 	}
 
-	creErr := service.CreateUser(username, password)
+	creErr := service.CreateUserAndProfile(username, password)
 	if creErr != nil {
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(creErr)))
 		return
@@ -309,15 +309,14 @@ func ResetPassword(ctx *gin.Context) {
 func Logout(ctx *gin.Context) {
 	//verify information
 	token := ctx.GetHeader("TOKEN")
-
 	if token == "" {
-		ctx.JSON(http.StatusOK, result.TicketNotCorrect)
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
 		return
 	}
 	//remove Token from uid
 	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
 	if err != nil || uid == "" {
-		ctx.JSON(http.StatusOK, result.TicketNotCorrect)
+		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
 		return
 	}
 	model.Rdb.Del(ctx, model.LoginTokenKey(uid))

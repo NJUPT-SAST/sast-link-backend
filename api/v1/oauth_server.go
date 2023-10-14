@@ -128,10 +128,32 @@ func OauthUserInfo(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, result.Success(gin.H{
-		"email":  user.Email,
-		"userId": user.Uid,
-	}))
+	profileInfo, serErr := service.GetProfileInfo(*user.Uid)
+	if serErr != nil {
+		controllerLogger.Errorln("GetProfile service wrong", serErr)
+		c.JSON(http.StatusOK, result.Failed(result.HandleError(serErr)))
+		return
+	}
+
+	if dep, org, getOrgErr := service.GetProfileOrg(profileInfo.OrgId); getOrgErr != nil {
+		controllerLogger.Errorln("GetProfileOrg Err", getOrgErr)
+		c.JSON(http.StatusOK, result.Failed(result.HandleError(getOrgErr)))
+		return
+	} else {
+		c.JSON(http.StatusOK, result.Success(gin.H{
+			"nickname": profileInfo.Nickname,
+			"userId":   user.Uid,
+			"dep":      dep,
+			"org":      org,
+			"email":    profileInfo.Email,
+			"avatar":   profileInfo.Avatar,
+			"bio":      profileInfo.Bio,
+			"link":     profileInfo.Link,
+			"badge":    profileInfo.Badge,
+			"hide":     profileInfo.Hide,
+		}))
+		return
+	}
 }
 
 func Authorize(c *gin.Context) {
@@ -254,7 +276,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		_ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.AuthError)
+		response := result.Failed(result.TokenError)
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -270,7 +292,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		_ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.AuthError)
+		response := result.Failed(result.TokenError)
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -286,7 +308,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		_ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.AuthError)
+		response := result.Failed(result.TokenError)
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -300,7 +322,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		_ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.AuthError)
+		response := result.Failed(result.TokenError)
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return

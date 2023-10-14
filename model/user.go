@@ -27,11 +27,25 @@ type User struct {
 	IsDeleted bool      `json:"is_deleted,omitempty" gorm:"not null"`
 }
 
-func CreateUser(user *User) error {
-	if res := Db.Create(user); res.Error != nil {
-		return res.Error
+func CreateUserAndProfile(user *User, profile *Profile) error {
+	err := Db.Transaction(func(tx *gorm.DB) error {
+		//create user and get user_id
+		if err := tx.Create(user).Error; err != nil {
+			return err
+		}
+		profile.UserID = &user.ID
+
+		tx = tx.Table("profile")
+		if err := tx.Create(profile).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	} else {
+		return nil
 	}
-	return nil
 }
 
 func CheckPassword(username string, password string) (string, error) {
