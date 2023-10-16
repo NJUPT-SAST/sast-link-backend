@@ -37,3 +37,7 @@ redirect_url = "xxx"
 id = "xxx"
 secret = "xxx"
 redirect_url = "xxx"
+
+[cos]
+secret_id="xxx"
+secret_key="xxx"
