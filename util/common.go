@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/tencentyun/cos-go-sdk-v5"
 	mr "math/rand"
 	"net"
@@ -33,13 +34,11 @@ func connectToTencentCOS() *cos.Client {
 	su, _ := url.Parse("https://cos.ap-shanghai.myqcloud.com")
 	b := &cos.BaseURL{BucketURL: u, ServiceURL: su}
 	// 1.永久密钥
-	if os.Getenv("SECRETID") == "" || os.Getenv("SECRETKEY") == "" {
-		panic("COS Connect Err")
-	}
+	cos_conf := config.Config.Sub("cos")
 	client := cos.NewClient(b, &http.Client{
 		Transport: &cos.AuthorizationTransport{
-			SecretID:  os.Getenv("SECRETID"),  // 用户的 SecretId，建议使用子账号密钥，授权遵循最小权限指引，降低使用风险。子账号密钥获取可参考 https://cloud.tencent.com/document/product/598/37140
-			SecretKey: os.Getenv("SECRETKEY"), // 用户的 SecretKey，建议使用子账号密钥，授权遵循最小权限指引，降低使用风险。子账号密钥获取可参考 https://cloud.tencent.com/document/product/598/37140
+			SecretID:  cos_conf.GetString("secret_id"),  // 用户的 SecretId，建议使用子账号密钥，授权遵循最小权限指引，降低使用风险。子账号密钥获取可参考 https://cloud.tencent.com/document/product/598/37140
+			SecretKey: cos_conf.GetString("secret_key"), // 用户的 SecretKey，建议使用子账号密钥，授权遵循最小权限指引，降低使用风险。子账号密钥获取可参考 https://cloud.tencent.com/document/product/598/37140
 		},
 	})
 	return client
