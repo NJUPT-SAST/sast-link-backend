@@ -8,8 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"net/http"
-	"regexp"
-	"strings"
 )
 
 func GetProfile(ctx *gin.Context) {
@@ -18,16 +16,12 @@ func GetProfile(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
 		return
 	}
-	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
-	if username == "" || err != nil {
+	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	if uid == "" || err != nil {
 		controllerLogger.Errorln("Can`t get username by token", err)
 		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
 		return
 	}
-	// split email with @
-	split := regexp.MustCompile(`@`)
-	uid := split.Split(username, 2)[0]
-	uid = strings.ToLower(uid)
 
 	profileInfo, serErr := service.GetProfileInfo(uid)
 	if serErr != nil {
@@ -61,16 +55,12 @@ func ChangeProfile(ctx *gin.Context) {
 		return
 	}
 
-	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
-	if username == "" || err != nil {
+	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	if uid == "" || err != nil {
 		controllerLogger.Errorln("Can`t get username by token", err)
 		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
 		return
 	}
-	// split email with @
-	split := regexp.MustCompile(`@`)
-	uid := split.Split(username, 2)[0]
-	uid = strings.ToLower(uid)
 
 	//get profile info from body
 	profile := model.Profile{}
@@ -95,16 +85,12 @@ func UploadAvatar(ctx *gin.Context) {
 		return
 	}
 
-	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
-	if username == "" || err != nil {
+	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	if uid == "" || err != nil {
 		controllerLogger.Errorln("Can`t get username by token", err)
 		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
 		return
 	}
-	// split email with @
-	split := regexp.MustCompile(`@`)
-	uid := split.Split(username, 2)[0]
-	uid = strings.ToLower(uid)
 
 	//obtain avatar file from body
 	avatar, err := ctx.FormFile("avatarFile")
