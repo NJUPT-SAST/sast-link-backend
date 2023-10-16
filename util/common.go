@@ -33,6 +33,9 @@ func connectToTencentCOS() *cos.Client {
 	su, _ := url.Parse("https://cos.ap-shanghai.myqcloud.com")
 	b := &cos.BaseURL{BucketURL: u, ServiceURL: su}
 	// 1.永久密钥
+	if os.Getenv("SECRETID") == "" || os.Getenv("SECRETKEY") == "" {
+		panic("COS Connect Err")
+	}
 	client := cos.NewClient(b, &http.Client{
 		Transport: &cos.AuthorizationTransport{
 			SecretID:  os.Getenv("SECRETID"),  // 用户的 SecretId，建议使用子账号密钥，授权遵循最小权限指引，降低使用风险。子账号密钥获取可参考 https://cloud.tencent.com/document/product/598/37140
