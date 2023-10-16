@@ -8,8 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"net/http"
-	"regexp"
-	"strings"
 )
 
 func GetProfile(ctx *gin.Context) {
@@ -18,16 +16,12 @@ func GetProfile(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
 		return
 	}
-	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
-	if username == "" || err != nil {
+	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	if uid == "" || err != nil {
 		controllerLogger.Errorln("Can`t get username by token", err)
 		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
 		return
 	}
-	// split email with @
-	split := regexp.MustCompile(`@`)
-	uid := split.Split(username, 2)[0]
-	uid = strings.ToLower(uid)
 
 	profileInfo, serErr := service.GetProfileInfo(uid)
 	if serErr != nil {
@@ -61,16 +55,12 @@ func ChangeProfile(ctx *gin.Context) {
 		return
 	}
 
-	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
-	if username == "" || err != nil {
+	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	if uid == "" || err != nil {
 		controllerLogger.Errorln("Can`t get username by token", err)
 		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
 		return
 	}
-	// split email with @
-	split := regexp.MustCompile(`@`)
-	uid := split.Split(username, 2)[0]
-	uid = strings.ToLower(uid)
 
 	//get profile info from body
 	profile := model.Profile{}
@@ -95,16 +85,12 @@ func UploadAvatar(ctx *gin.Context) {
 		return
 	}
 
-	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
-	if username == "" || err != nil {
+	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	if uid == "" || err != nil {
 		controllerLogger.Errorln("Can`t get username by token", err)
 		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
 		return
 	}
-	// split email with @
-	split := regexp.MustCompile(`@`)
-	uid := split.Split(username, 2)[0]
-	uid = strings.ToLower(uid)
 
 	//obtain avatar file from body
 	avatar, err := ctx.FormFile("avatarFile")
@@ -113,19 +99,45 @@ func UploadAvatar(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
 		return
 	}
-
-	if err := service.UploadAvatar(avatar, uid, ctx); err != nil {
+	filePath, uploadSerErr := service.UploadAvatar(avatar, uid, ctx)
+	if uploadSerErr != nil {
 		controllerLogger.Errorln("uploadAvatar Error", err)
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
 		return
 	}
 
-	ctx.JSON(http.StatusOK, result.Success(nil))
+	ctx.JSON(http.StatusOK, result.Success(filePath))
 }
 func ChangeEmail(ctx *gin.Context) {
 	ctx.JSON(200, "success")
 }
 
 func DealCensorRes(ctx *gin.Context) {
+	if header := ctx.GetHeader("X-Ci-Content-Version"); header != "Simple" {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
+		return
+	}
+	checkRes := model.CheckRes{}
+	if err := ctx.ShouldBind(&checkRes); err != nil {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
+		return
+	}
 
+	// judge if picture review fail or need manual re-review and sent to feishu bot
+	sentMsgErr := service.SentMsgToBot(&checkRes)
+	if sentMsgErr != nil {
+		controllerLogger.Errorln("sent fail msg to feishu bot wrong", sentMsgErr)
+		ctx.JSON(http.StatusOK, result.Failed(result.SentMsgToBotErr))
+		return
+	}
+
+	// mv frozen image and replace database url
+	if checkRes.Data.ForbiddenStatus == 1 {
+		if err := service.DealWithFrozenImage(ctx, &checkRes); err != nil {
+			controllerLogger.Errorln("deal image wrong", err)
+			ctx.JSON(http.StatusOK, result.Failed(result.DealFrozenImgErr))
+			return
+		}
+	}
+	ctx.JSON(http.StatusOK, result.Success(nil))
 }

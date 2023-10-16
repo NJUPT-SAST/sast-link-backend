@@ -52,6 +52,10 @@ var (
 	ProfileNotExist  = LocalError{ErrCode: 80000, ErrMsg: "用户profile不存在"}
 	OrgIdError       = LocalError{ErrCode: 80001, ErrMsg: "组织填写错误"}
 	CheckHideIllegal = LocalError{ErrCode: 80002, ErrMsg: "填写隐藏信息不合法"}
+
+	SentMsgToBotErr  = LocalError{ErrCode: 90000, ErrMsg: "发送审核通知信息失败"}
+	DealFrozenImgErr = LocalError{ErrCode: 90001, ErrMsg: "处理冻结图片失败"}
+	PicURLErr        = LocalError{ErrCode: 90002, ErrMsg: "图片URL地址错误"}
 )
 
 var errorMap = map[int]LocalError{
@@ -86,6 +90,9 @@ var errorMap = map[int]LocalError{
 	80000: ProfileNotExist,
 	80001: OrgIdError,
 	80002: CheckHideIllegal,
+	90000: SentMsgToBotErr,
+	90001: DealFrozenImgErr,
+	90002: PicURLErr,
 }
 
 // warp error
