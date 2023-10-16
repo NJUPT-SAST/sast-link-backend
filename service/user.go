@@ -1,9 +1,10 @@
 package service
 
 import (
-	"github.com/redis/go-redis/v9"
 	"regexp"
 	"strings"
+
+	"github.com/redis/go-redis/v9"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/model"
@@ -50,6 +51,8 @@ func CreateUserAndProfile(email string, password string) error {
 	}
 }
 
+// In VerifyAccountRegister and VerifyAccountResetPWD, the username must be email
+// In VerifyAccountLogin, the username can be email or uid
 func VerifyAccount(ctx *gin.Context, username, flag string) (string, error) {
 	// 0 is register
 	// 1 is login
@@ -58,11 +61,14 @@ func VerifyAccount(ctx *gin.Context, username, flag string) (string, error) {
 		return VerifyAccountRegister(ctx, username)
 	} else if flag == "1" {
 		return VerifyAccountLogin(ctx, username)
-	} else {
+	} else if flag == "2" {
 		return VerifyAccountResetPWD(ctx, username)
+	} else {
+		return "", result.RequestParamError
 	}
 }
 
+// This username is email
 func VerifyAccountResetPWD(ctx *gin.Context, username string) (string, error) {
 	// verify if the user email correct
 	matched, _ := regexp.MatchString("^[BPFQbpfq](1[7-9]|2[0-9])([0-3])\\d{5}@njupt.edu.cn$", username)
@@ -70,18 +76,17 @@ func VerifyAccountResetPWD(ctx *gin.Context, username string) (string, error) {
 		return "", result.UserEmailError
 	}
 	// check if the user is exist
-	exist, err := model.CheckUserByEmail(username)
+	user, err := model.GetUserByEmail(username)
 	if err != nil {
 		return "", err
 	}
 
-	//user exist and try to reset password
-	if exist {
+	// User exist and try to reset password
+	if user != nil {
 		ticket, err := util.GenerateTokenWithExp(ctx, model.ResetPwdJWTSubkey(username), model.RESETPWD_TICKET_EXP)
 		if err != nil {
 			return "", err
 		}
-		// set token to redis
 		model.Rdb.Set(ctx, ticket, model.VERIFY_STATUS["VERIFY_ACCOUNT"], model.RESETPWD_TICKET_EXP)
 		return ticket, err
 	} else {
@@ -91,6 +96,7 @@ func VerifyAccountResetPWD(ctx *gin.Context, username string) (string, error) {
 }
 
 // This function is used to verify the user's email is exist or not when register
+// This username is email
 func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 	// verify if the user email correct
 	matched, _ := regexp.MatchString("^[BPFQbpfq](1[7-9]|2[0-9])([0-3])\\d{5}@njupt.edu.cn$", username)
@@ -98,14 +104,15 @@ func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 		return "", result.UserEmailError
 	}
 	// check if the user is exist
-	exist, err := model.CheckUserByEmail(username)
+	user, err := model.GetUserByEmail(username)
 	if err != nil {
 		return "", err
 	}
 	// user is exist and can't register
-	if exist {
+	if user != nil {
 		return "", result.UserIsExist
-	} else { // user is not exist and can register
+	} else {
+		// user is not exist and can register
 		// generate token and set expire time
 		ticket, err := util.GenerateTokenWithExp(ctx, model.RegisterJWTSubKey(username), model.REGISTER_TICKET_EXP)
 		if err != nil {
@@ -118,57 +125,46 @@ func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 }
 
 // This function is used to verify the user's email is exist or not when login
+// This username is email or uid
 func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
-	exist, err := model.CheckUserByEmail(username)
-	if err != nil {
-		return "", err
+	var user *model.User
+	user, err := model.GetUserByEmail(username)
+	if err != nil || user == nil {
+		return "", result.UserNotExist
 	}
-	// user is existed and can login
-	if exist {
-		ticket, err := util.GenerateTokenWithExp(ctx, model.LoginTicketJWTSubKey(username), model.LOGIN_TICKET_EXP)
-		if err != nil {
-			return "", err
-		}
-		// 5min expire
-		model.Rdb.Set(ctx, model.LoginTicketKey(username), ticket, model.LOGIN_TICKET_EXP)
-		return ticket, err
-	} else { // user is not exist and can't login
-		// login can use uid and email
-		uidExist, err := model.CheckUserByUid(username)
-		if err != nil {
-			return "", err
-		}
-		if uidExist {
-			ticket, err := util.GenerateTokenWithExp(ctx, model.LoginTicketJWTSubKey(username), model.LOGIN_TICKET_EXP)
-			if err != nil {
-				return "", err
-			}
-			// 5min expire
-			model.Rdb.Set(ctx, model.LoginTicketKey(username), ticket, model.LOGIN_TICKET_EXP)
-			return ticket, err
-		} else {
+
+	if user == nil {
+		user, err := model.GetUserByUid(username)
+		if err != nil || user == nil {
 			return "", result.UserNotExist
 		}
 	}
+
+	ticket, err := util.GenerateTokenWithExp(ctx, model.LoginTicketJWTSubKey(*user.Uid), model.LOGIN_TICKET_EXP)
+	if err != nil || ticket == "" {
+		return "", err
+	}
+	model.Rdb.Set(ctx, model.LoginTicketKey(*user.Uid), ticket, model.LOGIN_TICKET_EXP)
+	return ticket, err
 }
 
-func Login(username string, password string) (bool, error) {
-	//check password
-	flag, err := model.CheckPassword(username, password)
-	if !flag {
-		return false, err
-	}
-	return true, err
-
+func Login(username string, password string) (string, error) {
+	// Check password
+	uid, err := model.CheckPassword(username, password)
+	return uid, err
 }
 
 func ModifyPassword(ctx *gin.Context, username, oldPassword, newPassword string) error {
-	//check password
-	flag, err := model.CheckPassword(username, oldPassword)
-	if !flag {
+	// Check password
+	uid, err := model.CheckPassword(username, oldPassword)
+	if err != nil {
 		return err
 	}
-	pErr := model.ChangePassword(username, newPassword)
+
+	if uid == "" {
+		return result.VerifyAccountError
+	}
+	pErr := model.ChangePassword(uid, newPassword)
 	if pErr != nil {
 		return pErr
 	}
@@ -176,7 +172,7 @@ func ModifyPassword(ctx *gin.Context, username, oldPassword, newPassword string)
 }
 
 func ResetPassword(username, newPassword string) error {
-	//check password form
+	// Check password form
 	if !CheckPasswordFormat(newPassword) {
 		return result.PasswordIllegal
 	}
@@ -190,12 +186,12 @@ func ResetPassword(username, newPassword string) error {
 func UserInfo(ctx *gin.Context) (*model.User, error) {
 	token := ctx.GetHeader("TOKEN")
 	nilUser := &model.User{}
-	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
 	if err != nil {
 		return nilUser, err
 	}
 
-	rToken, err := model.Rdb.Get(ctx, model.LoginTokenKey(username)).Result()
+	rToken, err := model.Rdb.Get(ctx, model.LoginTokenKey(uid)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return nilUser, result.TokenError
@@ -207,7 +203,7 @@ func UserInfo(ctx *gin.Context) (*model.User, error) {
 		return nilUser, result.TokenError
 	}
 
-	return model.UserInfo(username)
+	return model.UserInfo(uid)
 }
 
 func SendEmail(ctx *gin.Context, username, ticket, title string) error {
@@ -268,6 +264,14 @@ func CheckVerifyCode(ctx *gin.Context, ticket, code, flag string) error {
 	// Update the status of the ticket
 	model.Rdb.Set(ctx, ticket, model.VERIFY_STATUS["VERIFY_CAPTCHA"], model.REGISTER_TICKET_EXP)
 	return nil
+}
+
+func UpdateUserGitHubId(username, githubId string) error {
+	return model.UpdateGithubId(username, githubId)
+}
+
+func GetUserByGithubId(githubId string) (*model.User, error) {
+	return model.FindUserByGithubId(githubId)
 }
 
 func CheckToken(ctx *gin.Context, key, token string) bool {

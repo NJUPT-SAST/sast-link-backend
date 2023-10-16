@@ -45,9 +45,8 @@ var (
 	ClientErr       = LocalError{ErrCode: 60001, ErrMsg: "客户端错误"}
 	AccessTokenErr  = LocalError{ErrCode: 60002, ErrMsg: "access_token错误"}
 	RefreshTokenErr = LocalError{ErrCode: 60003, ErrMsg: "refresh_token错误"}
-
-	RegisterPhaseError    = LocalError{ErrCode: 70003, ErrMsg: "注册步骤错误 （！！！！hack？？？？）"}
-	ResetPasswordEror     = LocalError{ErrCode: 70004, ErrMsg: "重置密码步骤错误 （！！！！hack？？？？）"}
+	RegisterPhaseError    = LocalError{ErrCode: 70003, ErrMsg: "注册失败 （！！！！hack？？？？）"}
+	ResetPasswordEror     = LocalError{ErrCode: 70004, ErrMsg: "重置密码失败 （！！！！hack？？？？）"}
 	AlreadySetPasswordErr = LocalError{ErrCode: 70004, ErrMsg: "重复设置密码"}
 
 	ProfileNotExist  = LocalError{ErrCode: 80000, ErrMsg: "用户profile不存在"}
@@ -65,6 +64,7 @@ var errorMap = map[int]LocalError{
 	10003: PasswordError,
 	10004: PasswordEmpty,
 	10005: LoginError,
+	10006: PasswordIllegal,
 	10011: UserNotExist,
 	10012: CheckExistUserFail,
 	10013: AddUserFail,

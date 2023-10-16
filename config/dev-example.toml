@@ -23,7 +23,17 @@ level = "debug"
 sender = "xxxxx"
 secret = "xxxxx"
 
-[oauth]
+[oauth.server]
 # urlExample := "postgres://username:password@localhost:5432/database_name"
 db_uri = "xxxx"
 front_url = "http://localhost:3000"
+
+[oauth.client.lark]
+id = "xxx"
+secret = "xxx"
+redirect_url = "xxx"
+
+[oauth.client.github]
+id = "xxx"
+secret = "xxx"
+redirect_url = "xxx"

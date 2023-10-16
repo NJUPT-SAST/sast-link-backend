@@ -44,10 +44,6 @@ func MiddlewareLogging(log *logrus.Logger) gin.HandlerFunc {
 				if err != nil {
 					log.WithFields(baseFields).Error("Error parsing form")
 				}
-				err = c.Request.ParseMultipartForm(0)
-				if err != nil {
-					log.WithFields(baseFields).Error("Error parsing form")
-				}
 				params = c.Request.PostForm
 			} else {
 				params = c.Request.URL.Query()

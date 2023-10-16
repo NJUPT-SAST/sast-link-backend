@@ -28,7 +28,7 @@ import (
 
 var (
 	srv            *server.Server
-	pgxConn, _     = pgx.Connect(context.TODO(), config.Config.Sub("oauth").GetString("db_uri"))
+	pgxConn, _     = pgx.Connect(context.TODO(), config.Config.Sub("oauth.server").GetString("db_uri"))
 	adapter        = pgx4adapter.NewConn(pgxConn)
 	clientStore, _ = pg.NewClientStore(adapter)
 )
@@ -184,21 +184,21 @@ func Authorize(c *gin.Context) {
 }
 
 // User decides whether to authorize
-func UserAuth(c *gin.Context) {
-	w := c.Writer
-	r := c.Request
-
-	//token := r.Header.Get("TOKEN")
-	_ = r.ParseMultipartForm(0)
-	token := c.PostForm("token")
-	if token == "" {
-		w.Header().Set("Content-Type", "application/json")
-		response := result.Failed(result.TokenError)
-		json, _ := json.Marshal(response)
-		w.Write(json)
-		return
-	}
-}
+// func UserAuth(c *gin.Context) {
+// 	w := c.Writer
+// 	r := c.Request
+//
+// 	//token := r.Header.Get("TOKEN")
+// 	_ = r.ParseMultipartForm(0)
+// 	token := c.PostForm("token")
+// 	if token == "" {
+// 		w.Header().Set("Content-Type", "application/json")
+// 		response := result.Failed(result.AuthError)
+// 		json, _ := json.Marshal(response)
+// 		w.Write(json)
+// 		return
+// 	}
+// }
 
 // Get AccessToken
 func AccessToken(c *gin.Context) {
