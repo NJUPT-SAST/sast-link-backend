@@ -174,7 +174,7 @@ func UploadAvatar(avatar *multipart.FileHeader, uid string, ctx *gin.Context) (s
 	defer fd.Close()
 
 	//upload to cos
-	uploadKey := "/avatar/" + fileName + ".jpg"
+	uploadKey := "avatar/" + fileName + ".jpg"
 	if _, cosUpErr := cos.Object.Put(ctx, uploadKey, fd, nil); cosUpErr != nil {
 		serviceLogger.Errorln("upload avatar to cos fail,ErrMsg:", cosUpErr)
 		return "", cosUpErr
