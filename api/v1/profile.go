@@ -113,19 +113,45 @@ func UploadAvatar(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
 		return
 	}
-
-	if err := service.UploadAvatar(avatar, uid, ctx); err != nil {
+	filePath, uploadSerErr := service.UploadAvatar(avatar, uid, ctx)
+	if uploadSerErr != nil {
 		controllerLogger.Errorln("uploadAvatar Error", err)
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
 		return
 	}
 
-	ctx.JSON(http.StatusOK, result.Success(nil))
+	ctx.JSON(http.StatusOK, result.Success(filePath))
 }
 func ChangeEmail(ctx *gin.Context) {
 	ctx.JSON(200, "success")
 }
 
 func DealCensorRes(ctx *gin.Context) {
+	if header := ctx.GetHeader("X-Ci-Content-Version"); header != "Simple" {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
+		return
+	}
+	checkRes := model.CheckRes{}
+	if err := ctx.ShouldBind(&checkRes); err != nil {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
+		return
+	}
 
+	// judge if picture review fail or need manual re-review and sent to feishu bot
+	sentMsgErr := service.SentMsgToBot(&checkRes)
+	if sentMsgErr != nil {
+		controllerLogger.Errorln("sent fail msg to feishu bot wrong", sentMsgErr)
+		ctx.JSON(http.StatusOK, result.Failed(result.SentMsgToBotErr))
+		return
+	}
+
+	// mv frozen image and replace database url
+	if checkRes.Data.ForbiddenStatus == 1 {
+		if err := service.DealWithFrozenImage(ctx, &checkRes); err != nil {
+			controllerLogger.Errorln("deal image wrong", err)
+			ctx.JSON(http.StatusOK, result.Failed(result.DealFrozenImgErr))
+			return
+		}
+	}
+	ctx.JSON(http.StatusOK, result.Success(nil))
 }
