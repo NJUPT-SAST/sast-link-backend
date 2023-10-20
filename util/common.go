@@ -7,8 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/NJUPT-SAST/sast-link-backend/config"
-	"github.com/tencentyun/cos-go-sdk-v5"
 	mr "math/rand"
 	"net"
 	"net/http"
@@ -18,11 +16,18 @@ import (
 	"os"
 	"time"
 
+	"github.com/NJUPT-SAST/sast-link-backend/config"
+	"github.com/tencentyun/cos-go-sdk-v5"
+
 	"github.com/google/uuid"
 )
 
 var (
 	T_cos *cos.Client = connectToTencentCOS()
+)
+
+const (
+	larkSmtpServer = "smtp.feishu.cn:465"
 )
 
 func connectToTencentCOS() *cos.Client {
@@ -103,7 +108,7 @@ func GenerateCode() string {
 }
 
 // sendEmail send email to user
-func SendEmail(sender string, secret string, recipient string, content, title string) error {
+func SendEmail(sender, secret, recipient, content, title string) error {
 	// https://gist.github.com/chrisgillis/10888032
 	from := mail.Address{"", sender}
 	to := mail.Address{"", recipient}
@@ -121,10 +126,11 @@ func SendEmail(sender string, secret string, recipient string, content, title st
 	for k, v := range headers {
 		message += fmt.Sprintf("%s: %s\r\n", k, v)
 	}
-	message += "\r\n" + body
+	header := "Content-Type: text/html; charset=\"UTF-8\";\n\n"
+	message += header + "\r\n" + body
 
 	// Connect to the SMTP server
-	servername := "smtp.feishu.cn:465"
+	servername := larkSmtpServer
 
 	host, _, _ := net.SplitHostPort(servername)
 

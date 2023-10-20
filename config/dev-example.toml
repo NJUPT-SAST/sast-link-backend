@@ -23,6 +23,10 @@ level = "debug"
 sender = "xxxxx"
 secret = "xxxxx"
 
+[cos]
+secret_id="xxx"
+secret_key="xxx"
+
 [oauth.server]
 # urlExample := "postgres://username:password@localhost:5432/database_name"
 db_uri = "xxxx"
@@ -37,7 +41,3 @@ redirect_url = "xxx"
 id = "xxx"
 secret = "xxx"
 redirect_url = "xxx"
-
-[cos]
-secret_id="xxx"
-secret_key="xxx"
