@@ -11,10 +11,11 @@ func TestGenerateCode(t *testing.T) {
 }
 
 func TestSendEmail(t *testing.T) {
-	testEmail := "xunop@qq.com"
+	testEmail := "user@example.org"
 	code := GenerateVerifyCode()
-	title := "发送邮件测试"
-	SendEmail(testEmail, code, title)
+	title := "发送邮件测试，请勿回复"
+	content := InsertCode(code)
+	SendEmail(testEmail, content, title)
 }
 
 func TestVerifyCode(t *testing.T) {
