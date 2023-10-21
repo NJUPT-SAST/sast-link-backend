@@ -242,7 +242,7 @@ func ChangePassword(ctx *gin.Context) {
 	token := ctx.GetHeader("TOKEN")
 	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
 	if err != nil || uid == "" {
-		ctx.JSON(http.StatusOK, result.Failed(result.TicketNotCorrect))
+		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
 		return
 	}
 	// Get password from form
