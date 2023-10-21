@@ -45,11 +45,11 @@ func main() {
 	http.HandleFunc("/api/auth/callback/sastlink", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		println(r.URL.RawQuery)
-		state := r.Form.Get("state")
-		if state != "xyz" {
-			http.Error(w, "State invalid", http.StatusBadRequest)
-			return
-		}
+		// state := r.Form.Get("state")
+		// if state != "xyz" {
+		// 	http.Error(w, "State invalid", http.StatusBadRequest)
+		// 	return
+		// }
 		code := r.Form.Get("code")
 		if code == "" {
 			http.Error(w, "Code not found", http.StatusBadRequest)
@@ -61,11 +61,12 @@ func main() {
 	http.HandleFunc("/oauth2", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		println(r.URL.RawQuery)
-		state := r.Form.Get("state")
-		if state != "xyz" {
-			http.Error(w, "State invalid", http.StatusBadRequest)
-			return
-		}
+		verifier := oauth2.GenerateVerifier()
+		// state := r.Form.Get("state")
+		// if state != "xyz" {
+		// 	http.Error(w, "State invalid", http.StatusBadRequest)
+		// 	return
+		// }
 		code := r.Form.Get("code")
 		if code == "" {
 			http.Error(w, "Code not found", http.StatusBadRequest)
