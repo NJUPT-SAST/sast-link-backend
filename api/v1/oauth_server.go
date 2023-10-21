@@ -28,9 +28,8 @@ import (
 
 var (
 	srv            *server.Server
-	pgxConn, _     = pgx.Connect(context.TODO(), config.Config.Sub("oauth.server").GetString("db_uri"))
+	pgxConn, _     = pgx.Connect(context.Background(), config.Config.Sub("oauth.server").GetString("db_uri"))
 	adapter        = pgx4adapter.NewConn(pgxConn)
-	clientStore, _ = pg.NewClientStore(adapter)
 )
 
 func init() {
@@ -41,6 +40,7 @@ func InitServer() {
 	// use PostgreSQL token store with pgx.Connection adapter
 	tokenStore, _ := pg.NewTokenStore(adapter, pg.WithTokenStoreGCInterval(time.Minute))
 	defer tokenStore.Close()
+	clientStore, _ := pg.NewClientStore(adapter)
 
 	mg := manage.NewDefaultManager()
 	mg.MapTokenStorage(tokenStore)
@@ -66,7 +66,6 @@ func InitServer() {
 	srv.SetResponseErrorHandler(func(re *errors.Response) {
 		log.Println("Response Error:", re.Error.Error())
 	})
-
 }
 
 // Create client
@@ -77,6 +76,13 @@ func CreateClient(c *gin.Context) {
 		return
 	}
 
+	token := c.GetHeader("TOKEN")
+	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	if err != nil || uid == "" {
+		c.JSON(http.StatusOK, result.Failed(result.TokenError))
+		return
+	}
+
 	clientID := util.GenerateUUID()
 	secret, err := util.GenerateRandomString(32)
 	if err != nil {
@@ -84,11 +90,14 @@ func CreateClient(c *gin.Context) {
 		return
 	}
 
+	clientStore, _ := pg.NewClientStore(adapter)
 	cErr := clientStore.Create(&models.Client{
 		ID:     clientID,
 		Secret: secret,
 		Domain: redirectURI,
+		UserID: uid,
 	})
+
 	if cErr != nil {
 		c.JSON(http.StatusBadRequest, result.Failed(result.InternalErr))
 		return
