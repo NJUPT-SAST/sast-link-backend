@@ -30,6 +30,9 @@ var (
 	srv            *server.Server
 	pgxConn, _     = pgx.Connect(context.Background(), config.Config.Sub("oauth.server").GetString("db_uri"))
 	adapter        = pgx4adapter.NewConn(pgxConn)
+	// FIXME: tokenStore, clientStore maybe have some problem
+	tokenStore, _  = pg.NewTokenStore(adapter, pg.WithTokenStoreGCInterval(time.Minute))
+	clientStore, _ = pg.NewClientStore(adapter)
 )
 
 func init() {
@@ -37,11 +40,6 @@ func init() {
 }
 
 func InitServer() {
-	// use PostgreSQL token store with pgx.Connection adapter
-	tokenStore, _ := pg.NewTokenStore(adapter, pg.WithTokenStoreGCInterval(time.Minute))
-	defer tokenStore.Close()
-	clientStore, _ := pg.NewClientStore(adapter)
-
 	mg := manage.NewDefaultManager()
 	mg.MapTokenStorage(tokenStore)
 	mg.SetAuthorizeCodeTokenCfg(manage.DefaultAuthorizeCodeTokenCfg)
@@ -90,7 +88,6 @@ func CreateClient(c *gin.Context) {
 		return
 	}
 
-	clientStore, _ := pg.NewClientStore(adapter)
 	cErr := clientStore.Create(&models.Client{
 		ID:     clientID,
 		Secret: secret,
