@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -33,6 +34,19 @@ var (
 	globalToken *oauth2.Token // Non-concurrent security
 )
 
+func GenerateVerifier() string {
+	// "RECOMMENDED that the output of a suitable random number generator be
+	// used to create a 32-octet sequence.  The octet sequence is then
+	// base64url-encoded to produce a 43-octet URL-safe string to use as the
+	// code verifier."
+	// https://datatracker.ietf.org/doc/html/rfc7636#section-4.1
+	data := make([]byte, 32)
+	if _, err := rand.Read(data); err != nil {
+		panic(err)
+	}
+	return base64.RawURLEncoding.EncodeToString(data)
+}
+
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		u := config.AuthCodeURL("xyz",
@@ -43,6 +57,7 @@ func main() {
 	})
 
 	http.HandleFunc("/api/auth/callback/sastlink", func(w http.ResponseWriter, r *http.Request) {
+
 		r.ParseForm()
 		println(r.URL.RawQuery)
 		// state := r.Form.Get("state")
@@ -61,7 +76,6 @@ func main() {
 	http.HandleFunc("/oauth2", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		println(r.URL.RawQuery)
-		verifier := oauth2.GenerateVerifier()
 		// state := r.Form.Get("state")
 		// if state != "xyz" {
 		// 	http.Error(w, "State invalid", http.StatusBadRequest)
@@ -73,7 +87,7 @@ func main() {
 			return
 		}
 		fmt.Println("Code:" + code)
-		//token, err := config.Exchange(r.Context(), code, oauth2.SetAuthURLParam("code_verifier", "sast_forever"))
+		// token, err := config.Exchange(r.Context(), code, oauth2.SetAuthURLParam("code_verifier", "sast_forever"))
 		//if err != nil {
 		//	http.Error(w, err.Error(), http.StatusInternalServerError)
 		//	return
