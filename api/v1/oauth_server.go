@@ -285,6 +285,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
+		log.Println("Oauth2: token is empty")
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -302,6 +303,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
+		log.Println("Oauth2: token is invalid")
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -318,6 +320,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
+		log.Println("Oauth2: token is invalid")
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -332,6 +335,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
+		log.Println("Oauth2: token is invalid")
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
