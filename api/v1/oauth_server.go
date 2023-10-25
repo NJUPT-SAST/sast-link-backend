@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
+	reqLog "github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/model"
 	"github.com/NJUPT-SAST/sast-link-backend/model/result"
 	"github.com/NJUPT-SAST/sast-link-backend/service"
@@ -24,16 +25,16 @@ import (
 	"github.com/sirupsen/logrus"
 	pg "github.com/vgarvardt/go-oauth2-pg/v4"
 	"github.com/vgarvardt/go-pg-adapter/pgx4adapter"
-	reqLog "github.com/NJUPT-SAST/sast-link-backend/log"
 )
 
 var (
-	srv        *server.Server
-	pgxConn, _ = pgx.Connect(context.Background(), config.Config.Sub("oauth.server").GetString("db_uri"))
-	adapter    = pgx4adapter.NewConn(pgxConn)
+	srv          *server.Server
+	pgxConn, _   = pgx.Connect(context.Background(), config.Config.Sub("oauth.server").GetString("db_uri"))
+	tokenAdapter = pgx4adapter.NewConn(pgxConn)
 	// FIXME: tokenStore, clientStore maybe have some problem
-	tokenStore, _  = pg.NewTokenStore(adapter, pg.WithTokenStoreGCInterval(time.Minute))
-	clientStore, _ = pg.NewClientStore(adapter)
+	tokenStore, _  = pg.NewTokenStore(tokenAdapter, pg.WithTokenStoreGCInterval(time.Minute))
+	clientAdapter  = pgx4adapter.NewConn(pgxConn)
+	clientStore, _ = pg.NewClientStore(clientAdapter)
 )
 
 func init() {
@@ -185,6 +186,8 @@ func Authorize(c *gin.Context) {
 	// Get code directly if user has logged in
 	reqLog.LogReq(r)
 	err = srv.HandleAuthorizeRequest(w, r)
+	clients, _ := srv.Manager.GetClient(r.Context(), r.Form.Get("client_id"))
+	log.Println(clients)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
 		return
