@@ -24,12 +24,13 @@ import (
 	"github.com/sirupsen/logrus"
 	pg "github.com/vgarvardt/go-oauth2-pg/v4"
 	"github.com/vgarvardt/go-pg-adapter/pgx4adapter"
+	reqLog "github.com/NJUPT-SAST/sast-link-backend/log"
 )
 
 var (
-	srv            *server.Server
-	pgxConn, _     = pgx.Connect(context.Background(), config.Config.Sub("oauth.server").GetString("db_uri"))
-	adapter        = pgx4adapter.NewConn(pgxConn)
+	srv        *server.Server
+	pgxConn, _ = pgx.Connect(context.Background(), config.Config.Sub("oauth.server").GetString("db_uri"))
+	adapter    = pgx4adapter.NewConn(pgxConn)
 	// FIXME: tokenStore, clientStore maybe have some problem
 	tokenStore, _  = pg.NewTokenStore(adapter, pg.WithTokenStoreGCInterval(time.Minute))
 	clientStore, _ = pg.NewClientStore(adapter)
@@ -182,6 +183,7 @@ func Authorize(c *gin.Context) {
 
 	// Redirect user to login page if user not login or
 	// Get code directly if user has logged in
+	reqLog.LogReq(r)
 	err = srv.HandleAuthorizeRequest(w, r)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
@@ -289,6 +291,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 	}
 
 	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	log.Println("Oauth2:username: ", username)
 	if err != nil || username == "" {
 		if r.Form == nil {
 			_ = r.ParseForm()
