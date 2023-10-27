@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -37,6 +38,14 @@ var (
 	clientStore, _ = pg.NewClientStore(clientAdapter)
 )
 
+// ClientStoreItem data item
+type ClientStoreItem struct {
+	ID     string `db:"id"`
+	Secret string `db:"secret"`
+	Domain string `db:"domain"`
+	Data   []byte `db:"data"`
+}
+
 func init() {
 	InitServer()
 }
@@ -45,27 +54,66 @@ func InitServer() {
 	mg := manage.NewDefaultManager()
 	mg.MapTokenStorage(tokenStore)
 	mg.SetAuthorizeCodeTokenCfg(manage.DefaultAuthorizeCodeTokenCfg)
-
 	// use PostgreSQL client store with pgx.Connection adapter
 	mg.MapClientStorage(clientStore)
 
 	srv = server.NewServer(server.NewConfig(), mg)
 	srv.SetClientInfoHandler(clientInfoHandler)
 	srv.SetUserAuthorizationHandler(userAuthorizeHandler)
-
 	// TODO: error handler
-	srv.SetInternalErrorHandler(func(err error) (re *errors.Response) {
-		log.Println("Internal Error:", err.Error())
-		error := errors.NewResponse(err, http.StatusInternalServerError)
-		error.ErrorCode = 500
-		error.StatusCode = http.StatusInternalServerError
-		error.Description = err.Error()
-		return error
-	})
+	srv.SetInternalErrorHandler(InternalErrorHandler)
+	srv.SetResponseErrorHandler(ResponseErrorHandler)
 
-	srv.SetResponseErrorHandler(func(re *errors.Response) {
-		log.Println("Response Error:", re.Error.Error())
-	})
+	srv.SetResponseTokenHandler(ResponseTokenHandler)
+}
+
+func InternalErrorHandler(err error) (re *errors.Response) {
+	log.Printf("Oauth2:InternalErrorHandler:[%s]", err.Error())
+	error := errors.NewResponse(err, http.StatusInternalServerError)
+	error.ErrorCode = 500
+	error.StatusCode = http.StatusInternalServerError
+	error.Description = err.Error()
+	return error
+}
+
+func ResponseErrorHandler(re *errors.Response) {
+	log.Printf("Oauth2:ResponseErrorHandler:[%s]", re.Error.Error())
+}
+
+func ResponseTokenHandler(w http.ResponseWriter, data map[string]interface{}, header http.Header, statusCode ...int) error {
+	w.Header().Set("Content-Type", "application/json;charset=UTF-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+
+	for key := range header {
+		w.Header().Set(key, header.Get(key))
+	}
+
+	status := http.StatusOK
+	if len(statusCode) > 0 && statusCode[0] > 0 {
+		status = statusCode[0]
+	}
+
+	log.Printf("Oauth2:ResponseTokenHandler:data:[%s]", data)
+	log.Printf("Oauth2:ResponseTokenHandler:status:[%d]", status)
+	log.Printf("Oauth2:ResponseTokenHandler:header:[%s]", header)
+
+	w.WriteHeader(status)
+	if data["error"] != nil {
+		var errMsg string
+		var errCode int
+		if data["error_description"] != nil {
+			errMsg = data["error_description"].(string)
+		}
+		if data["error_code"] != nil {
+			errCode = data["error_code"].(int)
+		}
+		error := result.LocalError{errCode, errMsg, nil}
+		log.Printf("Oauth2:ResponseTokenHandler:error:[%s]", error)
+		return json.NewEncoder(w).Encode(result.Failed(error))
+	} else {
+		return json.NewEncoder(w).Encode(result.Success(data))
+	}
 }
 
 // Create client
@@ -216,7 +264,14 @@ func AccessToken(c *gin.Context) {
 	w := c.Writer
 	r := c.Request
 	err := srv.HandleTokenRequest(w, r)
+	id, _, _ := clientInfoHandler(r)
+	var item ClientStoreItem
+	if err := clientAdapter.SelectOne(c, &item, fmt.Sprintf("SELECT * FROM %s WHERE id = $1", "oauth2_clients"), id); err != nil {
+		log.Printf("----DEBUG----: %s", err.Error())
+		return
+	}
 
+	// FIXME: err is always nil
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
 		return
