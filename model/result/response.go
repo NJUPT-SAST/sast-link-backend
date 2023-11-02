@@ -19,10 +19,18 @@ func Success(data any) Response {
 }
 
 func Failed(e LocalError) Response {
+	if e.Err == nil {
+		return Response{
+			Success: false,
+			ErrCode: e.ErrCode,
+			ErrMsg:  e.ErrMsg,
+			Data:    nil,
+		}
+	}
 	return Response{
 		Success: false,
 		ErrCode: e.ErrCode,
 		ErrMsg:  e.ErrMsg,
-		Data:    nil,
+		Data:    e.Error(),
 	}
 }

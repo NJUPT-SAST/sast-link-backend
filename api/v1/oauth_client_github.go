@@ -8,6 +8,7 @@ import (
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/endpoints"
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/model/result"
 	"github.com/NJUPT-SAST/sast-link-backend/service"
 	"github.com/gin-gonic/gin"
@@ -36,9 +37,9 @@ func OauthGithubLogin(c *gin.Context) {
 	oauthState := GenerateStateOauthCookie(c.Writer)
 	url := githubConf.AuthCodeURL(oauthState)
 
-	fmt.Println("------")
-	fmt.Printf("Visit the URL for the auth dialog: %v\n", url)
-	fmt.Println("------")
+	log.Log.Println("------")
+	log.Log.Printf("Visit the URL for the auth dialog: %v\n", url)
+	log.Log.Println("------")
 
 	c.Redirect(http.StatusFound, url)
 }
@@ -47,7 +48,7 @@ func OauthGithubCallback(c *gin.Context) {
 	oauthState, _ := c.Request.Cookie("oauthstate")
 
 	if c.Request.FormValue("state") != oauthState.Value {
-		fmt.Printf("invalid oauth state, expected '%s', got '%s'\n", oauthState.Value, c.Request.FormValue("state"))
+		log.Log.Printf("invalid oauth state, expected '%s', got '%s'\n", oauthState.Value, c.Request.FormValue("state"))
 		c.Redirect(http.StatusFound, "/")
 		return
 	}
@@ -83,16 +84,19 @@ func getUserInfoFromGithub(ctx context.Context, code string) (string, error) {
 
 	token, err := githubConf.Exchange(ctx, code)
 	if err != nil {
+		log.Log.Errorf("exchange github code error: %s", err.Error())
 		return "", fmt.Errorf("exchange github code error: %s", err.Error())
 	}
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", GithubUserInfoURL, nil)
 	if err != nil {
+		log.Log.Errorf("new request error: %s", err.Error())
 		return "", fmt.Errorf("new request error: %s", err.Error())
 	}
 	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
 	res, err := client.Do(req)
 	if err != nil {
+		log.Log.Errorf("failt to getting user info: %s", err.Error())
 		return "", fmt.Errorf("failt to getting user info: %s", err.Error())
 	}
 	body, err := io.ReadAll(res.Body)
@@ -100,7 +104,7 @@ func getUserInfoFromGithub(ctx context.Context, code string) (string, error) {
 		return "", result.InternalErr
 	}
 
-	// Now just get the github id
+	// TODO:Now just get the github id
 	githubId := gjson.Get(string(body), "id").String()
 	return githubId, nil
 }
