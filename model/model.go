@@ -46,7 +46,7 @@ type PostgresConf struct {
 func init() {
 	connectPostgreSQL()
 	connectRedis()
-	newStore()
+	// newStore()
 }
 
 // Get redis config

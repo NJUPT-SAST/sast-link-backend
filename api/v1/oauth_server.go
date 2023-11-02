@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -21,7 +20,6 @@ import (
 	"github.com/go-oauth2/oauth2/v4/manage"
 	"github.com/go-oauth2/oauth2/v4/models"
 	"github.com/go-oauth2/oauth2/v4/server"
-	"github.com/go-session/session"
 	"github.com/jackc/pgx/v4"
 	"github.com/sirupsen/logrus"
 	pg "github.com/vgarvardt/go-oauth2-pg/v4"
@@ -215,25 +213,24 @@ func OauthUserInfo(c *gin.Context) {
 func Authorize(c *gin.Context) {
 	r := c.Request
 	w := c.Writer
-	store, err := session.Start(c, w, r)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
-		return
-	}
+	// store, err := session.Start(c, w, r)
+	// if err != nil {
+	// 	c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
+	// 	return
+	// }
 	_ = r.ParseForm()
-	var form url.Values
-	if v, ok := store.Get("ReturnUri"); ok {
-		form = v.(url.Values)
-	}
-	r.Form = form
-
-	store.Delete("ReturnUri")
-	_ = store.Save()
+	// var form url.Values
+	// if v, ok := store.Get("ReturnUri"); ok {
+	// 	form = v.(url.Values)
+	// }
+	// r.Form = form
+	// store.Delete("ReturnUri")
+	// _ = store.Save()
 
 	// Redirect user to login page if user not login or
 	// Get code directly if user has logged in
 	reqLog.LogReq(r)
-	err = srv.HandleAuthorizeRequest(w, r)
+	err := srv.HandleAuthorizeRequest(w, r)
 	clients, _ := srv.Manager.GetClient(r.Context(), r.Form.Get("client_id"))
 	log.Log.Println(clients)
 	if err != nil {
@@ -266,6 +263,7 @@ func AccessToken(c *gin.Context) {
 	err := srv.HandleTokenRequest(w, r)
 	id, _, _ := clientInfoHandler(r)
 	var item ClientStoreItem
+	// TODO: DEBUG
 	if err := clientAdapter.SelectOne(c, &item, fmt.Sprintf("SELECT * FROM %s WHERE id = $1", "oauth2_clients"), id); err != nil {
 		log.Log.Errorf("----DEBUG----: %s", err.Error())
 		log.Log.Printf("\nitem: %v\n", item)
@@ -334,10 +332,10 @@ func getTokenByUUID(c context.Context, uuid string) (token string, err error) {
 }
 
 func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string, err error) {
-	session, err := session.Start(r.Context(), w, r)
-	if err != nil {
-		return
-	}
+	// session, err := session.Start(r.Context(), w, r)
+	// if err != nil {
+	// 	return
+	// }
 
 	token := r.Form.Get("part")
 	if token == "" {
@@ -347,8 +345,8 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 			_ = r.ParseForm()
 		}
 
-		session.Set("ReturnUri", r.Form)
-		_ = session.Save()
+		// session.Set("ReturnUri", r.Form)
+		// _ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
@@ -365,8 +363,8 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 			_ = r.ParseForm()
 		}
 
-		session.Set("ReturnUri", r.Form)
-		_ = session.Save()
+		// session.Set("ReturnUri", r.Form)
+		// _ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
@@ -382,8 +380,8 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 			_ = r.ParseForm()
 		}
 
-		session.Set("ReturnUri", r.Form)
-		_ = session.Save()
+		// session.Set("ReturnUri", r.Form)
+		// _ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
@@ -397,8 +395,8 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 			_ = r.ParseForm()
 		}
 
-		session.Set("ReturnUri", r.Form)
-		_ = session.Save()
+		// session.Set("ReturnUri", r.Form)
+		// _ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
