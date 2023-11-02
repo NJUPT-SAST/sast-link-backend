@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 	reqLog "github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/model"
 	"github.com/NJUPT-SAST/sast-link-backend/model/result"
@@ -21,7 +20,6 @@ import (
 	"github.com/go-oauth2/oauth2/v4/manage"
 	"github.com/go-oauth2/oauth2/v4/models"
 	"github.com/go-oauth2/oauth2/v4/server"
-	"github.com/go-session/session"
 	"github.com/jackc/pgx/v4"
 	"github.com/sirupsen/logrus"
 	pg "github.com/vgarvardt/go-oauth2-pg/v4"
@@ -68,7 +66,7 @@ func InitServer() {
 }
 
 func InternalErrorHandler(err error) (re *errors.Response) {
-	log.Printf("Oauth2:InternalErrorHandler:[%s]", err.Error())
+	log.Log.Errorf("Oauth2 ::: InternalErrorHandler:[%s]", err.Error())
 	error := errors.NewResponse(err, http.StatusInternalServerError)
 	error.ErrorCode = 500
 	error.StatusCode = http.StatusInternalServerError
@@ -77,7 +75,7 @@ func InternalErrorHandler(err error) (re *errors.Response) {
 }
 
 func ResponseErrorHandler(re *errors.Response) {
-	log.Printf("Oauth2:ResponseErrorHandler:[%s]", re.Error.Error())
+	log.Log.Errorf("Oauth2 ::: ResponseErrorHandler:[%s]", re.Error.Error())
 }
 
 func ResponseTokenHandler(w http.ResponseWriter, data map[string]interface{}, header http.Header, statusCode ...int) error {
@@ -94,9 +92,9 @@ func ResponseTokenHandler(w http.ResponseWriter, data map[string]interface{}, he
 		status = statusCode[0]
 	}
 
-	log.Printf("Oauth2:ResponseTokenHandler:data:[%s]", data)
-	log.Printf("Oauth2:ResponseTokenHandler:status:[%d]", status)
-	log.Printf("Oauth2:ResponseTokenHandler:header:[%s]", header)
+	log.Log.Errorf("Oauth2 ::: ResponseTokenHandler:data:[%s]", data)
+	log.Log.Errorf("Oauth2 ::: ResponseTokenHandler:status:[%d]", status)
+	log.Log.Errorf("Oauth2 ::: ResponseTokenHandler:header:[%s]", header)
 
 	w.WriteHeader(status)
 	if data["error"] != nil {
@@ -109,7 +107,7 @@ func ResponseTokenHandler(w http.ResponseWriter, data map[string]interface{}, he
 			errCode = data["error_code"].(int)
 		}
 		error := result.LocalError{errCode, errMsg, nil}
-		log.Printf("Oauth2:ResponseTokenHandler:error:[%s]", error)
+		log.Log.Errorf("Oauth2 ::: ResponseTokenHandler:error:[%s]", error)
 		return json.NewEncoder(w).Encode(result.Failed(error))
 	} else {
 		return json.NewEncoder(w).Encode(result.Success(data))
@@ -215,27 +213,26 @@ func OauthUserInfo(c *gin.Context) {
 func Authorize(c *gin.Context) {
 	r := c.Request
 	w := c.Writer
-	store, err := session.Start(c, w, r)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
-		return
-	}
+	// store, err := session.Start(c, w, r)
+	// if err != nil {
+	// 	c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
+	// 	return
+	// }
 	_ = r.ParseForm()
-	var form url.Values
-	if v, ok := store.Get("ReturnUri"); ok {
-		form = v.(url.Values)
-	}
-	r.Form = form
-
-	store.Delete("ReturnUri")
-	_ = store.Save()
+	// var form url.Values
+	// if v, ok := store.Get("ReturnUri"); ok {
+	// 	form = v.(url.Values)
+	// }
+	// r.Form = form
+	// store.Delete("ReturnUri")
+	// _ = store.Save()
 
 	// Redirect user to login page if user not login or
 	// Get code directly if user has logged in
 	reqLog.LogReq(r)
-	err = srv.HandleAuthorizeRequest(w, r)
+	err := srv.HandleAuthorizeRequest(w, r)
 	clients, _ := srv.Manager.GetClient(r.Context(), r.Form.Get("client_id"))
-	log.Println(clients)
+	log.Log.Println(clients)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
 		return
@@ -266,8 +263,10 @@ func AccessToken(c *gin.Context) {
 	err := srv.HandleTokenRequest(w, r)
 	id, _, _ := clientInfoHandler(r)
 	var item ClientStoreItem
+	// TODO: DEBUG
 	if err := clientAdapter.SelectOne(c, &item, fmt.Sprintf("SELECT * FROM %s WHERE id = $1", "oauth2_clients"), id); err != nil {
-		log.Printf("----DEBUG----: %s", err.Error())
+		log.Log.Errorf("----DEBUG----: %s", err.Error())
+		log.Log.Printf("\nitem: %v\n", item)
 		return
 	}
 
@@ -323,12 +322,20 @@ func clientInfoHandler(r *http.Request) (clientID, clientSecret string, err erro
 
 }
 
-func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string, err error) {
-	session, err := session.Start(r.Context(), w, r)
-	//session := sessions.Default(c)
+func getTokenByUUID(c context.Context, uuid string) (token string, err error) {
+	token, err = model.Rdb.Get(c, uuid).Result()
 	if err != nil {
-		return
+		log.Log.Errorln("invalid uuid, can't find token")
+		return "", err
 	}
+	return token, nil
+}
+
+func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string, err error) {
+	// session, err := session.Start(r.Context(), w, r)
+	// if err != nil {
+	// 	return
+	// }
 
 	token := r.Form.Get("part")
 	if token == "" {
@@ -338,30 +345,30 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 			_ = r.ParseForm()
 		}
 
-		session.Set("ReturnUri", r.Form)
-		_ = session.Save()
+		// session.Set("ReturnUri", r.Form)
+		// _ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
-		log.Println("Oauth2: token is empty")
+		log.Log.Errorln("Oauth2 ::: token is empty")
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
 	}
 
 	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
-	log.Println("Oauth2:username: ", username)
+	log.Log.Println("Oauth2 ::: username: ", username)
 	if err != nil || username == "" {
 		if r.Form == nil {
 			_ = r.ParseForm()
 		}
 
-		session.Set("ReturnUri", r.Form)
-		_ = session.Save()
+		// session.Set("ReturnUri", r.Form)
+		// _ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
-		log.Println("Oauth2: token is invalid")
+		log.Log.Errorln("Oauth2 ::: token is invalid")
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -373,12 +380,12 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 			_ = r.ParseForm()
 		}
 
-		session.Set("ReturnUri", r.Form)
-		_ = session.Save()
+		// session.Set("ReturnUri", r.Form)
+		// _ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
-		log.Println("Oauth2: token is invalid")
+		log.Log.Errorln("Oauth2 ::: token is invalid")
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
@@ -388,12 +395,12 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 			_ = r.ParseForm()
 		}
 
-		session.Set("ReturnUri", r.Form)
-		_ = session.Save()
+		// session.Set("ReturnUri", r.Form)
+		// _ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
-		log.Println("Oauth2: token is invalid")
+		log.Log.Errorln("Oauth2 ::: token is invalid")
 		json, _ := json.Marshal(response)
 		w.Write(json)
 		return
