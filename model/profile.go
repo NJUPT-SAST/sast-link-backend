@@ -57,7 +57,7 @@ func SelectProfileByUid(uid string) (*Profile, error) {
 
 func UpdateProfile(oldProfile, newProfile *Profile) error {
 	newProfile.ID = oldProfile.ID
-	if err := Db.Table("profile").Model(&Profile{}).Where("profile.id = ?", oldProfile.ID).Updates(newProfile).Error; err != nil {
+	if err := Db.Debug().Table("profile").Model(&Profile{}).Where("profile.id = ?", oldProfile.ID).Updates(newProfile).Error; err != nil {
 		profileLogger.Errorln("updateProfile Err", err)
 		return err
 	}

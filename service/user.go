@@ -42,6 +42,7 @@ func CreateUserAndProfile(email string, password string) error {
 	}, &model.Profile{
 		Nickname: &uid,
 		Email:    &email,
+		OrgId:    -1,
 	})
 
 	if err != nil {
