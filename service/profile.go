@@ -77,7 +77,7 @@ const picSensitiveMsg = `{
 
 func ChangeProfile(profile *model.Profile, uid string) error {
 	// check org_id
-	if profile.OrgId > 26 || profile.OrgId < 1 {
+	if profile.OrgId > 26 || profile.OrgId < -1 {
 		serviceLogger.Infof("org_id input Err")
 		return result.OrgIdError
 	}
@@ -143,7 +143,7 @@ func GetProfileOrg(OrgId int) (string, string, error) {
 	if OrgId > 26 {
 		serviceLogger.Errorln("org_id input Err,ErrMsg:")
 		return "", "", result.OrgIdError
-	} else if OrgId == 0 {
+	} else if OrgId == -1 || OrgId == 0 {
 		return "", "", nil
 	} else {
 		//get dep and org
@@ -181,7 +181,7 @@ func UploadAvatar(avatar *multipart.FileHeader, uid string, ctx *gin.Context) (s
 	}
 
 	//write to database, file url refer:tencent cos bucket file
-	if dBUpErr := model.UpdateAvatar("https://sast-link-1309205610.cos.ap-shanghai.myqcloud.com"+uploadKey, userInfo.ID); dBUpErr != nil {
+	if dBUpErr := model.UpdateAvatar("https://sast-link-1309205610.cos.ap-shanghai.myqcloud.com/"+uploadKey, userInfo.ID); dBUpErr != nil {
 		//del cos file
 		if _, cosDelErr := cos.Object.Delete(ctx, uploadKey); cosDelErr != nil {
 			serviceLogger.Errorln("upload avatar to cos fail,ErrMsg:", cosDelErr)
@@ -192,7 +192,7 @@ func UploadAvatar(avatar *multipart.FileHeader, uid string, ctx *gin.Context) (s
 		return "", dBUpErr
 	}
 
-	return "https://sast-link-1309205610.cos.ap-shanghai.myqcloud.com" + uploadKey, nil
+	return "https://sast-link-1309205610.cos.ap-shanghai.myqcloud.com/" + uploadKey, nil
 }
 
 func checkHideLegal(hide []string) error {
