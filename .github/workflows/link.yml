@@ -46,7 +46,7 @@ jobs:
         -m "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
 
     - name: Send Fail Message
-      if: ${{ fail() }}
+      if: ${{ failure() }}
       run: |
         bash ../../scripts/webhook.sh \
         -u "https://github.com/${{ github.repository }}/commit/${{ github.sha }}/checks/${{ github.run_id }}" \
