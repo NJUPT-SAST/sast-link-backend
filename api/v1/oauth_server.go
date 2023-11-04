@@ -232,7 +232,16 @@ func Authorize(c *gin.Context) {
 	reqLog.LogReq(r)
 	err := srv.HandleAuthorizeRequest(w, r)
 	clients, _ := srv.Manager.GetClient(r.Context(), r.Form.Get("client_id"))
-	log.Log.Println(clients)
+	var item ClientStoreItem
+	if err := clientAdapter.SelectOne(c, &item, fmt.Sprintf("SELECT * FROM %s WHERE id = $1", "oauth2_clients"), r.Form.Get("client_id")); err != nil {
+		log.Log.Errorf("----DEBUG----: %s", err.Error())
+		log.Log.Printf("\nau :: client: %s\n", item)
+		log.Log.Printf("\nau :: client_id: %s\n", r.Form.Get("client_id"))
+		log.Log.Errorf("----DEBUG----: %s", err.Error())
+		return
+	}
+	log.Log.Printf("\nau :: client: %s\n", clients)
+	log.Log.Printf("\nau :: client_id: %s\n", r.Form.Get("client_id"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
 		return
@@ -266,7 +275,8 @@ func AccessToken(c *gin.Context) {
 	// TODO: DEBUG
 	if err := clientAdapter.SelectOne(c, &item, fmt.Sprintf("SELECT * FROM %s WHERE id = $1", "oauth2_clients"), id); err != nil {
 		log.Log.Errorf("----DEBUG----: %s", err.Error())
-		log.Log.Printf("\nitem: %v\n", item)
+		log.Log.Printf("\nat :: client: %s\n", item)
+		log.Log.Printf("\nat :: client_id: %s\n", r.Form.Get("client_id"))
 		return
 	}
 
