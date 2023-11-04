@@ -40,16 +40,16 @@ jobs:
       if: ${{ success() }}
       run: |
         bash ./scripts/webhook.sh \
-        -u  "https://github.com/${{ github.repository }}/commit/${{ github.sha }}/checks/${{ github.run_id }}" \
+        -u "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
         -w ${{ secrets.WEBHOOK_URL }} \
-        -s sastlink -c "${{github.event.pull_request.user.login}}" -f 'success' \
+        -s sastlink -c "${{ github.event.pull_request.user.login }}" -f 'success' \
         -m "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
 
     - name: Send Fail Message
       if: ${{ failure() }}
       run: |
         bash ./scripts/webhook.sh \
-        -u "https://github.com/${{ github.repository }}/commit/${{ github.sha }}/checks/${{ github.run_id }}" \
+        -u "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
         -w ${{ secrets.WEBHOOK_URL }} \
-        -s sastlink -c "${{github.event.pull_request.user.login}}" -f 'false' \
+        -s sastlink -c "${{ github.event.pull_request.user.login }}" -f 'false' \
         -m "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
