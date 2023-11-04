@@ -39,7 +39,7 @@ jobs:
     - name: Send Success Message
       if: ${{ success() }}
       run: |
-        bash ../../scripts/webhook.sh \
+        bash ./scripts/webhook.sh \
         -u  "https://github.com/${{ github.repository }}/commit/${{ github.sha }}/checks/${{ github.run_id }}" \
         -w ${{ secrets.WEBHOOK_URL }} \
         -s sast_link -c "${{github.event.pull_request.user.login}}" -f 'success' \
@@ -48,7 +48,7 @@ jobs:
     - name: Send Fail Message
       if: ${{ failure() }}
       run: |
-        bash ../../scripts/webhook.sh \
+        bash ./scripts/webhook.sh \
         -u "https://github.com/${{ github.repository }}/commit/${{ github.sha }}/checks/${{ github.run_id }}" \
         -w ${{ secrets.WEBHOOK_URL }} \
         -s sast_link -c "${{github.event.pull_request.user.login}}" -f 'false' \
