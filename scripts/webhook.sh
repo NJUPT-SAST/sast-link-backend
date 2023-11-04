@@ -82,8 +82,6 @@ card_msg='{
     }
 }'
 
-echo $card_msg
-
 curl -X POST -H "Content-Type: application/json" \
      -d "$card_msg" \
      "$webhook_url"
