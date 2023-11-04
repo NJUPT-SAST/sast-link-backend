@@ -57,7 +57,7 @@ card_msg='{
         "elements": [{
                 "tag": "div",
                 "text": {
-                "content": "[Commit]('$commit_url') by '$commit_user'",
+                "content": "[Commit]('$commit_url') by ['$commit_user'](https://github.com/NJUPT-SAST/sast-link-backend/commits?author='$commit_user')",
                         "tag": "lark_md"
                 }
         }, {
