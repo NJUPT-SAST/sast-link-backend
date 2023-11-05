@@ -13,7 +13,6 @@ require (
 require (
 	github.com/go-oauth2/oauth2/v4 v4.5.2
 	github.com/go-session/redis/v3 v3.1.0
-	github.com/go-session/session v3.1.2+incompatible
 	github.com/go-session/session/v3 v3.1.5
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/google/uuid v1.1.2

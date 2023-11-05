@@ -133,7 +133,6 @@ github.com/go-redis/redis/v8 v8.11.4 h1:kHoYkfZP6+pe04aFTnhDH6GDROa5yJdHJVNxV3F4
 github.com/go-redis/redis/v8 v8.11.4/go.mod h1:2Z2wHZXdQpCDXEGzqMockDpNyYvi2l4Pxt6RJr792+w=
 github.com/go-session/redis/v3 v3.1.0 h1:5XXH2YACkeLqkxyYG6/La1BWmCG1/mQ8KCdkfb4Ws0w=
 github.com/go-session/redis/v3 v3.1.0/go.mod h1:uvVSP0KDVW4+b7dqDBjNnEuFEp4y9QCXFvnlSHocITw=
-github.com/go-session/session v3.1.2+incompatible h1:yStchEObKg4nk2F7JGE7KoFIrA/1Y078peagMWcrncg=
 github.com/go-session/session v3.1.2+incompatible/go.mod h1:8B3iivBQjrz/JtC68Np2T1yBBLxTan3mn/3OM0CyRt0=
 github.com/go-session/session/v3 v3.1.5 h1:G44Qx6wts5IA2jNLWYOVYxip/0LH5FTg8/Tded0Lt6s=
 github.com/go-session/session/v3 v3.1.5/go.mod h1:sWg9Nca0XsmPHUnPypN+yl6zV/OSilR69vFBnkJgNjY=
