@@ -39,16 +39,16 @@ if [[ -z "$workflow_url" || -z "$webhook_url" || -z "$service_name" || -z "$comm
   exit 1
 fi
 
-status="success"
-if systemctl is-active --quiet "$service_name"; then
-  echo "service $service_name is running"
-  status="success"
-else
-  echo "service $service_name is not running"
-  status="failed"
-fi
+# status="success"
+# if systemctl is-active --quiet "$service_name"; then
+#   echo "service $service_name is running"
+#   status="success"
+# else
+#   echo "service $service_name is not running"
+#   status="failed"
+# fi
 
-# GMT time
+# UTC time
 cur_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 card_msg='{
@@ -75,7 +75,7 @@ card_msg='{
         }],
         "header": {
                 "title": {
-                        "content": "'$service_name' workflows run '$flow_status' at '$cur_date'\nService status: '$status'",
+                        "content": "'$service_name' workflows run '$flow_status' at '$cur_date'",
                         "tag": "plain_text"
                 }
         }

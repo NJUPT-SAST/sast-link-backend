@@ -3,14 +3,12 @@ package v1
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
-	reqLog "github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/model"
 	"github.com/NJUPT-SAST/sast-link-backend/model/result"
 	"github.com/NJUPT-SAST/sast-link-backend/service"
@@ -20,19 +18,18 @@ import (
 	"github.com/go-oauth2/oauth2/v4/manage"
 	"github.com/go-oauth2/oauth2/v4/models"
 	"github.com/go-oauth2/oauth2/v4/server"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
 	pg "github.com/vgarvardt/go-oauth2-pg/v4"
 	"github.com/vgarvardt/go-pg-adapter/pgx4adapter"
 )
 
 var (
-	srv          *server.Server
-	pgxConn, _   = pgx.Connect(context.Background(), config.Config.Sub("oauth.server").GetString("db_uri"))
-	tokenAdapter = pgx4adapter.NewConn(pgxConn)
-	// FIXME: tokenStore, clientStore maybe have some problem
+	srv            *server.Server
+	pgxConn, _     = pgxpool.Connect(context.Background(), config.Config.Sub("oauth.server").GetString("db_uri"))
+	tokenAdapter   = pgx4adapter.NewPool(pgxConn)
 	tokenStore, _  = pg.NewTokenStore(tokenAdapter, pg.WithTokenStoreGCInterval(time.Minute))
-	clientAdapter  = pgx4adapter.NewConn(pgxConn)
+	clientAdapter  = pgx4adapter.NewPool(pgxConn)
 	clientStore, _ = pg.NewClientStore(clientAdapter)
 )
 
@@ -91,10 +88,6 @@ func ResponseTokenHandler(w http.ResponseWriter, data map[string]interface{}, he
 	if len(statusCode) > 0 && statusCode[0] > 0 {
 		status = statusCode[0]
 	}
-
-	log.Log.Errorf("Oauth2 ::: ResponseTokenHandler:data:[%s]", data)
-	log.Log.Errorf("Oauth2 ::: ResponseTokenHandler:status:[%d]", status)
-	log.Log.Errorf("Oauth2 ::: ResponseTokenHandler:header:[%s]", header)
 
 	w.WriteHeader(status)
 	if data["error"] != nil {
@@ -229,19 +222,18 @@ func Authorize(c *gin.Context) {
 
 	// Redirect user to login page if user not login or
 	// Get code directly if user has logged in
-	reqLog.LogReq(r)
 	err := srv.HandleAuthorizeRequest(w, r)
-	clients, _ := srv.Manager.GetClient(r.Context(), r.Form.Get("client_id"))
-	var item ClientStoreItem
-	if err := clientAdapter.SelectOne(c, &item, fmt.Sprintf("SELECT * FROM %s WHERE id = $1", "oauth2_clients"), r.Form.Get("client_id")); err != nil {
-		log.Log.Errorf("----DEBUG----: %s", err.Error())
-		log.Log.Printf("\nau :: client: %s\n", item)
-		log.Log.Printf("\nau :: client_id: %s\n", r.Form.Get("client_id"))
-		log.Log.Errorf("----DEBUG----: %s", err.Error())
-		return
-	}
-	log.Log.Printf("\nau :: client: %s\n", clients)
-	log.Log.Printf("\nau :: client_id: %s\n", r.Form.Get("client_id"))
+	// clients, _ := srv.Manager.GetClient(c, r.Form.Get("client_id"))
+	// var item ClientStoreItem
+	// if err := clientAdapter.SelectOne(c, &item, fmt.Sprintf("SELECT * FROM %s WHERE id = $1", "oauth2_clients"), r.Form.Get("client_id")); err != nil {
+	// 	log.Log.Errorf("\n----DEBUG----: %s\n", err.Error())
+	// 	log.Log.Printf("\nau :: client: %s\n", item)
+	// 	log.Log.Printf("\nau :: client_id: %s\n", r.Form.Get("client_id"))
+	// 	log.Log.Errorf("\n----DEBUG----: %s\n", err.Error())
+	// 	return
+	// }
+	// log.Log.Printf("\nau :: client: %s\n", clients)
+	// log.Log.Printf("\nau :: client_id: %s\n", r.Form.Get("client_id"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
 		return
@@ -270,15 +262,6 @@ func AccessToken(c *gin.Context) {
 	w := c.Writer
 	r := c.Request
 	err := srv.HandleTokenRequest(w, r)
-	id, _, _ := clientInfoHandler(r)
-	var item ClientStoreItem
-	// TODO: DEBUG
-	if err := clientAdapter.SelectOne(c, &item, fmt.Sprintf("SELECT * FROM %s WHERE id = $1", "oauth2_clients"), id); err != nil {
-		log.Log.Errorf("----DEBUG----: %s", err.Error())
-		log.Log.Printf("\nat :: client: %s\n", item)
-		log.Log.Printf("\nat :: client_id: %s\n", r.Form.Get("client_id"))
-		return
-	}
 
 	// FIXME: err is always nil
 	if err != nil {
