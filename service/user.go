@@ -84,7 +84,7 @@ func VerifyAccountResetPWD(ctx *gin.Context, username string) (string, error) {
 
 	// User exist and try to reset password
 	if user != nil {
-		ticket, err := util.GenerateTokenWithExp(ctx, model.ResetPwdJWTSubkey(username), model.RESETPWD_TICKET_EXP)
+		ticket, err := util.GenerateTokenWithExp(ctx, model.ResetPwdJWTSubKey(username), model.RESETPWD_TICKET_EXP)
 		if err != nil {
 			return "", err
 		}
@@ -177,7 +177,12 @@ func ResetPassword(username, newPassword string) error {
 	if !CheckPasswordFormat(newPassword) {
 		return result.PasswordIllegal
 	}
-	cErr := model.ChangePassword(username, newPassword)
+
+	split := regexp.MustCompile(`@`)
+	uid := split.Split(username, 2)[0]
+	uid = strings.ToLower(uid)
+
+	cErr := model.ChangePassword(uid, newPassword)
 	if cErr != nil {
 		return cErr
 	}

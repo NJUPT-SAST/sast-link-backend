@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"strings"
 	"time"
 
@@ -16,7 +17,10 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/model/result"
 )
 
-var jwtSigningKey = config.Config.Sub("jwt").GetString("signing_key")
+var (
+	utilLogger    = log.Log
+	jwtSigningKey = config.Config.Sub("jwt").GetString("signing_key")
+)
 
 // GenerateToken
 // token expireTime : not set, do this with redis
@@ -47,18 +51,21 @@ func GenerateTokenWithExp(ctx context.Context, username string, expireTime time.
 func ParseToken(token string) (*JWTAccessClaims, error) {
 	tokenClaims, err := jwt.ParseWithClaims(token, &JWTAccessClaims{}, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			utilLogger.Error(token + "-pasefail")
 			return nil, result.AuthParseTokenFail
 		}
 		return []byte(jwtSigningKey), nil
 	})
 	if err != nil {
-		return nil, result.AuthParseTokenFail.Wrap(err)
+		utilLogger.Error(token + "-pasefail-" + "msg:" + err.Error())
+		return nil, result.AuthParseTokenFail
 	}
 
 	if claims, ok := tokenClaims.Claims.(*JWTAccessClaims); ok && tokenClaims.Valid {
 		return claims, nil
 	} else {
-		return nil, result.AuthParseTokenFail.Wrap(err)
+		utilLogger.Error(token + "-pasefail-" + "msg:" + err.Error())
+		return nil, result.AuthParseTokenFail
 	}
 }
 
