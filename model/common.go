@@ -17,10 +17,10 @@ const (
 	LOGIN_TOKEN_IN_REDIS = "LOGIN"
 
 	// For JWT
-	LOGIN_TOKEN_SUB      = "loginToken"
-	LOGIN_TICKET_SUB     = "loginTicket"
-	REGIST_TICKET_SUB    = "registerTicket"
-	RESETPWD_TICKET_SUB  = "resetPwdTicket"
+	LOGIN_TOKEN_SUB     = "loginToken"
+	LOGIN_TICKET_SUB    = "loginTicket"
+	REGIST_TICKET_SUB   = "registerTicket"
+	RESETPWD_TICKET_SUB = "resetPwdTicket"
 )
 
 var (
@@ -43,7 +43,8 @@ func LoginTicketKey(username string) string {
 func RegisterJWTSubKey(username string) string {
 	return fmt.Sprintf("%s-%s", username, REGIST_TICKET_SUB)
 }
-func ResetPwdJWTSubkey(username string) string {
+
+func ResetPwdJWTSubKey(username string) string {
 	return fmt.Sprintf("%s-%s", username, RESETPWD_TICKET_SUB)
 }
 
