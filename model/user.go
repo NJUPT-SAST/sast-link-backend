@@ -80,9 +80,9 @@ func CheckPassword(username string, password string) (string, error) {
 	return *user.Uid, err
 }
 
-func ChangePassword(username string, password string) error {
+func ChangePassword(uid string, password string) error {
 	pwdEncrypted := util.ShaHashing(password)
-	err := Db.Model(&User{}).Where("uid = ?", username).Where("is_deleted = ?", false).Update("password", pwdEncrypted).Error
+	err := Db.Debug().Model(&User{}).Where("uid = ?", uid).Where("is_deleted = ?", false).Update("password", pwdEncrypted).Error
 	if err != nil {
 		return err
 	}
