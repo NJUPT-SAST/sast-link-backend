@@ -12,7 +12,6 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/service"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
 
 var controllerLogger = log.Log
@@ -91,10 +90,7 @@ func CheckVerifyCode(ctx *gin.Context) {
 func UserInfo(ctx *gin.Context) {
 	user, err := service.UserInfo(ctx)
 	if err != nil {
-		controllerLogger.WithFields(
-			logrus.Fields{
-				"username": user.Uid,
-			}).Error(err)
+		controllerLogger.Errorf("user token error: %s", err.Error())
 		ctx.JSON(http.StatusOK, result.Failed(result.GetUserinfoFail))
 		return
 	}
@@ -106,7 +102,7 @@ func UserInfo(ctx *gin.Context) {
 }
 
 func SendEmail(ctx *gin.Context) {
-	//获取传入TICKET参数
+	// Get TICKET from header
 	var ticket, flag string
 	if ctx.GetHeader("REGISTER-TICKET") != "" {
 		ticket = ctx.GetHeader("REGISTER-TICKET")
@@ -123,10 +119,7 @@ func SendEmail(ctx *gin.Context) {
 	// 错误处理机制写玉玉了
 	// 我开始乱写了啊啊啊啊
 	if usernameErr != nil {
-		controllerLogger.WithFields(
-			logrus.Fields{
-				"username": username,
-			}).Error(usernameErr)
+		controllerLogger.Errorf("username parse error: %s", usernameErr.Error())
 		ctx.JSON(http.StatusUnauthorized, result.Failed(result.TicketNotCorrect))
 		return
 	}
@@ -145,10 +138,7 @@ func SendEmail(ctx *gin.Context) {
 	}
 	err := service.SendEmail(ctx, username, ticket, title)
 	if err != nil {
-		controllerLogger.WithFields(
-			logrus.Fields{
-				"username": username,
-			}).Error(err)
+		controllerLogger.Errorf("send email fail: %s", usernameErr.Error())
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
 	} else {
 		ctx.JSON(http.StatusOK, result.Success(nil))
@@ -178,11 +168,7 @@ func VerifyAccount(ctx *gin.Context) {
 
 	ticket, err := service.VerifyAccount(ctx, username, flag)
 	if err != nil {
-		controllerLogger.WithFields(
-			logrus.Fields{
-				"username": username,
-			}).Error(err)
-
+		controllerLogger.Errorf("verify account fail: %s", err.Error())
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
 		return
 	}
@@ -207,15 +193,10 @@ func Login(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, result.Failed(result.TicketNotCorrect))
 		return
 	}
-	//verify if the user is deleted
 
-	// Check the password
 	uid, err := service.Login(username, password)
 	if err != nil {
-		controllerLogger.WithFields(
-			logrus.Fields{
-				"username": username,
-			}).Error(err)
+		controllerLogger.Errorf("login fail: %s", err.Error())
 		//ctx.JSON(http.StatusUnauthorized, result.Failed(result.VerifyAccountError))
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.VerifyPasswordError))
 		return
