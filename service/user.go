@@ -222,7 +222,7 @@ func SendEmail(ctx *gin.Context, username, ticket, title string) error {
 		return result.TicketNotCorrect
 	}
 	code := model.GenerateVerifyCode()
-	model.Rdb.Set(ctx, model.CaptchaKey(username), code, model.CAPTCHA_EXP)
+	model.Rdb.Set(ctx, model.VerifyCodeKey(username), code, model.VERIFY_CODE_EXP)
 	content := model.InsertCode(code)
 	emailErr := model.SendEmail(username, content, title)
 	if emailErr != nil {
@@ -250,7 +250,7 @@ func CheckVerifyCode(ctx *gin.Context, ticket, code, flag string) error {
 		return uErr
 	}
 
-	rCode, cErr := model.Rdb.Get(ctx, model.CaptchaKey(username)).Result()
+	rCode, cErr := model.Rdb.Get(ctx, model.VerifyCodeKey(username)).Result()
 	if cErr != nil {
 		if cErr == redis.Nil {
 			return result.CaptchaError
