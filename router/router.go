@@ -2,8 +2,10 @@ package router
 
 import (
 	"net/http"
+	"time"
 
 	v1 "github.com/NJUPT-SAST/sast-link-backend/api/v1"
+	"github.com/NJUPT-SAST/sast-link-backend/middleware"
 	"github.com/gin-gonic/gin"
 )
 
@@ -34,7 +36,8 @@ func InitRouter() *gin.Engine {
 		verify.GET("/account", v1.VerifyAccount)
 		verify.POST("/captcha", v1.CheckVerifyCode)
 	}
-	apiV1.GET("/sendEmail", v1.SendEmail)
+	// Limit 3 requests per minute
+	apiV1.GET("/sendEmail", middleware.RequestRateLimiter(3, time.Minute), v1.SendEmail)
 	//S-LYPL7 admingroup := apiV1.Group("/admin")
 	// {
 	// }
