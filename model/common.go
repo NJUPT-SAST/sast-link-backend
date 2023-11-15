@@ -8,7 +8,7 @@ import (
 const (
 	REGISTER_TICKET_EXP = time.Minute * 5
 	RESETPWD_TICKET_EXP = time.Minute * 6
-	CAPTCHA_EXP         = time.Minute * 3
+	VERIFY_CODE_EXP         = time.Minute * 3
 	// This is not login token expire time, this is login ticket expire time
 	LOGIN_TICKET_EXP = time.Minute * 5
 	// This is login token expire time
@@ -60,6 +60,6 @@ func LoginTokenKey(username string) string {
 	return "TOKEN:" + username
 }
 
-func CaptchaKey(username string) string {
-	return "CAPTCHA:" + username
+func VerifyCodeKey(username string) string {
+	return "VerifyCode:" + username
 }
