@@ -41,10 +41,10 @@ var (
 	VerifyAccountError    = LocalError{ErrCode: 40001, ErrMsg: "验证账户失败"}
 	VerifyPasswordError   = LocalError{ErrCode: 40002, ErrMsg: "验证账户密码失败"}
 	// this is default error
-	InternalErr     = LocalError{ErrCode: 50000, ErrMsg: "未知错误"}
-	ClientErr       = LocalError{ErrCode: 60001, ErrMsg: "客户端错误"}
-	AccessTokenErr  = LocalError{ErrCode: 60002, ErrMsg: "access_token错误"}
-	RefreshTokenErr = LocalError{ErrCode: 60003, ErrMsg: "refresh_token错误"}
+	InternalErr           = LocalError{ErrCode: 50000, ErrMsg: "未知错误"}
+	ClientErr             = LocalError{ErrCode: 60001, ErrMsg: "客户端错误"}
+	AccessTokenErr        = LocalError{ErrCode: 60002, ErrMsg: "access_token错误"}
+	RefreshTokenErr       = LocalError{ErrCode: 60003, ErrMsg: "refresh_token错误"}
 	RegisterPhaseError    = LocalError{ErrCode: 70003, ErrMsg: "注册失败 （！！！！hack？？？？）"}
 	ResetPasswordEror     = LocalError{ErrCode: 70004, ErrMsg: "重置密码失败 （！！！！hack？？？？）"}
 	AlreadySetPasswordErr = LocalError{ErrCode: 70004, ErrMsg: "重复设置密码"}
@@ -115,11 +115,21 @@ func (e *LocalError) Is(err error) bool {
 // use this function to get the errors.
 func HandleError(err error) LocalError {
 	if err, ok := err.(LocalError); ok {
-		// determine whether the error is exist in errorMap
+		// determine whether the error is existed in errorMap
 		if _, ok := errorMap[err.ErrCode]; ok {
 			return err
 		}
 	}
 	// if not exist, return default error
 	return InternalErr.Wrap(err)
+}
+func HandleErrorWithArgu(err error, localError LocalError) LocalError {
+	if err, ok := err.(LocalError); ok {
+		// determine whether the error is existed in errorMap
+		if _, ok := errorMap[err.ErrCode]; ok {
+			return err
+		}
+	}
+	// if not exist, return default error warped with specified localError
+	return localError.Wrap(err)
 }
