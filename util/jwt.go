@@ -37,10 +37,11 @@ func GenerateToken(username string) (string, error) {
 }
 
 // GenerateToken with expireTime
-func GenerateTokenWithExp(ctx context.Context, username string, expireTime time.Duration) (string, error) {
+// identifier is something like `username-loginTicket` or `oauthIdentity-oauthLarkToken`
+func GenerateTokenWithExp(ctx context.Context, identifier string, expireTime time.Duration) (string, error) {
 	signingKey := []byte(jwtSigningKey)
 	gen := NewJWTAccessGenerate("", signingKey, jwt.SigningMethodHS256)
-	access, _, err := gen.Token(ctx, username, expireTime, false)
+	access, _, err := gen.Token(ctx, identifier, expireTime, false)
 	return access, err
 }
 
@@ -75,29 +76,33 @@ func RefreshToken(token string) (string, error) {
 	return token, err
 }
 
-// GetUsername flag: verify token type
-func GetUsername(token, flag string) (string, error) {
+// TokenAudience get `Audience` field(information about user/oauth...) from claims
+func TokenAudience(token string) (audience []string, err error){
 	claims, err := ParseToken(token)
+	if err != nil {
+		return
+	}
+	if err = claims.Valid(); err != nil {
+		return
+	}
+
+	return claims.GetAudience()
+}
+
+// IdentityFromToken return identity(now "username"/"union_id")
+//
+// flag: verify token type
+func IdentityFromToken(token, flag string) (string, error) {
+	audience, err := TokenAudience(token)
+	identifier := strings.Split(audience[0], "-")
 	if err != nil {
 		return "", err
 	}
-
-	validError := claims.Valid()
-	if validError != nil {
-		return "", validError
-	}
-
-	username, claimsError := claims.GetAudience()
-	if claimsError != nil {
-		return "", claimsError
-	}
-	// redis ticket is username-register
-	reg := strings.Split(username[0], "-")
-	uid, err := reg[0], nil
-	if reg[1] != "" && flag != "" && flag != reg[1] {
+	identity, err := identifier[0], nil
+	if identifier[1] != "" && flag != "" && flag != identifier[1] {
 		return "", result.TicketNotCorrect
 	}
-	return strings.ToLower(uid), err
+	return strings.ToLower(identity), err
 }
 
 // JWTAccessClaims jwt claims

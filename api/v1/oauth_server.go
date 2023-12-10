@@ -282,7 +282,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		return
 	}
 
-	username, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	username, err := util.IdentityFromToken(token, model.LOGIN_TOKEN_SUB)
 	if err != nil || username == "" {
 		if r.Form == nil {
 			_ = r.ParseForm()

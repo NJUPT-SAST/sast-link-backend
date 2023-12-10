@@ -19,7 +19,7 @@ func TestJWT(t *testing.T) {
 		fmt.Println("claims:", claims)
 		So(claims, ShouldNotBeEmpty)
 		fmt.Println(claims.GetExpirationTime())
-		username, _ := GetUsername(token, "login")
+		username, _ := IdentityFromToken(token, "login")
 		So(username, ShouldEqual, "xunop@qq.com")
 	})
 }
