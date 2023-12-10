@@ -59,7 +59,8 @@ func InitRouter() *gin.Engine {
 	{
 		login.GET("/github", v1.OauthGithubLogin)
 		login.GET("/github/callback", v1.OauthGithubCallback)
-		// login.POST("/github", v1.OauthGithubLogin)
+		login.GET("/lark", v1.OauthLarkLogin)
+		login.GET("/lark/callback", v1.OauthLarkCallback)
 		// login.POST("/qq", v1.OauthQQLogin)
 	}
 

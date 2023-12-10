@@ -9,7 +9,7 @@ import (
 )
 
 func PostWithHeader(url string, header map[string]string, body any) (*http.Response, error) {
-	jsonData, err := json.Marshal(body);
+	jsonData, err := json.Marshal(body)
 	if err != nil {
 		log.Log.Errorln("json.Marshal ::: ", err)
 	}
