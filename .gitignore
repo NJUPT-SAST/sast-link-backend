@@ -24,3 +24,5 @@ go.work
 dev-*.toml
 Dockerfile
 .idea/
+
+main
