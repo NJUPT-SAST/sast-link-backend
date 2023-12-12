@@ -91,7 +91,8 @@ func UserInfo(ctx *gin.Context) {
 	user, err := service.UserInfo(ctx)
 	if err != nil {
 		controllerLogger.Errorf("user token error: %s", err.Error())
-		ctx.JSON(http.StatusOK, result.Failed(result.GetUserinfoFail))
+		//ctx.JSON(http.StatusOK, result.Failed(result.GetUserinfoFail))
+		ctx.JSON(http.StatusOK, result.Failed(result.HandleErrorWithArgu(err, result.GetUserinfoFail)))
 		return
 	}
 
@@ -120,7 +121,8 @@ func SendEmail(ctx *gin.Context) {
 	// 我开始乱写了啊啊啊啊
 	if usernameErr != nil {
 		controllerLogger.Errorf("username parse error: %s", usernameErr.Error())
-		ctx.JSON(http.StatusUnauthorized, result.Failed(result.TicketNotCorrect))
+		//ctx.JSON(http.StatusUnauthorized, result.Failed(result.TicketNotCorrect))
+		ctx.JSON(http.StatusUnauthorized, result.Failed(result.HandleErrorWithArgu(usernameErr, result.TicketNotCorrect)))
 		return
 	}
 	// verify if the user email correct
@@ -190,7 +192,8 @@ func Login(ctx *gin.Context) {
 	// Get username from ticket
 	username, err := util.GetUsername(ticket, model.LOGIN_TICKET_SUB)
 	if err != nil || username == "" {
-		ctx.JSON(http.StatusOK, result.Failed(result.TicketNotCorrect))
+		//ctx.JSON(http.StatusOK, result.Failed(result.TicketNotCorrect))
+		ctx.JSON(http.StatusOK, result.Failed(result.HandleErrorWithArgu(err, result.TicketNotCorrect)))
 		return
 	}
 
@@ -198,7 +201,8 @@ func Login(ctx *gin.Context) {
 	if err != nil {
 		controllerLogger.Errorf("login fail: %s", err.Error())
 		//ctx.JSON(http.StatusUnauthorized, result.Failed(result.VerifyAccountError))
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.VerifyPasswordError))
+		//ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.VerifyPasswordError))
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.HandleErrorWithArgu(err, result.VerifyPasswordError)))
 		return
 	}
 	if uid == "" {
