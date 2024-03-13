@@ -9,11 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func HelloHandler(w http.ResponseWriter, req *http.Request) {
-	w.Write([]byte("Hello, World!"))
-}
-
-// Custom limiter
+// Example: RequestRateLimiter(3, time.Minute) represents 3 requests per minute
 func RequestRateLimiter(maxRequests int64, period time.Duration) gin.HandlerFunc {
 	rate := float64(maxRequests) / float64(period.Seconds())
 	limiter := tollbooth.NewLimiter(rate, nil)
