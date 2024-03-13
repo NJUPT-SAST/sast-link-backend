@@ -223,17 +223,6 @@ func Authorize(c *gin.Context) {
 	// Redirect user to login page if user not login or
 	// Get code directly if user has logged in
 	err := srv.HandleAuthorizeRequest(w, r)
-	// clients, _ := srv.Manager.GetClient(c, r.Form.Get("client_id"))
-	// var item ClientStoreItem
-	// if err := clientAdapter.SelectOne(c, &item, fmt.Sprintf("SELECT * FROM %s WHERE id = $1", "oauth2_clients"), r.Form.Get("client_id")); err != nil {
-	// 	log.Log.Errorf("\n----DEBUG----: %s\n", err.Error())
-	// 	log.Log.Printf("\nau :: client: %s\n", item)
-	// 	log.Log.Printf("\nau :: client_id: %s\n", r.Form.Get("client_id"))
-	// 	log.Log.Errorf("\n----DEBUG----: %s\n", err.Error())
-	// 	return
-	// }
-	// log.Log.Printf("\nau :: client: %s\n", clients)
-	// log.Log.Printf("\nau :: client_id: %s\n", r.Form.Get("client_id"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
 		return
