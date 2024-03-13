@@ -59,10 +59,13 @@ func VerifyAccount(ctx *gin.Context, username, flag string) (string, error) {
 	// 1 is login
 	// 2 is resetPassword
 	if flag == "0" {
+		log.Log.Debugf("[%s] enter register verify\n", username)
 		return VerifyAccountRegister(ctx, username)
 	} else if flag == "1" {
+		log.Log.Debugf("[%s] enter login verify\n", username)
 		return VerifyAccountLogin(ctx, username)
 	} else if flag == "2" {
+		log.Log.Debugf("[%s] enter resetPWD verify\n", username)
 		return VerifyAccountResetPWD(ctx, username)
 	} else {
 		return "", result.RequestParamError
