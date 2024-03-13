@@ -132,16 +132,14 @@ func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 // This username is email or uid
 func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 	var user *model.User
-	user, err := model.GetUserByEmail(username)
+
+	// User use email to login, need to trasfer to uid
+	split := regexp.MustCompile(`@`)
+	username = split.Split(username, 2)[0]
+
+	user, err := model.GetUserByUid(username)
 	if err != nil || user == nil {
 		return "", result.UserNotExist
-	}
-
-	if user == nil {
-		user, err := model.GetUserByUid(username)
-		if err != nil || user == nil {
-			return "", result.UserNotExist
-		}
 	}
 
 	ticket, err := util.GenerateTokenWithExp(ctx, model.LoginTicketJWTSubKey(*user.Uid), model.LOGIN_TICKET_EXP)
