@@ -206,20 +206,7 @@ func OauthUserInfo(c *gin.Context) {
 func Authorize(c *gin.Context) {
 	r := c.Request
 	w := c.Writer
-	// store, err := session.Start(c, w, r)
-	// if err != nil {
-	// 	c.JSON(http.StatusInternalServerError, result.Failed(result.InternalErr.Wrap(err)))
-	// 	return
-	// }
 	_ = r.ParseForm()
-	// var form url.Values
-	// if v, ok := store.Get("ReturnUri"); ok {
-	// 	form = v.(url.Values)
-	// }
-	// r.Form = form
-	// store.Delete("ReturnUri")
-	// _ = store.Save()
-
 	// Redirect user to login page if user not login or
 	// Get code directly if user has logged in
 	err := srv.HandleAuthorizeRequest(w, r)
@@ -228,23 +215,6 @@ func Authorize(c *gin.Context) {
 		return
 	}
 }
-
-// User decides whether to authorize
-// func UserAuth(c *gin.Context) {
-// 	w := c.Writer
-// 	r := c.Request
-//
-// 	//token := r.Header.Get("TOKEN")
-// 	_ = r.ParseMultipartForm(0)
-// 	token := c.PostForm("token")
-// 	if token == "" {
-// 		w.Header().Set("Content-Type", "application/json")
-// 		response := result.Failed(result.AuthError)
-// 		json, _ := json.Marshal(response)
-// 		w.Write(json)
-// 		return
-// 	}
-// }
 
 // Get AccessToken
 func AccessToken(c *gin.Context) {
@@ -314,11 +284,6 @@ func getTokenByUUID(c context.Context, uuid string) (token string, err error) {
 }
 
 func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string, err error) {
-	// session, err := session.Start(r.Context(), w, r)
-	// if err != nil {
-	// 	return
-	// }
-
 	token := r.Form.Get("part")
 	if token == "" {
 		if r.Form == nil {
@@ -326,9 +291,6 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 			_ = r.ParseMultipartForm(0)
 			_ = r.ParseForm()
 		}
-
-		// session.Set("ReturnUri", r.Form)
-		// _ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
@@ -345,9 +307,6 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 			_ = r.ParseForm()
 		}
 
-		// session.Set("ReturnUri", r.Form)
-		// _ = session.Save()
-
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
 		log.Log.Errorln("Oauth2 ::: token is invalid")
@@ -362,9 +321,6 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 			_ = r.ParseForm()
 		}
 
-		// session.Set("ReturnUri", r.Form)
-		// _ = session.Save()
-
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
 		log.Log.Errorln("Oauth2 ::: token is invalid")
@@ -376,9 +332,6 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 		if r.Form == nil {
 			_ = r.ParseForm()
 		}
-
-		// session.Set("ReturnUri", r.Form)
-		// _ = session.Save()
 
 		w.Header().Set("Content-Type", "application/json")
 		response := result.Failed(result.TokenError)
