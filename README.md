@@ -102,6 +102,12 @@ Features:
 Pull requests and any feedback are welcome. For major changes, please open an issue first
 to discuss what you would like to change.
 
+### Contributors
+
+<a href="https://github.com/NJUPT-SAST/sast-link-backend/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=NJUPT-SAST/sast-link-backend" />
+</a>
+
 ## License
 
 [AGPLv3 ](https://choosealicense.com/licenses/agpl-3.0/)
