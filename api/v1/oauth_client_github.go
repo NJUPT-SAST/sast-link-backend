@@ -37,9 +37,7 @@ func OauthGithubLogin(c *gin.Context) {
 	oauthState := GenerateStateOauthCookie(c.Writer)
 	url := githubConf.AuthCodeURL(oauthState)
 
-	log.Log.Println("------")
-	log.Log.Printf("Visit the URL for the auth dialog: %v\n", url)
-	log.Log.Println("------")
+	log.Log.Warnf("Visit the URL for the auth dialog: %v\n", url)
 
 	c.Redirect(http.StatusFound, url)
 }
