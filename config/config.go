@@ -18,7 +18,7 @@ var Config *viper.Viper = viper.New()
 func init() {
 	fileName := os.Getenv("CONFIG_FILE")
 	if fileName == "" {
-		fileName = "dev-xun"
+		fileName = "dev-prod"
 	}
 	Config.AddConfigPath(".")
 	Config.AddConfigPath("../../config")
