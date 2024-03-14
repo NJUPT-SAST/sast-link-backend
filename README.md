@@ -1,6 +1,6 @@
 # SAST Link
 
-[SAST Link Logo](https://aliyun.sastimg.mxte.cc/images/2023/07/02/footera9663bd5ff4b2bad.png)
+![SAST Link Logo](https://aliyun.sastimg.mxte.cc/images/2023/07/02/footera9663bd5ff4b2bad.png)
 
 Logo designed by [SAST](https://sast.fun/), created by [Maxtune Lee](https://github.com/MaxtuneLee).
 
@@ -94,8 +94,8 @@ Features:
 - [x] SAST OAuth (Basic)
 - [x] File Storage (Tencent COS)
 - [x] SAST Profile (Basic)
-- [] SAST Link management
-- [] Third-party OAuth (Github and Feishu now can be used in backend, but not fully implemente)
+- [ ] SAST Link management
+- [ ] Third-party OAuth (Github and Feishu now can be used in backend, but not fully implemente)
 
 ## Contributing
 
