@@ -31,20 +31,43 @@ SAST Link backend is built with Go and PostgreSQL, and use gin as the web framew
 
 Create PostgreSQL database and tables by running the SQL scripts in `sql/` directory.
 
-### Clone and Run
+### Quick Start
 
-To get started with SAST Link, follow these steps:
-
-1. Configuration: First, create a configuration file based on `config/dev-example.toml`. Ensure that you provide appropriate configurations for your environment.
-2. Environment Setup: Set up the environment variable `CONFIG_FILE` to specify the configuration file you've created.
-3. Installation and Execution:
+First, create a configuration file based on `src/config/example.toml`. Ensure that you provide appropriate configurations for your environment.
 
 ```bash
 git clone https://github.com/NJUPT-SAST/sast-link-backend.git && cd sast-link-backend
-CONFIG_FILE=dev-example go run .
+
+docker-compose up --detach
 ```
 
-The server will listen port `8080`, you can change it by add a `PORT` environment variable.
+```
+[+] Running 3/3
+ ✔ Container sast-link-backend-redis-1              Healthy                                          0.0s
+ ✔ Container sast-link-backend-postgres-1           Heal...                                          0.0s
+ ✔ Container sast-link-backend-sast-link-backend-1  Started                                          0.0s
+```
+
+These commands will build and start services listed in the compose file:
+
+- configuration and start postgreSQL
+- configuration and start redis
+- start SAST Link
+
+The postgreSQL and redis services are required for the SAST Link service to run.
+
+The `.env` file contains the environment variables for the SAST Link service:
+
+```
+POSTGRES_DB=sastlink
+POSTGRES_USER=sastlink
+POSTGRES_PASSWORD=sastlink
+REDIS_PASSWORD=sastlink
+CONFIG_FILE=dev-example
+```
+
+The `CONFIG_FILE` environment variable is used to specify the configuration file for the SAST Link service.
+The `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `REDIS_PASSWORD` environment variables are used to initialize the postgreSQL and redis services.
 
 ## Development
 
