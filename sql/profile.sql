@@ -5,7 +5,7 @@
 -- DROP TABLE public.profile;
 
 CREATE TABLE public.profile (
-	id serial4 NOT NULL,
+	id SERIAL PRIMARY KEY,
 	user_id int4 NOT NULL, -- 与user表映射
 	nickname varchar(255) NOT NULL, -- 昵称
 	org_id int2 NOT NULL, -- 对应部门和组的信息（现在的职位，历史职位的信息在carrer_records中）
@@ -15,8 +15,7 @@ CREATE TABLE public.profile (
 	link _varchar NULL, -- 个人链接（包括自己b站、博客、GitHub等账号链接）
 	avatar varchar(255) NULL, -- 头像（存储oss链接）
 	is_deleted bool NOT NULL, -- 假删
-	hide _varchar NULL, -- 选择隐藏的信息
-	CONSTRAINT profile_pkey PRIMARY KEY (id)
+	hide _varchar NULL -- 选择隐藏的信息
 );
 
 -- Column comments
