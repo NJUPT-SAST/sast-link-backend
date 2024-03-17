@@ -96,6 +96,7 @@ Features:
 - [x] SAST Profile (Basic)
 - [ ] SAST Link management
 - [ ] Third-party OAuth (Github and Feishu now can be used in backend, but not fully implemente)
+- [ ] CI/CD, Docker, and Kubernetes support
 
 ## Contributing
 
