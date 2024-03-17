@@ -33,11 +33,17 @@ Create PostgreSQL database and tables by running the SQL scripts in `sql/` direc
 
 ### Quick Start
 
-First, create a configuration file based on `src/config/example.toml`. Ensure that you provide appropriate configurations for your environment.
+Clone the repository and navigate to the project directory:
 
 ```bash
 git clone https://github.com/NJUPT-SAST/sast-link-backend.git && cd sast-link-backend
+```
 
+Create a configuration file based on `src/config/example.toml` and provide appropriate configurations for your environment.
+
+Start the services using Docker Compose:
+
+```bash
 docker-compose up --detach
 ```
 
@@ -54,7 +60,7 @@ These commands will build and start services listed in the compose file:
 - configuration and start redis
 - start SAST Link
 
-The postgreSQL and redis services are required for the SAST Link service to run.
+The PostgreSQL and Redis services are required for the SAST Link service to run.
 
 The `.env` file contains the environment variables for the SAST Link service:
 
