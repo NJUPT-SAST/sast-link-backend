@@ -5,13 +5,12 @@
 -- DROP TABLE public.carrer_records;
 
 CREATE TABLE public.carrer_records (
-	id serial4 NOT NULL,
+	id SERIAL PRIMARY KEY,
 	user_id int4 NOT NULL, -- 与user表映射，表示某个用户的生涯记录
 	org_id int2 NOT NULL, -- 与orgnize表映射，表示用户该届所在的组织
 	grade int2 NOT NULL, -- 表示某一届（如：2023届）
 	is_delete bool NOT NULL, -- 假删
-	"position" varchar(2) NULL, -- 包括:部员、讲师、组长、部长、主席
-	CONSTRAINT carrer_records_pkey PRIMARY KEY (id)
+	"position" varchar(2) NULL -- 包括:部员、讲师、组长、部长、主席
 );
 
 -- Column comments
