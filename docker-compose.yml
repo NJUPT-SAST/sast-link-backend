@@ -1,0 +1,49 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:latest
+    user: postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - "./sql/user.sql:/docker-entrypoint-initdb.d/user.sql"
+      - "./sql/admin.sql:/docker-entrypoint-initdb.d/admin.sql"
+      - "./sql/profile.sql:/docker-entrypoint-initdb.d/profile.sql"
+      - "./sql/organize.sql:/docker-entrypoint-initdb.d/organize.sql"
+      - "./sql/carrer_records.sql:/docker-entrypoint-initdb.d/carrer_records.sql"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -h localhost -p 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  sast-link-backend:
+    image: sast/sast-link-backend:latest
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      CONFIG_FILE: ${CONFIG_FILE}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy

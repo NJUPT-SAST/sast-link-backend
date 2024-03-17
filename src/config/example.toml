@@ -1,20 +1,20 @@
-description = "sast link's development configuration"
+description = "sast link's example configuration"
 
 [postgres]
-username = "xxxxx"
-password = "xxxxx"
-host = "xxxxx"
-dbname = "link"
-port = 1234
+username = "sastlink"
+password = "sastlink"
+host = "postgres"
+dbname = "sastlink"
+port = 5432
 
 [redis]
-host = "xxx"
-port = 11451
-password = "xxxxx"
+host = "redis"
+port = 6379
+password = "sastlink"
 db = 0
 
 [jwt]
-signing_key = "xxxxx"
+signing_key = "650be11c-bf2a-46e9-9620-13efb77a0378"
 
 [log]
 level = "debug"
@@ -29,7 +29,7 @@ secret_key="xxx"
 
 [oauth.server]
 # urlExample := "postgres://username:password@localhost:5432/database_name"
-db_uri = "xxxx"
+db_uri = "postgres://sastlink:sastlink@postgres:5432/sastlink"
 front_url = "http://localhost:3000"
 
 [oauth.client.lark]
