@@ -26,4 +26,4 @@ func GetUserInfoFromGithub(username, githubId string) (*model.User, error) {
 	return nil, nil
 }
 
-// func UserInfoByLarkID(username, union_id string) (*model.User, error) 
+// func UserInfoByLarkID(username, union_id string) (*model.User, error)

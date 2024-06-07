@@ -15,21 +15,21 @@ func (e LocalError) Error() string {
 
 // create common error
 var (
-	RequestParamError     = LocalError{ErrCode: 10001, ErrMsg: "请求参数错误"}
-	UsernameError         = LocalError{ErrCode: 10002, ErrMsg: "用户名错误"}
-	PasswordError         = LocalError{ErrCode: 10003, ErrMsg: "密码错误"}
-	PasswordEmpty         = LocalError{ErrCode: 10004, ErrMsg: "密码为空"}
-	LoginError            = LocalError{ErrCode: 10005, ErrMsg: "登录失败"}
-	PasswordIllegal       = LocalError{ErrCode: 10006, ErrMsg: "密码不合法"}
-	UserAlreadyExist      = LocalError{ErrCode: 10007, ErrMsg: "重复注册"}
-	OauthUserUnbounded    = LocalError{ErrCode: 10010, ErrMsg: "Oauth用户未注册或未绑定"}
-	OauthTokenError       = LocalError{ErrCode: 20004, ErrMsg: "Oauth Token错误"}
-	UserNotExist          = LocalError{ErrCode: 10011, ErrMsg: "用户不存在"}
-	CheckExistUserFail    = LocalError{ErrCode: 10012, ErrMsg: "检查用户是否存在失败"}
-	AddUserFail           = LocalError{ErrCode: 10013, ErrMsg: "添加用户失败"}
-	DeleteUserFail        = LocalError{ErrCode: 10014, ErrMsg: "删除用户失败"}
-	GetUserinfoFail       = LocalError{ErrCode: 10015, ErrMsg: "获取用户信息失败"}
-	UserIsExist           = LocalError{ErrCode: 10016, ErrMsg: "用户已存在"}
+	RequestParamError  = LocalError{ErrCode: 10001, ErrMsg: "请求参数错误"}
+	UsernameError      = LocalError{ErrCode: 10002, ErrMsg: "用户名错误"}
+	PasswordError      = LocalError{ErrCode: 10003, ErrMsg: "密码错误"}
+	PasswordEmpty      = LocalError{ErrCode: 10004, ErrMsg: "密码为空"}
+	LoginError         = LocalError{ErrCode: 10005, ErrMsg: "登录失败"}
+	PasswordIllegal    = LocalError{ErrCode: 10006, ErrMsg: "密码不合法"}
+	UserAlreadyExist   = LocalError{ErrCode: 10007, ErrMsg: "重复注册"}
+	OauthUserUnbounded = LocalError{ErrCode: 10010, ErrMsg: "Oauth用户未注册或未绑定"}
+	OauthTokenError    = LocalError{ErrCode: 20004, ErrMsg: "Oauth Token错误"}
+	UserNotExist       = LocalError{ErrCode: 10011, ErrMsg: "用户不存在"}
+	CheckExistUserFail = LocalError{ErrCode: 10012, ErrMsg: "检查用户是否存在失败"}
+	AddUserFail        = LocalError{ErrCode: 10013, ErrMsg: "添加用户失败"}
+	DeleteUserFail     = LocalError{ErrCode: 10014, ErrMsg: "删除用户失败"}
+	GetUserinfoFail    = LocalError{ErrCode: 10015, ErrMsg: "获取用户信息失败"}
+	UserIsExist        = LocalError{ErrCode: 10016, ErrMsg: "用户已存在"}
 
 	AuthCheckTokenTimeout = LocalError{ErrCode: 20002, ErrMsg: "Token已超时"}
 	GenerateToken         = LocalError{ErrCode: 20003, ErrMsg: "Token生成失败"}
@@ -39,11 +39,11 @@ var (
 	CheckTicketNotfound   = LocalError{ErrCode: 20008, ErrMsg: "Ticket不存在"}
 	InvalidAccToken       = LocalError{ErrCode: 20009, ErrMsg: "无效的token"}
 
-	SendEmailError        = LocalError{ErrCode: 30001, ErrMsg: "发送邮件失败"}
-	CaptchaError          = LocalError{ErrCode: 30002, ErrMsg: "验证码错误"}
-	UserEmailError        = LocalError{ErrCode: 30003, ErrMsg: "邮箱格式错误"}
-	VerifyAccountError    = LocalError{ErrCode: 40001, ErrMsg: "验证账户失败"}
-	VerifyPasswordError   = LocalError{ErrCode: 40002, ErrMsg: "验证账户密码失败"}
+	SendEmailError      = LocalError{ErrCode: 30001, ErrMsg: "发送邮件失败"}
+	CaptchaError        = LocalError{ErrCode: 30002, ErrMsg: "验证码错误"}
+	UserEmailError      = LocalError{ErrCode: 30003, ErrMsg: "邮箱格式错误"}
+	VerifyAccountError  = LocalError{ErrCode: 40001, ErrMsg: "验证账户失败"}
+	VerifyPasswordError = LocalError{ErrCode: 40002, ErrMsg: "验证账户密码失败"}
 	// this is default error
 	InternalErr           = LocalError{ErrCode: 50000, ErrMsg: "未知错误"}
 	ClientErr             = LocalError{ErrCode: 60001, ErrMsg: "客户端错误"}

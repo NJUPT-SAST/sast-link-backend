@@ -84,7 +84,7 @@ func RefreshToken(token string) (string, error) {
 }
 
 // TokenAudience get `Audience` field(information about user/oauth...) from claims
-func TokenAudience(token string) (audience []string, err error){
+func TokenAudience(token string) (audience []string, err error) {
 	claims, err := ParseToken(token)
 	if err != nil {
 		return
