@@ -89,31 +89,16 @@ func ChangePassword(uid string, password string) error {
 	return nil
 }
 
-// GetUserByEmail find user by email
-func GetUserByEmail(email string) (*User, error) {
+// UserByField find user by specific database table field name
+func UserByField(field, value string) (*User, error) {
 	var user User
-	err := Db.Where("email = ?", email).Where("is_deleted = ?", false).First(&user).Error
+	err := Db.Where(fmt.Sprintf("%s = ?", field), value).Where("is_deleted = ?", false).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			userLogger.Errorf("User [%s] Not Exist\n", email)
+			userLogger.Errorf("User with [%s: %s] Not Exist\n", field, value)
 			return nil, nil
 		}
 		return nil, result.InternalErr
-	}
-	return &user, nil
-}
-
-// CheckUserByUid find user by uid
-// return true if user exist
-func GetUserByUid(uid string) (*User, error) {
-	var user User
-	err := Db.Where("uid = ?", uid).Where("is_deleted = ?", false).First(&user).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			userLogger.Errorf("User [%s] Not Exist\n", uid)
-			return nil, result.UserNotExist
-		}
-		return nil, err
 	}
 	return &user, nil
 }
@@ -160,20 +145,24 @@ func UpdateGithubId(username string, githubId string) error {
 	return nil
 }
 
-// Find user by github id
-// Use it need to check if the user is nil
-// Since the RecordNotFound error is nil
-func FindUserByGithubId(githubId string) (*User, error) {
-	var user User
-	err := Db.Where("github_id = ?", githubId).Where("is_deleted = ?", false).First(&user).Error
+// UpdateLarkUnionID bind lark union_id to user
+func UpdateLarkUnionID(username string, unionID string) error {
+	matched, err := regexp.MatchString("@", username)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			userLogger.Errorf("User [%s] Not Exist\n", githubId)
-			return nil, nil
-		}
-		return nil, err
+		userLogger.Error("regexp matchiong error")
+		return err
 	}
-	return &user, nil
+
+	//get user by email/uid
+	if matched {
+		err = Db.Model(&User{}).Where("email = ?", username).Where("is_deleted = ?", false).Update("lark_id", unionID).Error
+	} else {
+		err = Db.Model(&User{}).Where("uid = ?", username).Where("is_deleted = ?", false).Update("lark_id", unionID).Error
+	}
+	if err != nil {
+		return fmt.Errorf("add lark union_id error: %s", err.Error())
+	}
+	return nil
 }
 
 func GenerateVerifyCode() string {

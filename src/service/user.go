@@ -80,7 +80,7 @@ func VerifyAccountResetPWD(ctx *gin.Context, username string) (string, error) {
 		return "", result.UserEmailError
 	}
 	// check if the user is exist
-	user, err := model.GetUserByEmail(username)
+	user, err := model.UserByField("email", username)
 	if err != nil {
 		return "", err
 	}
@@ -108,7 +108,7 @@ func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 		return "", result.UserEmailError
 	}
 	// check if the user is exist
-	user, err := model.GetUserByEmail(username)
+	user, err := model.UserByField("email", username)
 	if err != nil {
 		return "", err
 	}
@@ -132,14 +132,16 @@ func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 // This username is email or uid
 func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
 	var user *model.User
-
-	// User use email to login, need to trasfer to uid
-	split := regexp.MustCompile(`@`)
-	username = split.Split(username, 2)[0]
-
-	user, err := model.GetUserByUid(username)
+	user, err := model.UserByField("email", username)
 	if err != nil || user == nil {
 		return "", result.UserNotExist
+	}
+
+	if user == nil {
+		user, err := model.UserByField("uid", username)
+		if err != nil || user == nil {
+			return "", result.UserNotExist
+		}
 	}
 
 	ticket, err := util.GenerateTokenWithExp(ctx, model.LoginTicketJWTSubKey(*user.Uid), model.LOGIN_TICKET_EXP)
@@ -193,7 +195,7 @@ func ResetPassword(username, newPassword string) error {
 func UserInfo(ctx *gin.Context) (*model.User, error) {
 	token := ctx.GetHeader("TOKEN")
 	nilUser := &model.User{}
-	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	uid, err := util.IdentityFromToken(token, model.LOGIN_TOKEN_SUB)
 	if err != nil {
 		return nilUser, err
 	}
@@ -251,7 +253,7 @@ func CheckVerifyCode(ctx *gin.Context, ticket, code, flag string) error {
 	if status != model.VERIFY_STATUS["SEND_EMAIL"] {
 		return result.TicketNotCorrect
 	}
-	username, uErr := util.GetUsername(ticket, flag)
+	username, uErr := util.IdentityFromToken(ticket, flag)
 	if uErr != nil {
 		return uErr
 	}
@@ -273,12 +275,20 @@ func CheckVerifyCode(ctx *gin.Context, ticket, code, flag string) error {
 	return nil
 }
 
+// Oauth Github
 func UpdateUserGitHubId(username, githubId string) error {
 	return model.UpdateGithubId(username, githubId)
 }
-
 func GetUserByGithubId(githubId string) (*model.User, error) {
-	return model.FindUserByGithubId(githubId)
+	return model.UserByField("github_id", githubId)
+}
+
+// Oauth Lark
+func UpdateLarkUnionID(username, unionID string) error {
+	return model.UpdateLarkUnionID(username, unionID)
+}
+func UserByLarkUnionID(unionID string) (*model.User, error) {
+	return model.UserByField("lark_id", unionID)
 }
 
 func CheckToken(ctx *gin.Context, key, token string) bool {
