@@ -11,7 +11,7 @@ func OauthUserInfo(userID string) (*model.User, error) {
 }
 
 func GetUserInfoFromGithub(username, githubId string) (*model.User, error) {
-	user, err := model.FindUserByGithubId(githubId)
+	user, err := model.UserByField("github_id", githubId)
 	if err != nil {
 		return nil, err
 	}
@@ -25,3 +25,5 @@ func GetUserInfoFromGithub(username, githubId string) (*model.User, error) {
 	}
 	return nil, nil
 }
+
+// func UserInfoByLarkID(username, union_id string) (*model.User, error)

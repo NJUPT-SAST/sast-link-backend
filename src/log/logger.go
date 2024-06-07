@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	Log = logrus.New()
+	Log      = logrus.New()
 	logLevel = config.Config.GetString("log.level")
 )
 
@@ -58,8 +58,9 @@ func logLevelSwitcher(level string) logrus.Level {
 }
 
 // LogReq print request header and body with `debug` level log.
-// 
+//
 // use io.NopCloser to copy request body, so req.Body can be read again
+//
 // !: need to use this **before** manually read from body using `io.ReadAll(req.Body)`
 func LogReq(req *http.Request) {
 	reqBody, _ := io.ReadAll(req.Body)
@@ -68,24 +69,24 @@ func LogReq(req *http.Request) {
 
 	reqFormat := `
 	  Request to be sent:
-	`;
-	
+	`
+
 	reqFormat += fmt.Sprintf(`
 			URL: %s %s
 	`,
-	req.Host,
-	req.URL.Path,
+		req.Host,
+		req.URL.Path,
 	)
 	reqFormat += `
 		Header:
 	`
 	for k, v := range req.Header {
 		reqFormat += fmt.Sprintf(
-		`
+			`
 				%s: %s
 		`,
-		k,
-		v,
+			k,
+			v,
 		)
 	}
 	reqFormat += `
@@ -98,6 +99,7 @@ func LogReq(req *http.Request) {
 // LogRes print response header and body with `debug` level log
 //
 // use io.NopCloser to copy response body, so req.Body can be read again
+//
 // !: need to use this **before** manually read from body using `io.ReadAll(res.Body)`
 func LogRes(res *http.Response) {
 	resBody, err := io.ReadAll(res.Body)
@@ -109,17 +111,17 @@ func LogRes(res *http.Response) {
 
 	resFormat := `
 	    Response received:
-	`;
+	`
 	resFormat += `
 		Header:
 	`
 	for k, v := range res.Header {
 		resFormat += fmt.Sprintf(
-		`
+			`
 		        %s: %s
 		`,
-		k,
-		v,
+			k,
+			v,
 		)
 	}
 	resFormat += `
