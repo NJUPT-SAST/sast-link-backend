@@ -16,7 +16,7 @@ func GetProfile(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
 		return
 	}
-	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	uid, err := util.IdentityFromToken(token, model.LOGIN_TOKEN_SUB)
 	if uid == "" || err != nil {
 		controllerLogger.Errorln("Can`t get username by token", err)
 		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
@@ -55,7 +55,7 @@ func ChangeProfile(ctx *gin.Context) {
 		return
 	}
 
-	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	uid, err := util.IdentityFromToken(token, model.LOGIN_TOKEN_SUB)
 	if uid == "" || err != nil {
 		controllerLogger.Errorln("Can`t get username by token", err)
 		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
@@ -85,7 +85,7 @@ func UploadAvatar(ctx *gin.Context) {
 		return
 	}
 
-	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	uid, err := util.IdentityFromToken(token, model.LOGIN_TOKEN_SUB)
 	if uid == "" || err != nil {
 		controllerLogger.Errorln("Can`t get username by token", err)
 		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))

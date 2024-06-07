@@ -21,7 +21,7 @@ var (
 	modelLogger = log.Log
 	redisConf   = GetRedisConf()
 	postgreConf = GetPostgresConf()
-	RedisCtx = context.Background()
+	RedisCtx    = context.Background()
 )
 
 // Redis config

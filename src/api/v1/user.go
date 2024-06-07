@@ -44,7 +44,7 @@ func Register(ctx *gin.Context) {
 		return
 	}
 
-	username, usernameErr := util.GetUsername(ticket, model.REGIST_TICKET_SUB)
+	username, usernameErr := util.IdentityFromToken(ticket, model.REGIST_TICKET_SUB)
 	if usernameErr != nil {
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(usernameErr)))
 		return
@@ -56,7 +56,6 @@ func Register(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, result.Success(nil))
-
 	// set VERIFY_STATUS to 3 if successes
 	model.Rdb.Set(ctx, ticket, model.VERIFY_STATUS["SUCCESS"], model.REGISTER_TICKET_EXP)
 }
@@ -116,7 +115,7 @@ func SendEmail(ctx *gin.Context) {
 		return
 	}
 
-	username, usernameErr := util.GetUsername(ticket, flag)
+	username, usernameErr := util.IdentityFromToken(ticket, flag)
 	// 错误处理机制写玉玉了
 	// 我开始乱写了啊啊啊啊
 	if usernameErr != nil {
@@ -189,7 +188,7 @@ func Login(ctx *gin.Context) {
 	}
 
 	// Get username from ticket
-	username, err := util.GetUsername(ticket, model.LOGIN_TICKET_SUB)
+	username, err := util.IdentityFromToken(ticket, model.LOGIN_TICKET_SUB)
 	if err != nil || username == "" {
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleErrorWithArgu(err, result.TicketNotCorrect)))
 		return
@@ -215,13 +214,48 @@ func Login(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
 		model.LOGIN_TOKEN_SUB: token,
 	}))
+
+	// Oauth: check if need to bound oauth servers like lark, github...
+	if oauth_token := ctx.Request.Header["OAUTH-TICKET"][0]; oauth_token != "" {
+		audience, err := util.TokenAudience(oauth_token)
+		if err != nil {
+			ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
+			log.Log.Errorln("util.TokenAudience ::: ", err)
+			return
+		}
+		flagIn := strings.Split(audience[0], "-")[1]
+
+		switch flagIn {
+		case "oauthLarkToken":
+			unionID, err := util.IdentityFromToken(oauth_token, model.OAUTH_LARK_SUB)
+			if err != nil {
+				ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
+				log.Log.Errorln("util.IdentityFromToken ::: ", err)
+				return
+			}
+		    // bind this user with lark union_id and other lark specific user info
+			err = service.UpdateLarkUnionID(username, unionID)
+			if err != nil {
+				ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
+				log.Log.Errorln("service.UpdateLarkUnionID ::: ", err)
+				return
+			}
+
+			// TODO: save oauth user info
+			// saveLarkUserInfo()
+
+		default:
+			ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
+			return
+		}
+	}
 }
 
 // Modify paassword
 func ChangePassword(ctx *gin.Context) {
 	// Get username from token
 	token := ctx.GetHeader("TOKEN")
-	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	uid, err := util.IdentityFromToken(token, model.LOGIN_TOKEN_SUB)
 	if err != nil || uid == "" {
 		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
 		return
@@ -270,7 +304,7 @@ func ResetPassword(ctx *gin.Context) {
 		return
 	}
 
-	username, usernameErr := util.GetUsername(ticket, model.RESETPWD_TICKET_SUB)
+	username, usernameErr := util.IdentityFromToken(ticket, model.RESETPWD_TICKET_SUB)
 	if usernameErr != nil {
 		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(usernameErr)))
 		return
@@ -295,7 +329,7 @@ func Logout(ctx *gin.Context) {
 		return
 	}
 	//remove Token from uid
-	uid, err := util.GetUsername(token, model.LOGIN_TOKEN_SUB)
+	uid, err := util.IdentityFromToken(token, model.LOGIN_TOKEN_SUB)
 	if err != nil || uid == "" {
 		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
 		return
