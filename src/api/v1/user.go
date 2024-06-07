@@ -233,7 +233,7 @@ func Login(ctx *gin.Context) {
 				log.Log.Errorln("util.IdentityFromToken ::: ", err)
 				return
 			}
-		    // bind this user with lark union_id and other lark specific user info
+			// bind this user with lark union_id and other lark specific user info
 			err = service.UpdateLarkUnionID(username, unionID)
 			if err != nil {
 				ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
