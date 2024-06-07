@@ -8,8 +8,8 @@ import (
 const (
 	REGISTER_TICKET_EXP = time.Minute * 5
 	RESETPWD_TICKET_EXP = time.Minute * 6
-	VERIFY_CODE_EXP         = time.Minute * 3
-	OAUTH_TICKET_EXP	= time.Minute * 3
+	VERIFY_CODE_EXP     = time.Minute * 3
+	OAUTH_TICKET_EXP    = time.Minute * 3
 	// This is not login token expire time, this is login ticket expire time
 	LOGIN_TICKET_EXP = time.Minute * 5
 	// This is login token expire time
@@ -22,7 +22,7 @@ const (
 	LOGIN_TICKET_SUB    = "loginTicket"
 	REGIST_TICKET_SUB   = "registerTicket"
 	RESETPWD_TICKET_SUB = "resetPwdTicket"
-	OAUTH_LARK_SUB = "oauthLarkToken"
+	OAUTH_LARK_SUB      = "oauthLarkToken"
 )
 
 var (
@@ -51,7 +51,6 @@ func CaptchaKey(username string) string {
 	return "CAPTCHA:" + username
 }
 
-
 // JWT key
 func RegisterJWTSubKey(username string) string {
 	return fmt.Sprintf("%s-%s", username, REGIST_TICKET_SUB)
@@ -72,6 +71,7 @@ func LoginJWTSubKey(username string) string {
 func VerifyCodeKey(username string) string {
 	return "VerifyCode:" + username
 }
+
 // identity is the unique identifier for oauth app user
 // like "union_id" for lark, "github_id" for github
 func OauthSubKey(identity string) string {
