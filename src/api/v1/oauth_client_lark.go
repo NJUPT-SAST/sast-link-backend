@@ -29,6 +29,7 @@ var (
 	larkConf = oauth2.Config{
 		ClientID:     config.Config.GetString("oauth.client.lark.id"),
 		ClientSecret: config.Config.GetString("oauth.client.lark.secret"),
+		RedirectURL:  config.Config.GetString("oauth.client.lark.redirect_url"),
 		Scopes:       []string{},
 		Endpoint:     endpoints.Lark,
 	}
@@ -36,7 +37,6 @@ var (
 
 // OauthLarkLogin redirect url to lark auth page.
 func OauthLarkLogin(c *gin.Context) {
-	larkConf.RedirectURL = c.Param("redirect_url")
 	// Create oauthState cookie
 	oauthState := GenerateStateOauthCookie(c.Writer)
 	url := larkConf.AuthCodeURL(oauthState)
