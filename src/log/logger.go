@@ -63,9 +63,13 @@ func logLevelSwitcher(level string) logrus.Level {
 //
 // !: need to use this **before** manually read from body using `io.ReadAll(req.Body)`
 func LogReq(req *http.Request) {
-	reqBody, _ := io.ReadAll(req.Body)
+	// Get request usually have no body
+	reqBody := []byte{}
+	if req.Body != nil {
+		reqBody, _ := io.ReadAll(req.Body)
 
-	req.Body = io.NopCloser(bytes.NewReader(reqBody))
+		req.Body = io.NopCloser(bytes.NewReader(reqBody))
+	}
 
 	reqFormat := `
 	  Request to be sent:
