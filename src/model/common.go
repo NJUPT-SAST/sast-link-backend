@@ -18,6 +18,7 @@ const (
 
 	LARK_CLIENT_TYPE = "lark"
 
+
 	// For JWT
 	LOGIN_TOKEN_SUB     = "loginToken"
 	LOGIN_TICKET_SUB    = "loginTicket"

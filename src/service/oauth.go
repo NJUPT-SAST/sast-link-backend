@@ -6,6 +6,7 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/model"
 )
 
+
 // Oauth Github
 func GetUserByGithubId(githubId string) (*model.User, error) {
 	return model.UserByField("github_id", githubId)
