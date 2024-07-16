@@ -275,22 +275,6 @@ func CheckVerifyCode(ctx *gin.Context, ticket, code, flag string) error {
 	return nil
 }
 
-// Oauth Github
-func UpdateUserGitHubId(username, githubId string) error {
-	return model.UpdateGithubId(username, githubId)
-}
-func GetUserByGithubId(githubId string) (*model.User, error) {
-	return model.UserByField("github_id", githubId)
-}
-
-// Oauth Lark
-func UpdateLarkUnionID(username, unionID string) error {
-	return model.UpdateLarkUnionID(username, unionID)
-}
-func UserByLarkUnionID(unionID string) (*model.User, error) {
-	return model.UserByField("lark_id", unionID)
-}
-
 func CheckToken(ctx *gin.Context, key, token string) bool {
 	val, err := model.Rdb.Get(ctx, key).Result()
 	if err != nil {

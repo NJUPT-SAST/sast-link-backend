@@ -176,6 +176,9 @@ func VerifyAccount(ctx *gin.Context) {
 }
 
 func Login(ctx *gin.Context) {
+	// LOGIN-TICKET just save username etc...
+	// not used for login authentication
+	// confused though...
 	ticket := ctx.GetHeader("LOGIN-TICKET")
 	password := ctx.PostForm("password")
 	if ticket == "" {
@@ -216,8 +219,12 @@ func Login(ctx *gin.Context) {
 	}))
 
 	// Oauth: check if need to bound oauth servers like lark, github...
-	if oauth_token := ctx.Request.Header["OAUTH-TICKET"][0]; oauth_token != "" {
-		audience, err := util.TokenAudience(oauth_token)
+	// TODO: use cookie to manage ticket etc...
+	oauthTicket := ctx.Request.Header.Get("OAUTH-TICKET")
+	if oauthTicket != "" {
+		log.Log.Debugf("Login ::: Header ::: OAUTH-TICKET ::: %v\n", oauthTicket)
+
+		audience, err := util.TokenAudience(oauthTicket)
 		if err != nil {
 			ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
 			log.Log.Errorln("util.TokenAudience ::: ", err)
@@ -227,23 +234,20 @@ func Login(ctx *gin.Context) {
 
 		switch flagIn {
 		case "oauthLarkToken":
-			unionID, err := util.IdentityFromToken(oauth_token, model.OAUTH_LARK_SUB)
+			unionID, err := util.IdentityFromToken(oauthTicket, model.OAUTH_LARK_SUB)
 			if err != nil {
 				ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
 				log.Log.Errorln("util.IdentityFromToken ::: ", err)
 				return
 			}
-			// bind this user with lark union_id and other lark specific user info
-			err = service.UpdateLarkUnionID(username, unionID)
-			if err != nil {
-				ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
-				log.Log.Errorln("service.UpdateLarkUnionID ::: ", err)
-				return
-			}
 
 			// TODO: save oauth user info
-			// saveLarkUserInfo()
-
+			oauthLarkUserInfo, _ := model.Rdb.Get(ctx, unionID).Result()
+			if err := service.UpdateLarkUserInfo(username, model.LARK_CLIENT_TYPE, unionID, oauthLarkUserInfo); err != nil {
+				ctx.JSON(http.StatusOK, result.Failed(result.InternalErr))
+				log.Log.Errorln("service.UpdateLarkUserInfo ::: ", err)
+				return
+			}
 		default:
 			ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
 			return

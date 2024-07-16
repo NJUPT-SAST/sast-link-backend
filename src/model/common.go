@@ -13,9 +13,11 @@ const (
 	// This is not login token expire time, this is login ticket expire time
 	LOGIN_TICKET_EXP = time.Minute * 5
 	// This is login token expire time
-	LOGIN_TOKEN_EXP = time.Hour * 24 * 7
-	// Login token key in redis
-	LOGIN_TOKEN_IN_REDIS = "LOGIN"
+	LOGIN_TOKEN_EXP    = time.Hour * 24 * 7
+	LARK_USER_INFO_EXP = time.Minute * 5
+
+	LARK_CLIENT_TYPE = "lark"
+
 
 	// For JWT
 	LOGIN_TOKEN_SUB     = "loginToken"

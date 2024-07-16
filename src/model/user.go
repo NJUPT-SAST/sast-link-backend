@@ -125,46 +125,6 @@ func UserInfo(username string) (*User, error) {
 	return &user, nil
 }
 
-// Add github id to user
-func UpdateGithubId(username string, githubId string) error {
-	matched, err := regexp.MatchString("@", username)
-	if err != nil {
-		userLogger.Error("regexp matchiong error")
-		return err
-	}
-
-	//get user by email/uid
-	if matched {
-		err = Db.Model(&User{}).Where("email = ?", username).Where("is_deleted = ?", false).Update("github_id", githubId).Error
-	} else {
-		err = Db.Model(&User{}).Where("uid = ?", username).Where("is_deleted = ?", false).Update("github_id", githubId).Error
-	}
-	if err != nil {
-		return fmt.Errorf("add github id error: %s", err.Error())
-	}
-	return nil
-}
-
-// UpdateLarkUnionID bind lark union_id to user
-func UpdateLarkUnionID(username string, unionID string) error {
-	matched, err := regexp.MatchString("@", username)
-	if err != nil {
-		userLogger.Error("regexp matchiong error")
-		return err
-	}
-
-	//get user by email/uid
-	if matched {
-		err = Db.Model(&User{}).Where("email = ?", username).Where("is_deleted = ?", false).Update("lark_id", unionID).Error
-	} else {
-		err = Db.Model(&User{}).Where("uid = ?", username).Where("is_deleted = ?", false).Update("lark_id", unionID).Error
-	}
-	if err != nil {
-		return fmt.Errorf("add lark union_id error: %s", err.Error())
-	}
-	return nil
-}
-
 func GenerateVerifyCode() string {
 	code := util.GenerateCode()
 	return code

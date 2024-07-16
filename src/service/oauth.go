@@ -6,8 +6,10 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/model"
 )
 
-func OauthUserInfo(userID string) (*model.User, error) {
-	return model.UserInfo(userID)
+
+// Oauth Github
+func GetUserByGithubId(githubId string) (*model.User, error) {
+	return model.UserByField("github_id", githubId)
 }
 
 func GetUserInfoFromGithub(username, githubId string) (*model.User, error) {
@@ -26,4 +28,16 @@ func GetUserInfoFromGithub(username, githubId string) (*model.User, error) {
 	return nil, nil
 }
 
-// func UserInfoByLarkID(username, union_id string) (*model.User, error)
+// Oauth Lark
+func UserByLarkUnionID(unionID string) (*model.User, error) {
+	return model.UserByField("lark_id", unionID)
+}
+
+func UpdateLarkUserInfo(username, clientType, oauthID, larkUserInfo string) error {
+	return model.UpdateLarkUserInfo(username, clientType, oauthID, larkUserInfo)
+}
+
+// Oauth server
+func OauthUserInfo(userID string) (*model.User, error) {
+	return model.UserInfo(userID)
+}
