@@ -101,12 +101,12 @@ func TokenAudience(token string) (audience []string, err error) {
 // flag: verify token type
 func IdentityFromToken(token, flag string) (string, error) {
 	audience, err := TokenAudience(token)
-	identifier := strings.Split(audience[0], "-")
 	if err != nil {
 		return "", err
 	}
-	identity, err := identifier[0], nil
-	if identifier[1] != "" && flag != "" && flag != identifier[1] {
+	identifiers := strings.Split(audience[0], "-")
+	identity, tokenType := identifiers[0], identifiers[1]
+	if identity == "" || flag != tokenType {
 		return "", result.TicketNotCorrect
 	}
 	return strings.ToLower(identity), err
