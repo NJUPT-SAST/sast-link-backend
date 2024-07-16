@@ -42,6 +42,7 @@ func OauthLarkLogin(c *gin.Context) {
 	// Create oauthState cookie
 	oauthState := GenerateStateOauthCookie(c.Writer)
 	log.Log.Debugf("oauthState ::: %s\n", redirectURL)
+
 	url := larkConf.AuthCodeURL(oauthState)
 
 	log.Log.Warnln("ClientID: ", larkConf.ClientID)
@@ -85,7 +86,6 @@ func OauthLarkCallback(c *gin.Context) {
 	userAccessToken := gjson.Get(userAccessTokenBody, "data.access_token").String()
 
 	userInfoBody, err := larkUserInfo(userAccessToken)
-
 	if err != nil {
 		log.Log.Errorln("larkUserInfo ::: ", err)
 		c.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
@@ -98,6 +98,7 @@ func OauthLarkCallback(c *gin.Context) {
 	model.Rdb.Set(model.RedisCtx, unionId,
 		userInfo, time.Duration(model.LARK_USER_INFO_EXP))
 
+
 	user, err := service.UserByLarkUnionID(unionId)
 	if err != nil {
 		c.JSON(http.StatusOK, result.Failed(result.InternalErr))
@@ -106,6 +107,7 @@ func OauthLarkCallback(c *gin.Context) {
 	} else if user == nil {
 		// return with oauth lark ticket, which contains "union_id"
 		oauthToken, err := util.GenerateTokenWithExp(c, model.OauthSubKey(unionId), model.OAUTH_TICKET_EXP)
+
 		if err != nil {
 			c.JSON(http.StatusOK, result.Failed(result.GenerateToken))
 			log.Log.Errorln("util.GenerateTokenWithExp ::: ", err)

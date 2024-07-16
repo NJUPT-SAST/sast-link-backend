@@ -248,7 +248,6 @@ func Login(ctx *gin.Context) {
 				log.Log.Errorln("service.UpdateLarkUserInfo ::: ", err)
 				return
 			}
-
 		default:
 			ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
 			return
