@@ -1,7 +1,7 @@
 # ----------------------------------------------------------------
 # 1. Build the application
 # ----------------------------------------------------------------
-FROM golang:1.22 as builder
+FROM golang:1.22 AS builder
 
 ADD src /sastlink
 ENV GO111MODULE=on
