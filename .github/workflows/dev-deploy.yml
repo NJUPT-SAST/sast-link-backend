@@ -60,14 +60,14 @@ jobs:
           fi
           # Load the new image and run it
           # It will failed, for test
-          docker load -i ~/image.tar
+          docker load -i /tmp/image.tar
           docker run -d --name sastlink -p 8080:8080 sast/sast-link
 
     - name: Send Success Message
       if: ${{ success() }}
       run: |
         bash ./scripts/webhook.sh \
-        -u "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+        -u "${{ github.event.pull_request.html_url }}" \
         -w ${{ secrets.WEBHOOK_URL }} \
         -s sastlink -c "${{ github.event.pull_request.user.login }}" -f 'success' \
         -m "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
@@ -76,7 +76,7 @@ jobs:
       if: ${{ failure() }}
       run: |
         bash ./scripts/webhook.sh \
-        -u "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+        -u "${{ github.event.pull_request.html_url }}" \
         -w ${{ secrets.WEBHOOK_URL }} \
         -s sastlink -c "${{ github.event.pull_request.user.login }}" -f 'failure' \
         -m "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"

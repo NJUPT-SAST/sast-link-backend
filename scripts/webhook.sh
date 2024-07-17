@@ -1,7 +1,7 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $0 [-u <workflow_url>] [-w <webhook_url>] [-s <service_name>] [-c <commit_user>] [-m <commit_url>] [-f <flow_status>]" 1>&2
+    echo "Usage: $0 [-u <pr_url>] [-w <webhook_url>] [-s <service_name>] [-c <commit_user>] [-m <commit_url>] [-f <flow_status>]" 1>&2
     exit 1
 }
 
@@ -11,7 +11,7 @@ while getopts "hu:w:s:c:m:f:" arg; do
       usage
       ;;
     u)
-      workflow_url="$OPTARG"
+      pr_url="$OPTARG"
       ;;
     w)
       webhook_url="$OPTARG"
@@ -34,7 +34,7 @@ while getopts "hu:w:s:c:m:f:" arg; do
   esac
 done
 
-if [[ -z "$workflow_url" || -z "$webhook_url" || -z "$service_name" || -z "$commit_user" || -z "$commit_url" || -z "$flow_status" ]]; then
+if [[ -z "$pr_url" || -z "$webhook_url" || -z "$service_name" || -z "$commit_user" || -z "$commit_url" || -z "$flow_status" ]]; then
   usage
   exit 1
 fi
@@ -67,7 +67,7 @@ card_msg='{
                                 "content": "see details",
                                 "tag": "lark_md"
                         },
-                        "url": "'$workflow_url'",
+                        "url": "'$pr_url'",
                         "type": "default",
                         "value": {}
                 }],
