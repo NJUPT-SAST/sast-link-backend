@@ -6,6 +6,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"runtime"
+	"strings"
+	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/shiena/ansicolor"
@@ -15,7 +18,71 @@ import (
 var (
 	Log      = logrus.New()
 	logLevel = config.Config.GetString("log.level")
+	// Next
+	logger = logrus.New()
 )
+
+// Fields wraps logrus.Fields, which is a map[string]interface{}
+type Fields logrus.Fields
+
+// CustomFormatter is a custom log formatter
+type CustomFormatter struct {
+	ForceQuote       bool
+	DisableQuote     bool
+	TimestampFormat  string
+	QuoteEmptyFields bool
+}
+
+func (f *CustomFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	var levelColor string
+	switch entry.Level {
+	case logrus.DebugLevel:
+		levelColor = "\033[36m" // Cyan
+	case logrus.InfoLevel:
+		levelColor = "\033[32m" // Green
+	case logrus.WarnLevel:
+		levelColor = "\033[33m" // Yellow
+	case logrus.ErrorLevel, logrus.FatalLevel, logrus.PanicLevel:
+		levelColor = "\033[31m" // Red
+	default:
+		levelColor = "\033[0m" // Reset
+	}
+
+	// Handle timestamp
+	var timestamp string
+	timestamp = entry.Time.Format(f.TimestampFormat)
+
+	// Handle message quoting
+	var message string
+	if f.ForceQuote || (!f.DisableQuote && (len(entry.Message) == 0 || f.QuoteEmptyFields)) {
+		message = fmt.Sprintf("%q", entry.Message)
+	} else {
+		message = entry.Message
+	}
+
+	// Format the log level
+	logLevel := fmt.Sprintf("%s%s%s", levelColor, strings.ToUpper(entry.Level.String()), "\033[0m")
+
+	// Get caller info from data fields
+	callerInfo := entry.Data["file"]
+
+	fields := make([]string, 0, len(entry.Data))
+	for k, v := range entry.Data {
+		if k == "file" {
+			continue
+		}
+		fields = append(fields, fmt.Sprintf("%s=%v", k, v))
+	}
+
+	var formattedLog string
+	if len(fields) > 0 {
+		formattedLog = fmt.Sprintf("[%-16s %s %-18s] %s %s\n", logLevel, timestamp, callerInfo, message, fields)
+	} else {
+		formattedLog = fmt.Sprintf("[%-16s %s %-18s] %s\n", logLevel, timestamp, callerInfo, message)
+	}
+	// Combine the formatted log entry
+	return []byte(formattedLog), nil
+}
 
 func init() {
 	initLogger()
@@ -30,11 +97,196 @@ func initLogger() {
 	Log.SetFormatter(&logrus.TextFormatter{
 		ForceColors:     true,
 		ForceQuote:      true,
-		TimestampFormat: "2006-01-02 15:04:05",
+		TimestampFormat: time.RFC3339,
 		FullTimestamp:   true,
 	})
-	// TODO: implement the `logrus.Formatter` interface
-	// as self log format
+
+	// TODO: replace old logger with new logger
+	logger.SetFormatter(&CustomFormatter{
+		TimestampFormat: time.RFC3339,
+		ForceQuote:      true,
+	})
+}
+
+func SetLevel(level logrus.Level) {
+	Log.SetLevel(level)
+	logger.SetLevel(level)
+}
+
+// Debug logs a message at level Debug on the standard logger.
+// Usage:
+// log.Debug("info")
+func Debug(args ...interface{}) {
+	if logger.Level >= logrus.DebugLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Debug(args...)
+	}
+}
+
+// Usage:
+// log.Debugf("info %s", "format")
+func Debugf(format string, args ...interface{}) {
+	if logger.Level >= logrus.DebugLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Debugf(format, args...)
+	}
+}
+
+// Debug logs a message with fields at level Debug on the standard logger.
+// Usage:
+// log.DebugWithFields("info", log.Fields{"key": "value"})
+func DebugWithFields(l interface{}, f Fields) {
+	if logger.Level >= logrus.DebugLevel {
+		entry := logger.WithFields(logrus.Fields(f))
+		entry.Data["file"] = fileInfo(2)
+		entry.Debug(l)
+	}
+}
+
+// Info logs a message at level Info on the standard logger.
+func Info(args ...interface{}) {
+	if logger.Level >= logrus.InfoLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Info(args...)
+	}
+}
+
+func Infof(format string, args ...interface{}) {
+	if logger.Level >= logrus.InfoLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Infof(format, args...)
+	}
+}
+
+// Debug logs a message with fields at level Debug on the standard logger.
+func InfoWithFields(l interface{}, f Fields) {
+	if logger.Level >= logrus.InfoLevel {
+		entry := logger.WithFields(logrus.Fields(f))
+		entry.Data["file"] = fileInfo(2)
+		entry.Info(l)
+	}
+}
+
+// Warn logs a message at level Warn on the standard logger.
+func Warn(args ...interface{}) {
+	if logger.Level >= logrus.WarnLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Warn(args...)
+	}
+}
+
+func Warnf(format string, args ...interface{}) {
+	if logger.Level >= logrus.WarnLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Warnf(format, args...)
+	}
+}
+
+// Debug logs a message with fields at level Debug on the standard logger.
+func WarnWithFields(l interface{}, f Fields) {
+	if logger.Level >= logrus.WarnLevel {
+		entry := logger.WithFields(logrus.Fields(f))
+		entry.Data["file"] = fileInfo(2)
+		entry.Warn(l)
+	}
+}
+
+// Error logs a message at level Error on the standard logger.
+func Error(args ...interface{}) {
+	if logger.Level >= logrus.ErrorLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Error(args...)
+	}
+}
+
+func Errorf(format string, args ...interface{}) {
+	if logger.Level >= logrus.ErrorLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Errorf(format, args...)
+	}
+}
+
+// Debug logs a message with fields at level Debug on the standard logger.
+func ErrorWithFields(l interface{}, f Fields) {
+	if logger.Level >= logrus.ErrorLevel {
+		entry := logger.WithFields(logrus.Fields(f))
+		entry.Data["file"] = fileInfo(2)
+		entry.Error(l)
+	}
+}
+
+// Fatal logs a message at level Fatal on the standard logger.
+func Fatal(args ...interface{}) {
+	if logger.Level >= logrus.FatalLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Fatal(args...)
+	}
+}
+
+func Fatalf(format string, args ...interface{}) {
+	if logger.Level >= logrus.FatalLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Fatalf(format, args...)
+	}
+}
+
+// Debug logs a message with fields at level Debug on the standard logger.
+func FatalWithFields(l interface{}, f Fields) {
+	if logger.Level >= logrus.FatalLevel {
+		entry := logger.WithFields(logrus.Fields(f))
+		entry.Data["file"] = fileInfo(2)
+		entry.Fatal(l)
+	}
+}
+
+// Panic logs a message at level Panic on the standard logger.
+func Panic(args ...interface{}) {
+	if logger.Level >= logrus.PanicLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Panic(args...)
+	}
+}
+
+func Panicf(format string, args ...interface{}) {
+	if logger.Level >= logrus.PanicLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Panicf(format, args...)
+	}
+}
+
+// Debug logs a message with fields at level Debug on the standard logger.
+func PanicWithFields(l interface{}, f Fields) {
+	if logger.Level >= logrus.PanicLevel {
+		entry := logger.WithFields(logrus.Fields(f))
+		entry.Data["file"] = fileInfo(2)
+		entry.Panic(l)
+	}
+}
+
+func fileInfo(skip int) string {
+	_, file, line, ok := runtime.Caller(skip)
+	if !ok {
+		file = "<???>"
+		line = 1
+	} else {
+		slash := strings.LastIndex(file, "/")
+		if slash >= 0 {
+			file = file[slash+1:]
+		}
+	}
+	return fmt.Sprintf("%s:%d", file, line)
 }
 
 func logLevelSwitcher(level string) logrus.Level {
