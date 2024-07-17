@@ -54,10 +54,15 @@ jobs:
             # Load the new image and run it
             docker load -i ~/image.tar
             docker run -d --name sastlink -p 8080:8080 sast/sast-link
+            echo "---------"
+            echo $RSYNC_STDOUT
+            echo "---------"
+          RSYNC_STDOUT: ${{ env.RSYNC_STDOUT }}
+
 
     - name: Check Deployment Status
       run: |
-        if [ "${{ steps.deploy.outcome }}" != "success" ]; then
+        if [[ "${{ steps.deploy.outputs.RSYNC_STDOUT }}" == *"error"* ]]; then
           echo "Deployment failed"
           exit 1
         fi
