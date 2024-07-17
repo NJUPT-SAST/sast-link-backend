@@ -11,11 +11,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - "./sql/user.sql:/docker-entrypoint-initdb.d/user.sql"
-      - "./sql/admin.sql:/docker-entrypoint-initdb.d/admin.sql"
-      - "./sql/profile.sql:/docker-entrypoint-initdb.d/profile.sql"
-      - "./sql/organize.sql:/docker-entrypoint-initdb.d/organize.sql"
-      - "./sql/carrer_records.sql:/docker-entrypoint-initdb.d/carrer_records.sql"
+      - "./sql/ddl.sql:/docker-entrypoint-initdb.d/ddl.sql"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -h localhost -p 5432"]
       interval: 10s
