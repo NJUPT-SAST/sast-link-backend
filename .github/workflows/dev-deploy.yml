@@ -30,8 +30,7 @@ jobs:
       run: |
         docker buildx build --platform linux/amd64 -t sast/sast-link -f docker/Dockerfile --output type=docker,dest=image.tar .
 
-    - name: Deploy to Server
-      id: deploy
+    - name: Copy Docker image to server
       uses: easingthemes/ssh-deploy@main
       with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -40,32 +39,29 @@ jobs:
           REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.REMOTE_USER }}
           TARGET: /tmp/image.tar
-          SCRIPT_AFTER: |
-            ### Notice: run for develop ###
-            # Stop and remove existing container if it exists
-            if [ "$(docker ps -aq -f name=sastlink)" ]; then
-              docker stop sastlink
-              docker rm sastlink
-            fi
-            # Remove existing image if it exists
-            if [ "$(docker images -q sast/sast-link)" ]; then
-              docker rmi sast/sast-link
-            fi
-            # Load the new image and run it
-            docker load -i ~/image.tar
-            docker run -d --name sastlink -p 8080:8080 sast/sast-link
-            echo "---------"
-            echo $RSYNC_STDOUT
-            echo "---------"
-          RSYNC_STDOUT: ${{ env.RSYNC_STDOUT }}
 
-
-    - name: Check Deployment Status
-      run: |
-        if [[ "${{ steps.deploy.outputs.RSYNC_STDOUT }}" == *"error"* ]]; then
-          echo "Deployment failed"
-          exit 1
-        fi
+    - name: Deploy in server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.REMOTE_HOST }}
+        username: ${{ secrets.REMOTE_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script_stop: true
+        script: |
+          ### Notice: run for develop ###
+          # Stop and remove existing container if it exists
+          if [ "$(docker ps -aq -f name=sastlink)" ]; then
+            docker stop sastlink
+            docker rm sastlink
+          fi
+          # Remove existing image if it exists
+          if [ "$(docker images -q sast/sast-link)" ]; then
+            docker rmi sast/sast-link
+          fi
+          # Load the new image and run it
+          # It will failed, for test
+          docker load -i ~/image.tar
+          docker run -d --name sastlink -p 8080:8080 sast/sast-link
 
     - name: Send Success Message
       if: ${{ success() }}
