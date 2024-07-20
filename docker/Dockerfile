@@ -5,7 +5,7 @@ FROM golang:1.22 AS builder
 
 ADD src /sastlink
 ENV GO111MODULE=on
-# ENV GOPROXY=https://goproxy.cn
+ENV GOPROXY=https://goproxy.cn
 RUN cd /sastlink && CGO_ENABLED=0 go build
 
 # ----------------------------------------------------------------
@@ -14,7 +14,7 @@ RUN cd /sastlink && CGO_ENABLED=0 go build
 FROM alpine
 
 COPY --from=builder /sastlink /sastlink
-COPY --from=builder /sastlink/config /config
+WORKDIR /sastlink
 
 # This container exposes port 8080 to the outside world
 EXPOSE 8080
