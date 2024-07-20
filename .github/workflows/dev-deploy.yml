@@ -42,11 +42,14 @@ jobs:
 
     - name: Deploy in server
       uses: appleboy/ssh-action@v1.0.3
+      env:
+        WORKINGDIR: ${{ secrets.WORKINGDIR }}
       with:
         host: ${{ secrets.REMOTE_HOST }}
         username: ${{ secrets.REMOTE_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script_stop: true
+        envs: WORKINGDIR
         script: |
           ### Notice: run for develop ###
           # Stop and remove existing container if it exists
@@ -61,7 +64,7 @@ jobs:
           # Load the new image and run it
           # It will failed, for test
           docker load -i /tmp/image.tar
-          docker run -d --name sastlink -p 8080:8080 sast/sast-link
+          docker run --restart always -d --name sastlink -p 8080:8080 -v $WORKINGDIR:/sastlink/config sast/sast-link
 
     - name: Send Success Message
       if: ${{ success() }}

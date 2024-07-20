@@ -28,6 +28,12 @@ func init() {
 	Config.SetConfigName(fileName)
 	Config.SetConfigType("toml")
 
+	// Get current working directory
+	currentDir, err := os.Getwd()
+	if err != nil {
+		panic(err.Error())
+	}
+	fmt.Printf("Current working directory: %s\n", currentDir)
 	if err := Config.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			panic(fmt.Sprintf("File [config/%s.toml] Not Found\n", fileName))
