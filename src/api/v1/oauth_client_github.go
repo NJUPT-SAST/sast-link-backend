@@ -37,13 +37,18 @@ func OauthGithubLogin(c *gin.Context) {
 	oauthState := GenerateStateOauthCookie(c.Writer)
 	url := githubConf.AuthCodeURL(oauthState)
 
-	log.Log.Warnf("Visit the URL for the auth dialog: %v\n", url)
+	// log.Log.Warnf("Visit the URL for the auth dialog: %v\n", url)
+	log.Debug("Visit the URL for the auth dialog: ", url)
+	log.Debug("RedirectURL: ", githubConf.RedirectURL)
+	log.Debug("ClientID: ", githubConf.ClientID)
 
+	c.SetCookie("oauthstate", oauthState, 3600, "", "", false, true)
 	c.Redirect(http.StatusFound, url)
 }
 
 func OauthGithubCallback(c *gin.Context) {
 	oauthState, _ := c.Request.Cookie("oauthstate")
+	log.Debugf("oauthState: %s", oauthState.Value)
 
 	if c.Request.FormValue("state") != oauthState.Value {
 		log.Log.Printf("invalid oauth state, expected '%s', got '%s'\n", oauthState.Value, c.Request.FormValue("state"))
@@ -58,11 +63,11 @@ func OauthGithubCallback(c *gin.Context) {
 		c.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
 		return
 	}
-
 	if githubId == "" {
 		c.JSON(http.StatusOK, result.Failed(result.HandleError(result.RequestParamError)))
 		return
 	}
+	log.Debug("GithubId: ", githubId)
 
 	user, err := service.GetUserByGithubId(githubId)
 	if err != nil {
@@ -82,20 +87,22 @@ func getUserInfoFromGithub(ctx context.Context, code string) (string, error) {
 
 	token, err := githubConf.Exchange(ctx, code)
 	if err != nil {
-		log.Log.Errorf("exchange github code error: %s", err.Error())
-		return "", fmt.Errorf("exchange github code error: %s", err.Error())
+		// log.Log.Errorf("exchange github code error: %s", err.Error())
+		log.Errorf("Exchange github code error: %s", err.Error())
+		return "", fmt.Errorf("Exchange github code error: %s", err.Error())
 	}
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", GithubUserInfoURL, nil)
 	if err != nil {
-		log.Log.Errorf("new request error: %s", err.Error())
-		return "", fmt.Errorf("new request error: %s", err.Error())
+		// log.Log.Errorf("New request error: %s", err.Error())
+		log.Errorf("New request error: %s", err.Error())
+		return "", fmt.Errorf("New request error: %s", err.Error())
 	}
 	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
 	res, err := client.Do(req)
 	if err != nil {
-		log.Log.Errorf("failt to getting user info: %s", err.Error())
-		return "", fmt.Errorf("failt to getting user info: %s", err.Error())
+		log.Log.Errorf("Failt to getting user info: %s", err.Error())
+		return "", fmt.Errorf("Failt to getting user info: %s", err.Error())
 	}
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
