@@ -96,9 +96,9 @@ func OauthLarkCallback(c *gin.Context) {
 	// save user info in redis (then retrive in login)
 	userInfo := gjson.Get(userInfoBody, "data")
 	model.Rdb.Set(model.RedisCtx, unionId,
-		userInfo, time.Duration(model.LARK_USER_INFO_EXP))
+		userInfo, time.Duration(model.OAUTH_USER_INFO_EXP))
 
-
+	// FIXME: Use OauthInfoByUID to get user
 	user, err := service.UserByLarkUnionID(unionId)
 	if err != nil {
 		c.JSON(http.StatusOK, result.Failed(result.InternalErr))
@@ -106,7 +106,7 @@ func OauthLarkCallback(c *gin.Context) {
 		return
 	} else if user == nil {
 		// return with oauth lark ticket, which contains "union_id"
-		oauthToken, err := util.GenerateTokenWithExp(c, model.OauthSubKey(unionId), model.OAUTH_TICKET_EXP)
+		oauthToken, err := util.GenerateTokenWithExp(c, model.OauthSubKey(unionId, model.OAUTH_LARK_SUB), model.OAUTH_TICKET_EXP)
 
 		if err != nil {
 			c.JSON(http.StatusOK, result.Failed(result.GenerateToken))
