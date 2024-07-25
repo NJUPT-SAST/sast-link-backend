@@ -27,7 +27,7 @@ SET default_table_access_method = heap;
 CREATE TABLE public.oauth2_info (
     id integer NOT NULL,
     client character varying NOT NULL,
-    info json[],
+    info jsonb[],
     oauth_user_id character varying NOT NULL,
     user_id character varying NOT NULL
 );
@@ -83,6 +83,14 @@ ALTER SEQUENCE public.oauth2_info_id_seq OWNED BY public.oauth2_info.id;
 --
 
 ALTER TABLE ONLY public.oauth2_info ALTER COLUMN id SET DEFAULT nextval('public.oauth2_info_id_seq'::regclass);
+
+
+--
+-- Name: oauth2_info oauth2_info_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.oauth2_info
+    ADD CONSTRAINT oauth2_info_unique UNIQUE (client, user_id);
 
 
 --

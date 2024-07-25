@@ -14,9 +14,10 @@ const (
 	LOGIN_TICKET_EXP = time.Minute * 5
 	// This is login token expire time
 	LOGIN_TOKEN_EXP    = time.Hour * 24 * 7
-	LARK_USER_INFO_EXP = time.Minute * 5
+	OAUTH_USER_INFO_EXP = time.Minute * 5
 
 	LARK_CLIENT_TYPE = "lark"
+	GITHUB_CLIENT_TYPE = "github"
 
 
 	// For JWT
@@ -25,6 +26,7 @@ const (
 	REGIST_TICKET_SUB   = "registerTicket"
 	RESETPWD_TICKET_SUB = "resetPwdTicket"
 	OAUTH_LARK_SUB      = "oauthLarkToken"
+	OAUTH_GITHUB_SUB    = "oauthGithubToken"
 )
 
 var (
@@ -76,6 +78,6 @@ func VerifyCodeKey(username string) string {
 
 // identity is the unique identifier for oauth app user
 // like "union_id" for lark, "github_id" for github
-func OauthSubKey(identity string) string {
-	return fmt.Sprintf("%s-%s", identity, OAUTH_LARK_SUB)
+func OauthSubKey(identity, oauthType string) string {
+	return fmt.Sprintf("%s-%s", identity, oauthType)
 }

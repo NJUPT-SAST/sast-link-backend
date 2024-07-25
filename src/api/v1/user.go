@@ -12,6 +12,8 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/service"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/gin-gonic/gin"
+
+	"gorm.io/datatypes"
 )
 
 var controllerLogger = log.Log
@@ -208,16 +210,6 @@ func Login(ctx *gin.Context) {
 		return
 	}
 
-	// Set Token with expire time and return
-	token, err := util.GenerateTokenWithExp(ctx, model.LoginJWTSubKey(uid), model.LOGIN_TOKEN_EXP)
-	if err != nil {
-		ctx.JSON(http.StatusOK, result.Failed(result.GenerateToken))
-	}
-	model.Rdb.Set(ctx, model.LoginTokenKey(uid), token, model.LOGIN_TOKEN_EXP)
-	ctx.JSON(http.StatusOK, result.Success(gin.H{
-		model.LOGIN_TOKEN_SUB: token,
-	}))
-
 	// Oauth: check if need to bound oauth servers like lark, github...
 	// TODO: use cookie to manage ticket etc...
 	oauthTicket := ctx.Request.Header.Get("OAUTH-TICKET")
@@ -232,8 +224,10 @@ func Login(ctx *gin.Context) {
 		}
 		flagIn := strings.Split(audience[0], "-")[1]
 
+		log.Debugf("Login ::: Oauth ::: flagIn ::: %v", flagIn)
+
 		switch flagIn {
-		case "oauthLarkToken":
+		case model.OAUTH_LARK_SUB:
 			unionID, err := util.IdentityFromToken(oauthTicket, model.OAUTH_LARK_SUB)
 			if err != nil {
 				ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
@@ -243,16 +237,36 @@ func Login(ctx *gin.Context) {
 
 			// TODO: save oauth user info
 			oauthLarkUserInfo, _ := model.Rdb.Get(ctx, unionID).Result()
-			if err := service.UpdateLarkUserInfo(username, model.LARK_CLIENT_TYPE, unionID, oauthLarkUserInfo); err != nil {
-				ctx.JSON(http.StatusOK, result.Failed(result.InternalErr))
-				log.Log.Errorln("service.UpdateLarkUserInfo ::: ", err)
+			service.UpsetOauthInfo(username, model.LARK_CLIENT_TYPE, unionID, datatypes.JSON(oauthLarkUserInfo))
+		case model.OAUTH_GITHUB_SUB:
+			unionID, err := util.IdentityFromToken(oauthTicket, model.OAUTH_GITHUB_SUB)
+			if err != nil {
+				ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
+				log.Log.Errorln("util.IdentityFromToken ::: ", err)
 				return
 			}
+
+			oauthGithubUserInfo, _ := model.Rdb.Get(ctx, unionID).Result()
+
+			log.Debugf("Login ::: Oauth ::: github info ::: %v", oauthGithubUserInfo)
+
+			service.UpsetOauthInfo(username, model.GITHUB_CLIENT_TYPE, unionID, datatypes.JSON(oauthGithubUserInfo))
 		default:
+			log.Errorf("Login ::: Oauth ::: flagIn ::: %v", flagIn)
 			ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
 			return
 		}
 	}
+
+	// Set Token with expire time and return
+	token, err := util.GenerateTokenWithExp(ctx, model.LoginJWTSubKey(uid), model.LOGIN_TOKEN_EXP)
+	if err != nil {
+		ctx.JSON(http.StatusOK, result.Failed(result.GenerateToken))
+	}
+	model.Rdb.Set(ctx, model.LoginTokenKey(uid), token, model.LOGIN_TOKEN_EXP)
+	ctx.JSON(http.StatusOK, result.Success(gin.H{
+		model.LOGIN_TOKEN_SUB: token,
+	}))
 }
 
 // Modify paassword

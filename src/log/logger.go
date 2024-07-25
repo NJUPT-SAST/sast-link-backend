@@ -106,6 +106,7 @@ func initLogger() {
 		TimestampFormat: time.RFC3339,
 		ForceQuote:      true,
 	})
+	logger.SetLevel(logLevelSwitcher(logLevel))
 }
 
 func SetLevel(level logrus.Level) {
