@@ -4,12 +4,12 @@ import (
 	"fmt"
 
 	"github.com/NJUPT-SAST/sast-link-backend/model"
+	"gorm.io/datatypes"
 )
 
-
 // Oauth Github
-func GetUserByGithubId(githubId string) (*model.User, error) {
-	return model.UserByField("github_id", githubId)
+func GetUserByGithubId(githubId string) (*model.OAuth2Info, error) {
+	return model.OauthInfoByUID(model.GITHUB_CLIENT_TYPE, githubId)
 }
 
 func GetUserInfoFromGithub(username, githubId string) (*model.User, error) {
@@ -28,13 +28,19 @@ func GetUserInfoFromGithub(username, githubId string) (*model.User, error) {
 	return nil, nil
 }
 
+func UpsetOauthInfo(username, clientType, oauthID string, OAuth2Info datatypes.JSON) {
+	var oauthInfo = model.OAuth2Info{
+		Client:  clientType,
+		Info:    OAuth2Info,
+		OauthID: oauthID,
+		UserID:  username,
+	}
+	model.UpsetOauthInfo(oauthInfo)
+}
+
 // Oauth Lark
 func UserByLarkUnionID(unionID string) (*model.User, error) {
 	return model.UserByField("lark_id", unionID)
-}
-
-func UpdateLarkUserInfo(username, clientType, oauthID, larkUserInfo string) error {
-	return model.UpdateLarkUserInfo(username, clientType, oauthID, larkUserInfo)
 }
 
 // Oauth server
