@@ -37,16 +37,16 @@ var (
 // OauthLarkLogin redirect url to lark auth page.
 func OauthLarkLogin(c *gin.Context) {
 	redirectURL := c.Query("redirect_url")
-	log.Log.Debugf("redirectURL ::: %s\n", redirectURL)
+	log.Debugf("redirectURL ::: %s\n", redirectURL)
 	larkConf.RedirectURL = redirectURL
 	// Create oauthState cookie
 	oauthState := GenerateStateOauthCookie(c.Writer)
-	log.Log.Debugf("oauthState ::: %s\n", redirectURL)
+	log.Debugf("oauthState ::: %s\n", redirectURL)
 
 	url := larkConf.AuthCodeURL(oauthState)
 
-	log.Log.Warnln("ClientID: ", larkConf.ClientID)
-	log.Log.Warnln("ClientSecret: ", larkConf.ClientSecret)
+	log.Debug("ClientID: ", larkConf.ClientID)
+	log.Debug("ClientSecret: ", larkConf.ClientSecret)
 
 	log.Log.Warnf("Visit the URL for the auth dialog: %v\n", url)
 
@@ -59,7 +59,7 @@ func OauthLarkLogin(c *gin.Context) {
 // at last request user info
 func OauthLarkCallback(c *gin.Context) {
 	oauthState, _ := c.Request.Cookie("oauthstate")
-	log.Log.Debugf("oauthState ::: %v\n", oauthState)
+	log.Debugf("oauthState ::: %v\n", oauthState)
 	if c.Request.FormValue("state") != oauthState.Value {
 		fmt.Printf("invalid oauth state, expected '%s', got '%s'\n", oauthState.Value, c.Request.FormValue("state"))
 		c.Redirect(http.StatusFound, "/")
@@ -67,18 +67,18 @@ func OauthLarkCallback(c *gin.Context) {
 	}
 
 	code := c.Query("code")
-	log.Log.Debugf("\ncode ::: %s\n", code)
+	log.Debugf("\ncode ::: %s\n", code)
 
 	accessToken, err := larkAppAccessToken()
 	if err != nil {
-		log.Log.Errorln("larkAppAccessToken ::: ", err)
+		log.Error("larkAppAccessToken ::: ", err)
 		c.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
 		return
 	}
 
 	userAccessTokenBody, err := larkUserAccessToken(code, accessToken)
 	if err != nil {
-		log.Log.Errorln("larkUserAccessToken ::: ", err)
+		log.Error("larkUserAccessToken ::: ", err)
 		c.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
 		return
 	}
@@ -87,30 +87,33 @@ func OauthLarkCallback(c *gin.Context) {
 
 	userInfoBody, err := larkUserInfo(userAccessToken)
 	if err != nil {
-		log.Log.Errorln("larkUserInfo ::: ", err)
+		log.Error("larkUserInfo ::: ", err)
 		c.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
 		return
 	}
 
 	unionId := gjson.Get(userInfoBody, "data.union_id").Str
 	// save user info in redis (then retrive in login)
-	userInfo := gjson.Get(userInfoBody, "data")
-	model.Rdb.Set(model.RedisCtx, unionId,
-		userInfo, time.Duration(model.OAUTH_USER_INFO_EXP))
+	userInfo := gjson.Get(userInfoBody, "data").String()
+	if err := model.Rdb.Set(c, unionId,
+		userInfo, time.Duration(model.OAUTH_USER_INFO_EXP)).Err(); err != nil {
+		log.Error("model.Rdb.Set ::: ", err)
+		c.JSON(http.StatusOK, result.Failed(result.InternalErr))
+		return
+	}
 
-	// FIXME: Use OauthInfoByUID to get user
-	user, err := service.UserByLarkUnionID(unionId)
+	userLarkInfo, err := service.OauthInfoByLarkID(unionId)
 	if err != nil {
 		c.JSON(http.StatusOK, result.Failed(result.InternalErr))
-		log.Log.Errorln("service.UserByLarkUnionID ::: ", err)
+		log.Error("service.UserByLarkUnionID ::: ", err)
 		return
-	} else if user == nil {
+	} else if userLarkInfo == nil {
 		// return with oauth lark ticket, which contains "union_id"
 		oauthToken, err := util.GenerateTokenWithExp(c, model.OauthSubKey(unionId, model.OAUTH_LARK_SUB), model.OAUTH_TICKET_EXP)
 
 		if err != nil {
 			c.JSON(http.StatusOK, result.Failed(result.GenerateToken))
-			log.Log.Errorln("util.GenerateTokenWithExp ::: ", err)
+			log.Error("util.GenerateTokenWithExp ::: ", err)
 			return
 		}
 		c.JSON(http.StatusOK, result.Response{
@@ -125,7 +128,8 @@ func OauthLarkCallback(c *gin.Context) {
 	} else {
 		// User already registered and bounded lark,
 		// directly return token
-		uid := *user.Uid
+		uid := userLarkInfo.UserID
+		log.Debugf("User already registered and bounded lark: %s", uid)
 		token, err := util.GenerateTokenWithExp(c, model.LoginJWTSubKey(uid), model.LOGIN_TOKEN_EXP)
 		if err != nil {
 			c.JSON(http.StatusOK, result.Failed(result.GenerateToken))
@@ -150,27 +154,24 @@ func larkAppAccessToken() (string, error) {
 
 	res, error := http.PostForm(AppAccessTokenURL, params)
 	if error != nil {
-		log.Log.Errorln("http.PostForm ::: ", error)
+		log.Error("http.PostForm ::: ", error)
 		return "", error
 	}
-	log.LogRes(res)
+	// log.LogRes(res)
 
 	body, error := io.ReadAll(res.Body)
 	defer res.Body.Close()
 	if error != nil {
-		log.Log.Errorln("io.ReadAll ::: ", error)
+		log.Error("io.ReadAll ::: ", error)
 		return "", error
 	}
 
 	if code := gjson.Get(string(body), "code").Int(); code != 0 {
-		log.Log.Errorln("gjson.Get ::: code:", code)
+		log.Error("gjson.Get ::: code:", code)
 		return "", result.InternalErr
 	}
 
 	acceToken := gjson.Get(string(body), "app_access_token").String()
-	expire := gjson.Get(string(body), "expire").Int()
-
-	model.Rdb.Set(model.RedisCtx, "lark_app_access_token", acceToken, time.Duration(expire))
 
 	return acceToken, nil
 }
@@ -195,11 +196,11 @@ func larkUserAccessToken(code string, accessToken string) (string, error) {
 	body, err := io.ReadAll(res.Body)
 	defer res.Body.Close()
 	if err != nil {
-		log.Log.Errorln("io.ReadAll ::: ", err)
+		log.Error("io.ReadAll ::: ", err)
 		return "", result.InternalErr
 	}
 	if resCode := gjson.Get(string(body), "code").Int(); resCode != 0 {
-		log.Log.Errorf("larkUserAccessToken ::: gjson.Get ::: response code: %d\n", resCode)
+		log.Errorf("larkUserAccessToken ::: gjson.Get ::: response code: %d\n", resCode)
 		return "", fmt.Errorf("OauthLarkCallback resCode: %d", resCode)
 	}
 	return string(body), nil
@@ -212,18 +213,18 @@ func larkUserInfo(userAccessToken string) (string, error) {
 	}
 	res, err := util.GetWithHeader(UserInfoURL, header)
 	if err != nil {
-		log.Log.Errorln("util.GetWithHeader ::: ", err)
+		log.Error("util.GetWithHeader ::: ", err)
 		return "", result.AccessTokenErr
 	}
 
 	body, err := io.ReadAll(res.Body)
 	defer res.Body.Close()
 	if err != nil {
-		log.Log.Errorln("io.ReadAll ::: ", err)
+		log.Error("io.ReadAll ::: ", err)
 		return "", result.InternalErr
 	}
 	if resCode := gjson.Get(string(body), "code").Int(); resCode != 0 {
-		log.Log.Errorf("larkUserInfo ::: gjson.Get ::: response code: %d\n", resCode)
+		log.Errorf("larkUserInfo ::: gjson.Get ::: response code: %d\n", resCode)
 		return "", fmt.Errorf("OauthLarkCallback resCode: %d", resCode)
 	}
 	return string(body), nil

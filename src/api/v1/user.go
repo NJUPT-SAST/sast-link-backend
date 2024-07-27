@@ -12,8 +12,6 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/service"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/gin-gonic/gin"
-
-	"gorm.io/datatypes"
 )
 
 var controllerLogger = log.Log
@@ -235,9 +233,13 @@ func Login(ctx *gin.Context) {
 				return
 			}
 
-			// TODO: save oauth user info
 			oauthLarkUserInfo, _ := model.Rdb.Get(ctx, unionID).Result()
-			service.UpsetOauthInfo(username, model.LARK_CLIENT_TYPE, unionID, datatypes.JSON(oauthLarkUserInfo))
+
+			log.Debugf("Login ::: Oauth ::: unionID ::: %v", unionID)
+			log.Debugf("Login ::: Oauth ::: lark info ::: %v", oauthLarkUserInfo)
+
+			service.UpsetOauthInfo(username, model.LARK_CLIENT_TYPE, unionID, oauthLarkUserInfo)
+
 		case model.OAUTH_GITHUB_SUB:
 			unionID, err := util.IdentityFromToken(oauthTicket, model.OAUTH_GITHUB_SUB)
 			if err != nil {
@@ -250,7 +252,7 @@ func Login(ctx *gin.Context) {
 
 			log.Debugf("Login ::: Oauth ::: github info ::: %v", oauthGithubUserInfo)
 
-			service.UpsetOauthInfo(username, model.GITHUB_CLIENT_TYPE, unionID, datatypes.JSON(oauthGithubUserInfo))
+			service.UpsetOauthInfo(username, model.GITHUB_CLIENT_TYPE, unionID, oauthGithubUserInfo)
 		default:
 			log.Errorf("Login ::: Oauth ::: flagIn ::: %v", flagIn)
 			ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))

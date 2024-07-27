@@ -2,21 +2,28 @@ package model
 
 import (
 	// "encoding/json"
+
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/model/result"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 // OAuth2Info struct
 type OAuth2Info struct {
-	ID      uint           `gorm:"primaryKey"`
-	Client  string         `gorm:"not null"`
-	Info    datatypes.JSON `gorm:"default:'[]'"`
-	OauthID string         `gorm:"not null"`
-	UserID  string         `gorm:"not null"`
+	ID      uint
+	Client  string
+	Info    json.RawMessage
+	OauthID string `json:"oauth_user_id"`
+	UserID  string
+}
+
+// String return string of OAuth2Info
+func (o OAuth2Info) String() string {
+	return fmt.Sprintf("OAuth2Info{Client: %s, Info: %s, OauthID: %s, UserID: %s}", o.Client, o.Info, o.OauthID, o.UserID)
 }
 
 func UpdateLarkUserInfo(info OAuth2Info) error {

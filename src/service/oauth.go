@@ -1,10 +1,10 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/NJUPT-SAST/sast-link-backend/model"
-	"gorm.io/datatypes"
 )
 
 // Oauth Github
@@ -28,10 +28,10 @@ func GetUserInfoFromGithub(username, githubId string) (*model.User, error) {
 	return nil, nil
 }
 
-func UpsetOauthInfo(username, clientType, oauthID string, OAuth2Info datatypes.JSON) {
+func UpsetOauthInfo(username, clientType, oauthID, OAuth2Info string) {
 	var oauthInfo = model.OAuth2Info{
 		Client:  clientType,
-		Info:    OAuth2Info,
+		Info:    json.RawMessage(OAuth2Info),
 		OauthID: oauthID,
 		UserID:  username,
 	}
@@ -39,8 +39,25 @@ func UpsetOauthInfo(username, clientType, oauthID string, OAuth2Info datatypes.J
 }
 
 // Oauth Lark
-func UserByLarkUnionID(unionID string) (*model.User, error) {
-	return model.UserByField("lark_id", unionID)
+func OauthInfoByLarkID(unionID string) (*model.OAuth2Info, error) {
+	return model.OauthInfoByUID(model.LARK_CLIENT_TYPE, unionID)
+}
+
+func UserByLarkID(username, unionID string) (*model.User, error) {
+	// FIXME: replace union_id with "real" field name in db
+	user, err := model.UserByField("lark_id", unionID)
+	if err != nil {
+		return nil, err
+	}
+
+	if user == nil {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	if user.Uid != &username {
+		return nil, fmt.Errorf("user not match")
+	}
+	return nil, nil
 }
 
 // Oauth server
