@@ -27,7 +27,7 @@ SET default_table_access_method = heap;
 CREATE TABLE public.oauth2_info (
     id integer NOT NULL,
     client character varying NOT NULL,
-    info jsonb[],
+    info jsonb DEFAULT '{}',
     oauth_user_id character varying NOT NULL,
     user_id character varying NOT NULL
 );
