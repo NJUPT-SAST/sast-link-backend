@@ -28,7 +28,7 @@ var (
 	githubConf = oauth2.Config{
 		ClientID:     config.Config.GetString("oauth.client.github.id"),
 		ClientSecret: config.Config.GetString("oauth.client.github.secret"),
-		RedirectURL:  "http://localhost:3000/callback/github",
+		RedirectURL:  config.Config.GetString("oauth.client.github.redirect_url"),
 		Scopes:       []string{},
 		Endpoint:     endpoints.GitHub,
 	}
@@ -84,8 +84,12 @@ func OauthGithubCallback(c *gin.Context) {
 	}
 
 	// Store to redis
-	model.Rdb.Set(model.RedisCtx, githubID,
-		githubInfo, time.Duration(model.OAUTH_USER_INFO_EXP))
+	if err := model.Rdb.Set(model.RedisCtx, githubID,
+		githubInfo, time.Duration(model.OAUTH_USER_INFO_EXP)).Err(); err != nil {
+			log.Errorf("model.Rdb.Set ::: %s", err.Error())
+			c.JSON(http.StatusOK, result.Failed(result.InternalErr))
+			return
+		}
 
 	// User not found, Need to register to bind the github id
 	if userInfo == nil {
@@ -94,7 +98,7 @@ func OauthGithubCallback(c *gin.Context) {
 
 		if err != nil {
 			c.JSON(http.StatusOK, result.Failed(result.GenerateToken))
-			log.Log.Errorln("util.GenerateTokenWithExp ::: ", err)
+			log.Error("util.GenerateTokenWithExp ::: ", err)
 			return
 		}
 		c.JSON(http.StatusOK, result.Response{
@@ -116,7 +120,11 @@ func OauthGithubCallback(c *gin.Context) {
 			c.JSON(http.StatusOK, result.Failed(result.GenerateToken))
 			return
 		}
-		model.Rdb.Set(c, model.LoginTokenKey(uid), token, model.LOGIN_TOKEN_EXP)
+		if err := model.Rdb.Set(c, model.LoginTokenKey(uid), token, model.LOGIN_TOKEN_EXP).Err(); err != nil {
+			log.Errorf("model.Rdb.Set ::: %s", err.Error())
+			c.JSON(http.StatusOK, result.Failed(result.InternalErr))
+			return
+		}
 		c.JSON(http.StatusOK, result.Success(gin.H{
 			model.LOGIN_TOKEN_SUB: token,
 		}))
@@ -142,7 +150,7 @@ func getUserInfoFromGithub(ctx context.Context, code string) (string, error) {
 	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
 	res, err := client.Do(req)
 	if err != nil {
-		log.Log.Errorf("Failt to getting user info: %s", err.Error())
+		log.Errorf("Failt to getting user info: %s", err.Error())
 		return "", fmt.Errorf("Failt to getting user info: %s", err.Error())
 	}
 	body, err := io.ReadAll(res.Body)
@@ -150,7 +158,7 @@ func getUserInfoFromGithub(ctx context.Context, code string) (string, error) {
 		return "", result.InternalErr
 	}
 
-	log.Debugf("Github user info: %s", gjson.ParseBytes(body).String())
+	// log.Debugf("Github user info: %s", gjson.ParseBytes(body).String())
 
 	return gjson.ParseBytes(body).String(), nil
 }
