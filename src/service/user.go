@@ -131,6 +131,10 @@ func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 // This function is used to verify the user's email is exist or not when login
 // This username is email or uid
 func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
+	// check if input username contain '@', add '@' if not contained
+	if !strings.Contains(username, "@njupt.edu.cn") {
+		username = username + "@njupt.edu.cn"
+	}
 	var user *model.User
 	user, err := model.UserByField("email", username)
 	if err != nil || user == nil {
