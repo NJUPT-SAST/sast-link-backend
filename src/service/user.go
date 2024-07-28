@@ -131,18 +131,18 @@ func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
 // This function is used to verify the user's email is exist or not when login
 // This username is email or uid
 func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
-	var user *model.User
-	user, err := model.UserByField("email", username)
-	if err != nil || user == nil {
-		return "", result.UserNotExist
+    	var user *model.User
+    	var err error
+	if strings.Contains(username, "@njupt.edu.cn") {
+		user, err = model.UserByField("email", username)
+	} else {
+		user, err = model.UserByField("uid", username)
+	}
+	
+	if err != nil {
+		return "", err
 	}
 
-	if user == nil {
-		user, err := model.UserByField("uid", username)
-		if err != nil || user == nil {
-			return "", result.UserNotExist
-		}
-	}
 
 	ticket, err := util.GenerateTokenWithExp(ctx, model.LoginTicketJWTSubKey(*user.Uid), model.LOGIN_TICKET_EXP)
 	if err != nil || ticket == "" {
