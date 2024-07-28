@@ -63,3 +63,14 @@ func UpsetOauthInfo(oauthInfo OAuth2Info) {
 
 	Db.Exec(stmt, oauthInfo.Client, oauthInfo.Info, oauthInfo.OauthID, oauthInfo.UserID)
 }
+
+// GetOauthBindStatusByUID get oauth bind status by uid
+func GetOauthBindStatusByUID(uid string) ([]string, error) {
+	var oauthBindStatus []string
+	err := Db.Table("oauth2_info").Where("user_id = ?", uid).Pluck("client", &oauthBindStatus).Error
+	if err != nil {
+		log.Errorf("model.getOauthBindStatusByUID ::: %s", err.Error())
+		return nil, result.InternalErr
+	}
+	return oauthBindStatus, nil
+}

@@ -141,3 +141,25 @@ func DealCensorRes(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, result.Success(nil))
 }
+
+// BindStatus : get third party login bind status
+func BindStatus(ctx *gin.Context) {
+	token := ctx.GetHeader("TOKEN")
+	if token == "" {
+		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
+		return
+	}
+	uid, err := util.IdentityFromToken(token, model.LOGIN_TOKEN_SUB)
+	if uid == "" || err != nil {
+		controllerLogger.Errorln("Can`t get username by token", err)
+		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
+		return
+	}
+	bindList, serErr := service.GetBindList(uid)
+	if serErr != nil {
+		controllerLogger.Errorln("GetBindStatus service wrong", serErr)
+		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(serErr)))
+		return
+	}
+	ctx.JSON(http.StatusOK, result.Success(bindList))
+}
