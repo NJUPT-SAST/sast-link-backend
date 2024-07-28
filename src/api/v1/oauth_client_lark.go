@@ -22,14 +22,15 @@ import (
 const (
 	AppAccessTokenURL  = "https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal"
 	UserAccessTokenURL = "https://open.feishu.cn/open-apis/authen/v1/oidc/access_token"
-	UserInfoURL        = "https://open.feishu.cn/open-apis/authen/v1/user_info"
+	UserInfoBasicURL   = "https://open.feishu.cn/open-apis/authen/v1/user_info"
+	UserInfoDetailURL  = "https://open.feishu.cn/open-apis/contact/v3/users/"
 )
 
 var (
 	larkConf = oauth2.Config{
 		ClientID:     config.Config.GetString("oauth.client.lark.id"),
 		ClientSecret: config.Config.GetString("oauth.client.lark.secret"),
-		Scopes:       []string{},
+		Scopes:       []string{"contact:contact.base:readonly", "contact:user.base:readonly", "contact:user.department:readonly", "contact:user.department_path:readonly"},
 		Endpoint:     endpoints.Lark,
 	}
 )
@@ -85,16 +86,20 @@ func OauthLarkCallback(c *gin.Context) {
 
 	userAccessToken := gjson.Get(userAccessTokenBody, "data.access_token").String()
 
-	userInfoBody, err := larkUserInfo(userAccessToken)
+	userInfoBasicBody, err := larkUserInfoBasic(userAccessToken)
 	if err != nil {
-		log.Error("larkUserInfo ::: ", err)
+		log.Error("larkUserInfoBasic ::: ", err)
 		c.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
 		return
 	}
 
-	unionId := gjson.Get(userInfoBody, "data.union_id").Str
+	openId := gjson.Get(userInfoBasicBody, "data.open_id").Str
+	unionId := gjson.Get(userInfoBasicBody, "data.union_id").Str
+
+	userInfoDetailBody, err := larkUserInfoDetail(openId, userAccessToken)
+
 	// save user info in redis (then retrive in login)
-	userInfo := gjson.Get(userInfoBody, "data").String()
+	userInfo := gjson.Get(userInfoDetailBody, "data").String()
 	if err := model.Rdb.Set(c, unionId,
 		userInfo, time.Duration(model.OAUTH_USER_INFO_EXP)).Err(); err != nil {
 		log.Error("model.Rdb.Set ::: ", err)
@@ -207,11 +212,11 @@ func larkUserAccessToken(code string, accessToken string) (string, error) {
 }
 
 // Get userinfo using user_access_token
-func larkUserInfo(userAccessToken string) (string, error) {
+func larkUserInfoBasic(userAccessToken string) (string, error) {
 	header := map[string]string{
 		"Authorization": fmt.Sprintf("Bearer %s", userAccessToken),
 	}
-	res, err := util.GetWithHeader(UserInfoURL, header)
+	res, err := util.GetWithHeader(UserInfoBasicURL, header)
 	if err != nil {
 		log.Error("util.GetWithHeader ::: ", err)
 		return "", result.AccessTokenErr
@@ -224,7 +229,31 @@ func larkUserInfo(userAccessToken string) (string, error) {
 		return "", result.InternalErr
 	}
 	if resCode := gjson.Get(string(body), "code").Int(); resCode != 0 {
-		log.Errorf("larkUserInfo ::: gjson.Get ::: response code: %d\n", resCode)
+		log.Errorf("larkUserInfoBasic ::: gjson.Get ::: response code: %d\n", resCode)
+		return "", fmt.Errorf("OauthLarkCallback resCode: %d", resCode)
+	}
+	return string(body), nil
+}
+
+// get user detail info
+func larkUserInfoDetail(userId string, userAccessToken string) (string, error) {
+	header := map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", userAccessToken),
+	}
+	res, err := util.GetWithHeader(UserInfoDetailURL+userId, header)
+	if err != nil {
+		log.Error("util.GetWithHeader ::: ", err)
+		return "", result.AccessTokenErr
+	}
+
+	body, err := io.ReadAll(res.Body)
+	defer res.Body.Close()
+	if err != nil {
+		log.Error("io.ReadAll ::: ", err)
+		return "", result.InternalErr
+	}
+	if resCode := gjson.Get(string(body), "code").Int(); resCode != 0 {
+		log.Errorf("larkUserInfoDetail ::: gjson.Get ::: response code: %d\n", resCode)
 		return "", fmt.Errorf("OauthLarkCallback resCode: %d", resCode)
 	}
 	return string(body), nil
