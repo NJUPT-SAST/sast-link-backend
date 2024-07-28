@@ -275,3 +275,13 @@ func DealWithFrozenImage(ctx *gin.Context, checkRes *model.CheckRes) error {
 	}
 	return nil
 }
+
+// GetBindList get bind list by uid
+func GetBindList(uid string) ([]string, error) {
+	binds, err := model.GetOauthBindStatusByUID(uid)
+	if err != nil {
+		serviceLogger.Errorln("GetBindList Err,ErrMsg:", err)
+		return nil, err
+	}
+	return binds, nil
+}

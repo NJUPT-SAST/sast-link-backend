@@ -68,6 +68,7 @@ func InitRouter() *gin.Engine {
 	profile := apiV1.Group("/profile")
 	{
 		profile.GET("/getProfile", v1.GetProfile)
+		profile.GET("/bindStatus", v1.BindStatus)
 		profile.POST("/changeProfile", v1.ChangeProfile)
 		profile.POST("/uploadAvatar", v1.UploadAvatar)
 		profile.POST("/changeEmail", v1.ChangeEmail)
