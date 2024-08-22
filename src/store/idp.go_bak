@@ -1,0 +1,191 @@
+package store
+
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/pkg/errors"
+)
+
+type IdentityProviderType string
+
+const (
+	// OAuth2 represents the OAuth2 identity provider type.
+	IDPTypeOAuth2 IdentityProviderType = "OAuth2"
+
+	IDPTypeUnknown IdentityProviderType = "Unknown"
+
+	OAUTH2_GITHUB = "github"
+	OAUTH2_LARK   = "lark"
+)
+
+// IdentityProviderUserInfo represents the identity provider user info.
+//
+// From the identity provider, we can get the user info, such as the identifier, display name, email, etc.
+type IdentityProviderUserInfo struct {
+	Identifier   string
+	IdentifierID string
+	DisplayName  string
+	Email        string
+	Fields       map[string]interface{} // All fields from the identity provider user info.
+}
+
+// IdentityProviderSetting represents the identity provider setting.
+//
+// It container the identity provider setting information, such as the identity provider type, client id, client secret, etc.
+type IdentityProviderSetting struct {
+	Name string
+	Type IdentityProviderType // e.g. OAuth2, OIDC, etc. (Now only support OAuth2)
+
+	// Types that are valid to be assigned to Config:
+	//	*OAuth2Setting
+	Config isidentityProviderConfig
+}
+
+// NewIdentityProvider initializes a new OAuth2 Identity Provider with the given configuration.
+func NewIdentityProvider(name string, idpType IdentityProviderType, config *isidentityProviderConfig) (*IdentityProviderSetting, error) {
+	if idpType != IDPTypeOAuth2 {
+		return nil, errors.Errorf("identity provider type %s is not supported", idpType)
+	}
+
+	oauth2Config, ok := (*config).(*OAuth2Setting)
+	if !ok {
+		return nil, errors.Errorf("invalid identity provider config type %T", *config)
+	}
+	for v, field := range map[string]string{
+		oauth2Config.ClientId:                   "clientId",
+		oauth2Config.ClientSecret:               "clientSecret",
+		oauth2Config.TokenUrl:                   "tokenUrl",
+		oauth2Config.UserInfoUrl:                "userInfoUrl",
+		oauth2Config.FieldMapping["identifier"]: "fieldMapping.identifier",
+	} {
+		if v == "" {
+			return nil, errors.Errorf(`the field "%s" is empty but required`, field)
+		}
+	}
+
+	return &IdentityProviderSetting{
+		Name:   name,
+		Type:   idpType,
+		Config: oauth2Config,
+	}, nil
+}
+
+func (s *IdentityProviderSetting) GetOauth2Setting() *OAuth2Setting {
+	if s, ok := s.Config.(*Oauth2IdentityProvider); ok {
+		return s.config
+	}
+	return nil
+}
+
+// isidentityProviderConfig is an interface that all identity provider config types must implement.
+type isidentityProviderConfig interface {
+	isIdentityProviderConfig()
+}
+
+// Oauth2IdentityProvider represents the OAuth2 identity provider.
+type Oauth2IdentityProvider struct {
+	config *OAuth2Setting
+
+	// ExchangeTokenFunc is the function to exchange the OAuth2 token.
+	ExchangeTokenFunc func(ctx context.Context, redirectURL, code string) (string, error)
+	// UserInfoFunc is the function to get the user info from the identity provider.
+	UserInfoFunc      func(ctx context.Context, accessToken string) (*IdentityProviderUserInfo, error)
+}
+
+func NewOauth2IdentityProvider(idpSetting *IdentityProviderSetting) (*Oauth2IdentityProvider, error) {
+	config := idpSetting.GetOauth2Setting()
+	for v, field := range map[string]string{
+		config.ClientId:                   "clientId",
+		config.ClientSecret:               "clientSecret",
+		config.TokenUrl:                   "tokenUrl",
+		config.UserInfoUrl:                "userInfoUrl",
+		config.FieldMapping["identifier"]: "fieldMapping.identifier",
+	} {
+		if v == "" {
+			return nil, errors.Errorf(`the field "%s" is empty but required`, field)
+		}
+	}
+
+	var exchangeTokenFunc func(ctx context.Context, redirectURL, code string) (string, error)
+	var userInfoFunc func(ctx context.Context, accessToken string) (*IdentityProviderUserInfo, error)
+	switch {
+	case idpSetting.Name == OAUTH2_LARK:
+		exchangeTokenFunc = LarkExchangeToken
+		userInfoFunc = LarkUserInfo
+	default:
+		exchangeTokenFunc = oauth2.ExchangeToken
+		userInfoFunc = oauth2.UserInfo
+	}
+
+	return &Oauth2IdentityProvider{
+		config:            config,
+		ExchangeTokenFunc: exchangeTokenFunc,
+		UserInfoFunc:      userInfoFunc,
+	}, nil
+}
+
+func (o *Oauth2IdentityProvider) GetConfig() *OAuth2Setting {
+	return o.config
+}
+
+// isIdentityProviderConfig is an interface that all identity provider config types must implement.
+func (o *Oauth2IdentityProvider) isIdentityProviderConfig() {}
+
+// ExchangeToken returns the exchanged OAuth2 token using the given authorization code.
+func (o *Oauth2IdentityProvider) ExchangeToken(ctx context.Context, redirectURL, code string) (string, error) {
+	return o.ExchangeTokenFunc(ctx, redirectURL, code)
+}
+
+// UserInfo returns the user info from the identity provider.
+func (o *Oauth2IdentityProvider) UserInfo(ctx context.Context, accessToken string) (*IdentityProviderUserInfo, error) {
+	return o.UserInfoFunc(ctx, accessToken)
+}
+
+// OAuth2Setting represents the OAuth2 setting.
+//
+// It container the OAuth2 setting information, such as the client id, client secret, auth url, etc.
+type OAuth2Setting struct {
+	ClientId     string   `json:"client_id"`
+	ClientSecret string   `json:"client_secret"`
+	AuthUrl      string   `json:"auth_url"`
+	TokenUrl     string   `json:"token_url"`
+	UserInfoUrl  string   `json:"user_info_url"`
+	Scopes       []string `json:"scopes"`
+	// FieldMapping is the mapping between the identity provider user info and the system user info.
+	// eg. {"id": "identifier", "name": "display_name", "email": "email"}, the key is the field name in the identity provider user info,
+	// the value is the field name in the system user info.
+	FieldMapping map[string]string `json:"field_mapping"`
+}
+
+func (c *OAuth2Setting) isIdentityProviderConfig() {}
+
+// ToJSON converts the OAuth2Setting to JSON string.
+func (s *OAuth2Setting) ToJSON() (string, error) {
+	jsonStr, err := json.Marshal(s)
+	if err != nil {
+		return "", err
+	}
+	return string(jsonStr), nil
+}
+
+// FromJSON converts the JSON string to OAuth2Setting.
+func (s *OAuth2Setting) FromJSON(jsonStr string) error {
+	return json.Unmarshal([]byte(jsonStr), s)
+}
+
+func (s *Store) CreateIdentityProvider(idp *IdentityProviderSetting) error {
+	// Check if the identity provider already exists
+	if _, err := s.GetIdentityProviderByName(idp.Name); err == nil {
+		return errors.Errorf("identity provider %s already exists", idp.Name)
+	}
+	return s.db.Table("idp").Create(idp).Error
+}
+
+func (s *Store) GetIdentityProviderByName(name string) (*IdentityProviderSetting, error) {
+	var idp IdentityProviderSetting
+	if err := s.db.Table("idp").Where("name = ?", name).First(&idp).Error; err != nil {
+		return nil, err
+	}
+	return &idp, nil
+}

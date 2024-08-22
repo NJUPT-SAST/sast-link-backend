@@ -1,143 +1,121 @@
 package v1
 
 import (
-	"github.com/NJUPT-SAST/sast-link-backend/model"
-	"github.com/NJUPT-SAST/sast-link-backend/model/result"
-	"github.com/NJUPT-SAST/sast-link-backend/service"
-	"github.com/NJUPT-SAST/sast-link-backend/util"
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"net/http"
+
+	"github.com/NJUPT-SAST/sast-link-backend/http/request"
+	"github.com/NJUPT-SAST/sast-link-backend/http/response"
+	"github.com/NJUPT-SAST/sast-link-backend/log"
+	"github.com/NJUPT-SAST/sast-link-backend/store"
+	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 )
 
-func GetProfile(ctx *gin.Context) {
-	token := ctx.GetHeader("TOKEN")
-	if token == "" {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
-		return
-	}
-	uid, err := util.IdentityFromToken(token, model.LOGIN_TOKEN_SUB)
-	if uid == "" || err != nil {
-		controllerLogger.Errorln("Can`t get username by token", err)
-		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
-		return
+func (s *APIV1Service) GetProfile(c echo.Context) error {
+	studentID := request.GetUsername(c.Request())
+	if studentID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
 
-	profileInfo, serErr := service.GetProfileInfo(uid)
+	profileInfo, serErr := s.ProfileService.GetProfileInfo(studentID)
 	if serErr != nil {
-		controllerLogger.Errorln("GetProfile service wrong", serErr)
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(serErr)))
-		return
+		log.Errorf("GetProfile service wrong: %s", serErr.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
 	}
-	if dep, org, getOrgErr := service.GetProfileOrg(profileInfo.OrgId); getOrgErr != nil {
-		controllerLogger.Errorln("GetProfileOrg Err", getOrgErr)
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(getOrgErr)))
-		return
-	} else {
-		ctx.JSON(http.StatusOK, result.Success(gin.H{
-			"nickname": profileInfo.Nickname,
-			"dep":      dep,
-			"org":      org,
-			"email":    profileInfo.Email,
-			"avatar":   profileInfo.Avatar,
-			"bio":      profileInfo.Bio,
-			"link":     profileInfo.Link,
-			"badge":    profileInfo.Badge,
-			"hide":     profileInfo.Hide,
-		}))
-		return
+	dep, org, getOrgErr := s.GetProfileOrg(profileInfo.OrgId)
+	if getOrgErr != nil {
+		log.Errorf("GetProfileOrg service wrong: %s", getOrgErr.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
 	}
-}
-func ChangeProfile(ctx *gin.Context) {
-	token := ctx.GetHeader("TOKEN")
-	if token == "" {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
-		return
+	profileMap := map[string]interface{}{
+		"nickname": profileInfo.Nickname,
+		"dep":      dep,
+		"org":      org,
+		"email":    profileInfo.Email,
+		"avatar":   profileInfo.Avatar,
+		"bio":      profileInfo.Bio,
+		"link":     profileInfo.Link,
+		"badge":    profileInfo.Badge,
+		"hide":     profileInfo.Hide,
 	}
-
-	uid, err := util.IdentityFromToken(token, model.LOGIN_TOKEN_SUB)
-	if uid == "" || err != nil {
-		controllerLogger.Errorln("Can`t get username by token", err)
-		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
-		return
-	}
-
-	//get profile info from body
-	profile := model.Profile{}
-	if err = ctx.ShouldBindBodyWith(&profile, binding.JSON); err != nil {
-		controllerLogger.Errorln("get profile from request body wrong", err)
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
-		return
-	}
-
-	if serviceErr := service.ChangeProfile(&profile, uid); serviceErr != nil {
-		controllerLogger.Errorln("ChangeProfile service wrong", serviceErr)
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(serviceErr)))
-		return
-	}
-	ctx.JSON(http.StatusOK, result.Success(nil))
+	return c.JSON(http.StatusOK, response.Success(profileMap))
 }
 
-func UploadAvatar(ctx *gin.Context) {
-	token := ctx.GetHeader("TOKEN")
-	if token == "" {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
-		return
+func (s *APIV1Service) ChangeProfile(c echo.Context) error {
+	studentID := request.GetUsername(c.Request())
+	if studentID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
 
-	uid, err := util.IdentityFromToken(token, model.LOGIN_TOKEN_SUB)
-	if uid == "" || err != nil {
-		controllerLogger.Errorln("Can`t get username by token", err)
-		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
-		return
+	// Get profile info from body
+	profile := store.Profile{}
+	if err := c.Bind(&profile); err != nil {
+		log.Errorf("Bind profile error: %s", err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
 
-	//obtain avatar file from body
-	avatar, err := ctx.FormFile("avatarFile")
+	if serviceErr := s.ProfileService.ChangeProfile(&profile, studentID); serviceErr != nil {
+		log.Errorf("ChangeProfile service wrong: %s", serviceErr.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
+	}
+
+	return c.JSON(http.StatusOK, response.Success(nil))
+}
+
+func (s *APIV1Service) UploadAvatar(c echo.Context) error {
+	studentID := request.GetUsername(c.Request())
+	if studentID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
+	}
+
+	ctx := c.Request().Context()
+
+	// Obtain avatar file from body
+	avatar, err := c.FormFile("avatarFile")
 	if err != nil || avatar == nil {
-		controllerLogger.Errorln("get avatarFile Error", err)
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
-		return
-	}
-	filePath, uploadSerErr := service.UploadAvatar(avatar, uid, ctx)
-	if uploadSerErr != nil {
-		controllerLogger.Errorln("uploadAvatar Error", err)
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
-		return
+		log.Errorf("Get avatar file error: %s", err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
 
-	ctx.JSON(http.StatusOK, result.Success(filePath))
+	filePath, uploadSerErr := s.ProfileService.UploadAvatar(avatar, studentID, ctx)
+	if uploadSerErr != nil {
+		log.Errorf("UploadAvatar service wrong: %s", uploadSerErr.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
+	}
+
+	return c.JSON(http.StatusOK, response.Success(filePath))
 }
+
+// TODO: Implement the following functions
 func ChangeEmail(ctx *gin.Context) {
 	ctx.JSON(200, "success")
 }
 
-func DealCensorRes(ctx *gin.Context) {
-	if header := ctx.GetHeader("X-Ci-Content-Version"); header != "Simple" {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
-		return
-	}
-	checkRes := model.CheckRes{}
-	if err := ctx.ShouldBind(&checkRes); err != nil {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
-		return
+func (s *APIV1Service) DealCensorRes(c echo.Context) error {
+	ctx := c.Request().Context()
+	if header := c.Response().Header().Get("X-Ci-Content-Version"); header != "Simple" {
+		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
 
-	// judge if picture review fail or need manual re-review and sent to feishu bot
-	sentMsgErr := service.SentMsgToBot(&checkRes)
+	checkRes := store.CheckRes{}
+	if err := c.Bind(&checkRes); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
+	}
+
+	// Judge if picture review fail or need manual re-review and sent to feishu bot
+	sentMsgErr := s.ProfileService.SentMsgToBot(&checkRes)
 	if sentMsgErr != nil {
-		controllerLogger.Errorln("sent fail msg to feishu bot wrong", sentMsgErr)
-		ctx.JSON(http.StatusOK, result.Failed(result.SentMsgToBotErr))
-		return
+		log.Errorf("SentMsgToBot service wrong: %s", sentMsgErr.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
 	}
 
-	// mv frozen image and replace database url
+	// Mv frozen image and replace database url
 	if checkRes.Data.ForbiddenStatus == 1 {
-		if err := service.DealWithFrozenImage(ctx, &checkRes); err != nil {
-			controllerLogger.Errorln("deal image wrong", err)
-			ctx.JSON(http.StatusOK, result.Failed(result.DealFrozenImgErr))
-			return
+		if err := s.DealWithFrozenImage(ctx, &checkRes); err != nil {
+			log.Errorf("DealWithFrozenImage service wrong: %s", err.Error())
+			return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
 		}
 	}
-	ctx.JSON(http.StatusOK, result.Success(nil))
+
+	return c.JSON(http.StatusOK, response.Success(nil))
 }

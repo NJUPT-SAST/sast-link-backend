@@ -1,45 +1,53 @@
 package service
 
 import (
+	"context"
 	"regexp"
 	"strings"
 
 	"github.com/redis/go-redis/v9"
 
+	"github.com/NJUPT-SAST/sast-link-backend/http/request"
+	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
-	"github.com/NJUPT-SAST/sast-link-backend/model"
-	"github.com/NJUPT-SAST/sast-link-backend/model/result"
+	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
+	"github.com/NJUPT-SAST/sast-link-backend/validator"
 	"github.com/gin-gonic/gin"
 	_ "github.com/redis/go-redis/v9"
 )
 
-var serviceLogger = log.Log
-
-// password can just contain ascii character
-func CheckPasswordFormat(password string) bool {
-	passReg := regexp.MustCompile(`^[a-zA-Z0-9!@#$%^&*()_=+]{6,32}$`)
-	return passReg.MatchString(password)
+type UserService struct {
+	*BaseService
 }
 
-func CreateUserAndProfile(email string, password string) error {
-	// split email with @
+func NewUserService(store *BaseService) *UserService {
+	return &UserService{store}
+}
+
+// CreateUserAndProfile will create a new user and profile.
+//
+// The password will be hash in this function.
+func (s *UserService) CreateUserAndProfile(email, password string) error {
+	// Split email with @
 	split := regexp.MustCompile(`@`)
 	uid := split.Split(email, 2)[0]
+	// Lowercase the uid
 	uid = strings.ToLower(uid)
 
-	if !CheckPasswordFormat(password) {
-		return result.PasswordIllegal
+	if !validator.ValidatePassword(password) {
+		return response.PasswordIllegal
 	}
+
 	var err error
-	//encrypt password
+	// Encrypt password
 	pwdEncrypt := util.ShaHashing(password)
 
-	err = model.CreateUserAndProfile(&model.User{
+	err = s.Store.CreateUserAndProfile(&store.User{
 		Email:    &email,
 		Password: &pwdEncrypt,
 		Uid:      &uid,
-	}, &model.Profile{
+	}, &store.Profile{
 		Nickname: &uid,
 		Email:    &email,
 		OrgId:    -1,
@@ -52,232 +60,218 @@ func CreateUserAndProfile(email string, password string) error {
 	}
 }
 
-// In VerifyAccountRegister and VerifyAccountResetPWD, the username must be email
-// In VerifyAccountLogin, the username can be email or uid
-func VerifyAccount(ctx *gin.Context, username, flag string) (string, error) {
-	// 0 is register
-	// 1 is login
-	// 2 is resetPassword
-	if flag == "0" {
-		log.Log.Debugf("[%s] enter register verify\n", username)
-		return VerifyAccountRegister(ctx, username)
-	} else if flag == "1" {
-		log.Log.Debugf("[%s] enter login verify\n", username)
-		return VerifyAccountLogin(ctx, username)
-	} else if flag == "2" {
-		log.Log.Debugf("[%s] enter resetPWD verify\n", username)
-		return VerifyAccountResetPWD(ctx, username)
-	} else {
-		return "", result.RequestParamError
+// VerifyAccount handles account verification based on the operation flag
+func (s *UserService) VerifyAccount(ctx context.Context, username string, flag int) (string, error) {
+	switch flag {
+	case 0: // Register
+		log.Debugf("[%s] enter register verify\n", username)
+		return s.processRegistration(ctx, username)
+	case 1: // Login
+		log.Debugf("[%s] enter login verify\n", username)
+		return s.processLogin(ctx, username)
+	case 2: // Reset Password
+		log.Debugf("[%s] enter resetPWD verify\n", username)
+		return s.processPasswordReset(ctx, username)
+	default:
+		return "", response.RequestParamError
 	}
 }
 
-// This username is email
-func VerifyAccountResetPWD(ctx *gin.Context, username string) (string, error) {
-	// verify if the user email correct
-	matched, _ := regexp.MatchString("^[BPFQbpfq](1[7-9]|2[0-9])([0-3])\\d{5}@njupt.edu.cn$", username)
-	if !matched {
-		return "", result.UserEmailError
+// processRegistration handles the account registration verification
+func (s *UserService) processRegistration(ctx context.Context, username string) (string, error) {
+	if user, err := s.VerifyAccountRegister(ctx, username); err != nil || user != nil {
+		return "", err
 	}
-	// check if the user is exist
-	user, err := model.UserByField("email", username)
+
+	ticket, err := util.GenerateTokenWithExp(ctx, request.RegisterJWTSubKey(username), s.Config.Secret, request.REGISTER_TICKET_EXP)
 	if err != nil {
 		return "", err
 	}
 
-	// User exist and try to reset password
-	if user != nil {
-		ticket, err := util.GenerateTokenWithExp(ctx, model.ResetPwdJWTSubKey(username), model.RESETPWD_TICKET_EXP)
-		if err != nil {
-			return "", err
-		}
-		model.Rdb.Set(ctx, ticket, model.VERIFY_STATUS["VERIFY_ACCOUNT"], model.RESETPWD_TICKET_EXP)
-		return ticket, err
-	} else {
-		// user not exist	and can`t resetPWD
-		return "", result.UserNotExist
-	}
-}
-
-// This function is used to verify the user's email is exist or not when register
-// This username is email
-func VerifyAccountRegister(ctx *gin.Context, username string) (string, error) {
-	// verify if the user email correct
-	matched, _ := regexp.MatchString("^[BPFQbpfq](1[7-9]|2[0-9])([0-3])\\d{5}@njupt.edu.cn$", username)
-	if !matched {
-		return "", result.UserEmailError
-	}
-	// check if the user is exist
-	user, err := model.UserByField("email", username)
-	if err != nil {
+	if err := s.Store.Set(ctx, ticket, request.VERIFY_STATUS["VERIFY_ACCOUNT"], request.REGISTER_TICKET_EXP); err != nil {
 		return "", err
 	}
-	// user is exist and can't register
-	if user != nil {
-		return "", result.UserIsExist
-	} else {
-		// user is not exist and can register
-		// generate token and set expire time
-		ticket, err := util.GenerateTokenWithExp(ctx, model.RegisterJWTSubKey(username), model.REGISTER_TICKET_EXP)
-		if err != nil {
-			return "", err
-		}
-		// set token to redis
-		model.Rdb.Set(ctx, ticket, model.VERIFY_STATUS["VERIFY_ACCOUNT"], model.REGISTER_TICKET_EXP)
-		return ticket, err
-	}
+
+	return ticket, nil
 }
 
-// This function is used to verify the user's email is exist or not when login
-// This username is email or uid
-func VerifyAccountLogin(ctx *gin.Context, username string) (string, error) {
-	var user *model.User
-	user, err := model.UserByField("email", username)
+// processLogin handles the account login verification
+func (s *UserService) processLogin(ctx context.Context, username string) (string, error) {
+	user, err := s.VerifyAccountLogin(ctx, username);
 	if err != nil || user == nil {
-		return "", result.UserNotExist
+		return "", err
+	}
+
+	ticket, err := util.GenerateTokenWithExp(ctx, request.LoginTicketJWTSubKey(*user.Uid), s.Config.Secret, request.LOGIN_TICKET_EXP)
+	if err != nil {
+		return "", err
+	}
+
+	if err := s.Store.Set(ctx, request.LoginTicketKey(*user.Uid), ticket, request.LOGIN_TICKET_EXP); err != nil {
+		return "", err
+	}
+
+	return ticket, nil
+}
+
+// processPasswordReset handles the account password reset verification
+func (s *UserService) processPasswordReset(ctx context.Context, username string) (string, error) {
+	if user, err := s.VerifyAccountResetPWD(ctx, username); err != nil || user == nil {
+		return "", err
+	}
+
+	ticket, err := util.GenerateTokenWithExp(ctx, request.ResetPwdJWTSubKey(username), s.Config.Secret, request.RESETPWD_TICKET_EXP)
+	if err != nil {
+		return "", err
+	}
+
+	if err := s.Store.Set(ctx, ticket, request.VERIFY_STATUS["VERIFY_ACCOUNT"], request.RESETPWD_TICKET_EXP); err != nil {
+		return "", err
+	}
+
+	return ticket, nil
+}
+
+// VerifyAccountResetPWD verifies if the user's email is valid for password reset
+func (s *UserService) VerifyAccountResetPWD(ctx context.Context, username string) (*store.User, error) {
+	return s.verifyUserByEmail(ctx, username)
+}
+
+// VerifyAccountRegister verifies if the user's email is valid for registration
+func (s *UserService) VerifyAccountRegister(ctx context.Context, username string) (*store.User, error) {
+	return s.verifyUserByEmail(ctx, username)
+}
+
+// VerifyAccountLogin verifies if the user's email or UID is valid for login
+func (s *UserService) VerifyAccountLogin(ctx context.Context, username string) (*store.User, error) {
+	if strings.Contains(username, "@") {
+		return s.verifyUserByEmail(ctx, username)
+	}
+	return s.Store.UserByField("uid", username)
+}
+
+// verifyUserByEmail verifies if the user's email is valid
+func (s *UserService) verifyUserByEmail(ctx context.Context, email string) (*store.User, error) {
+	if !validator.ValidateEmail(email) {
+		return nil, response.UserEmailError
+	}
+
+	user, err := s.Store.UserByField("email", email)
+	if err != nil {
+		return nil, err
 	}
 
 	if user == nil {
-		user, err := model.UserByField("uid", username)
-		if err != nil || user == nil {
-			return "", result.UserNotExist
-		}
+		return nil, response.UserNotExist
 	}
 
-	ticket, err := util.GenerateTokenWithExp(ctx, model.LoginTicketJWTSubKey(*user.Uid), model.LOGIN_TICKET_EXP)
-	if err != nil || ticket == "" {
-		return "", err
-	}
-	model.Rdb.Set(ctx, model.LoginTicketKey(*user.Uid), ticket, model.LOGIN_TICKET_EXP)
-	return ticket, err
+	return user, nil
 }
 
-func Login(username string, password string) (string, error) {
+func (s *UserService) Login(username string, password string) (string, error) {
 	// Check password
-	uid, err := model.CheckPassword(username, password)
+	uid, err := s.Store.CheckPassword(username, password)
 	return uid, err
 }
 
-func ModifyPassword(ctx *gin.Context, username, oldPassword, newPassword string) error {
+func (s *UserService) ModifyPassword(ctx context.Context, username, oldPassword, newPassword string) error {
 	// Check password
-	uid, err := model.CheckPassword(username, oldPassword)
+	uid, err := s.Store.CheckPassword(username, oldPassword)
 	if err != nil {
 		return err
 	}
 
 	if uid == "" {
-		return result.VerifyAccountError
+		return response.PasswordError
 	}
-	pErr := model.ChangePassword(uid, newPassword)
+	pErr := s.Store.ChangePassword(uid, newPassword)
 	if pErr != nil {
 		return pErr
 	}
 	return nil
 }
 
-func ResetPassword(username, newPassword string) error {
+func (s *UserService) ResetPassword(username, newPassword string) error {
 	// Check password form
-	if !CheckPasswordFormat(newPassword) {
-		return result.PasswordIllegal
+	if !validator.ValidatePassword(newPassword) {
+		return response.PasswordIllegal
 	}
 
 	split := regexp.MustCompile(`@`)
 	uid := split.Split(username, 2)[0]
 	uid = strings.ToLower(uid)
 
-	cErr := model.ChangePassword(uid, newPassword)
+	cErr := s.Store.ChangePassword(uid, newPassword)
 	if cErr != nil {
 		return cErr
 	}
 	return nil
 }
 
-func UserInfo(ctx *gin.Context) (*model.User, error) {
-	token := ctx.GetHeader("TOKEN")
-	nilUser := &model.User{}
-	uid, err := util.IdentityFromToken(token, model.LOGIN_TOKEN_SUB)
-	if err != nil {
-		return nilUser, err
-	}
-
-	rToken, err := model.Rdb.Get(ctx, model.LoginTokenKey(uid)).Result()
-	if err != nil {
-		if err == redis.Nil {
-			return nilUser, result.TokenError
-		}
-		return nilUser, err
-	}
-
-	if rToken == "" || rToken != token {
-		return nilUser, result.TokenError
-	}
-
-	return model.UserInfo(uid)
+func (s *UserService) UserInfo(ctx context.Context, studentID string) (*store.User, error) {
+	return s.Store.UserInfo(studentID)
 }
 
-func SendEmail(ctx *gin.Context, username, ticket, title string) error {
-	val, err := model.Rdb.Get(ctx, ticket).Result()
+func (s *UserService) SendEmail(ctx context.Context, username, ticket, title string) error {
+	val, err := s.Store.Get(ctx, ticket)
 	if err != nil {
-		// key does not exists
+		// Key does not exists
 		if err == redis.Nil {
-			return result.CheckTicketNotfound
+			return response.CheckTicketNotfound
 		}
 		return err
 	}
 
 	// Determine if the ticket is correct
-	if val != model.VERIFY_STATUS["VERIFY_ACCOUNT"] {
-		return result.TicketNotCorrect
+	if val != request.VERIFY_STATUS["VERIFY_ACCOUNT"] {
+		return response.TicketNotCorrect
 	}
-	code := model.GenerateVerifyCode()
-	model.Rdb.Set(ctx, model.VerifyCodeKey(username), code, model.VERIFY_CODE_EXP)
-	content := model.InsertCode(code)
-	emailErr := model.SendEmail(username, content, title)
+	code := store.GenerateVerifyCode()
+	s.Store.Set(ctx, request.VerifyCodeKey(username), code, request.VERIFY_CODE_EXP)
+	content := store.InsertCode(code)
+	emailErr := s.Store.SendEmail(ctx, username, content, title)
 	if emailErr != nil {
 		return emailErr
 	}
-	serviceLogger.Infof("Send Email to [%s] with code [%s]\n", username, code)
+	log.Infof("Send Email to [%s] with code [%s]\n", username, code)
 	// Update the status of the ticket
-	model.Rdb.Set(ctx, ticket, model.VERIFY_STATUS["SEND_EMAIL"], model.REGISTER_TICKET_EXP)
+	s.Store.Set(ctx, ticket, request.VERIFY_STATUS["SEND_EMAIL"], request.REGISTER_TICKET_EXP)
 	return nil
 }
 
-func CheckVerifyCode(ctx *gin.Context, ticket, code, flag string) error {
-	status, err := model.Rdb.Get(ctx, ticket).Result()
+func (s *UserService) CheckVerifyCode(ctx context.Context, ticket, code, flag, username string) error {
+	status, err := s.Store.Get(ctx, ticket)
 	if err != nil {
 		if err == redis.Nil {
-			return result.CheckTicketNotfound
+			return response.CheckTicketNotfound
 		}
 		return err
 	}
-	if status != model.VERIFY_STATUS["SEND_EMAIL"] {
-		return result.TicketNotCorrect
-	}
-	username, uErr := util.IdentityFromToken(ticket, flag)
-	if uErr != nil {
-		return uErr
+	if status != request.VERIFY_STATUS["SEND_EMAIL"] {
+		return response.TicketNotCorrect
 	}
 
-	rCode, cErr := model.Rdb.Get(ctx, model.VerifyCodeKey(username)).Result()
+	rCode, cErr := s.Store.Get(ctx, request.VerifyCodeKey(username))
 	if cErr != nil {
 		if cErr == redis.Nil {
-			return result.CaptchaError
+			return response.CaptchaError
 		}
 		return cErr
 	}
 
 	if code != rCode {
-		return result.CaptchaError
+		return response.CaptchaError
 	}
 
 	// Update the status of the ticket
-	model.Rdb.Set(ctx, ticket, model.VERIFY_STATUS["VERIFY_CAPTCHA"], model.REGISTER_TICKET_EXP)
+	s.Store.Set(ctx, ticket, request.VERIFY_STATUS["VERIFY_CAPTCHA"], request.REGISTER_TICKET_EXP)
 	return nil
 }
 
-func CheckToken(ctx *gin.Context, key, token string) bool {
-	val, err := model.Rdb.Get(ctx, key).Result()
+func (s *UserService) CheckToken(ctx *gin.Context, key, token string) bool {
+	val, err := s.Store.Get(ctx, key)
 	if err != nil {
+		log.Errorf("CheckToken error: %s", err.Error())
 		return false
 	}
 	if val != token {

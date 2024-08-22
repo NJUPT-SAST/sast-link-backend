@@ -6,25 +6,22 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
-	"github.com/NJUPT-SAST/sast-link-backend/config"
-	"github.com/NJUPT-SAST/sast-link-backend/model/result"
+	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 )
 
-var (
-	utilLogger    = log.Log
-	jwtSigningKey = config.Config.Sub("jwt").GetString("signing_key")
+const (
+	Issuer = "sast"
 )
 
 // GenerateToken
 // token expireTime : not set, do this with redis
-func GenerateToken(username string) (string, error) {
+func GenerateToken(username, jwtSigningKey string) (string, error) {
 	claims := jwt.RegisteredClaims{
 		// expires at 3 hours
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 3)),
@@ -42,36 +39,33 @@ func GenerateToken(username string) (string, error) {
 
 // GenerateToken with expireTime
 // identifier is something like `username-loginTicket` or `oauthIdentity-oauthLarkToken`
-func GenerateTokenWithExp(ctx context.Context, identifier string, expireTime time.Duration) (string, error) {
+func GenerateTokenWithExp(ctx context.Context, identifier, jwtSigningKey string, expireTime time.Duration) (string, error) {
 	signingKey := []byte(jwtSigningKey)
 	gen := NewJWTAccessGenerate("", signingKey, jwt.SigningMethodHS256)
 	access, _, err := gen.Token(ctx, identifier, expireTime, false)
 	return access, err
 }
 
-func ParseToken(token string) (*JWTAccessClaims, error) {
+func ParseToken(token, jwtSigningKey string) (*JWTAccessClaims, error) {
 	tokenClaims, err := jwt.ParseWithClaims(token, &JWTAccessClaims{}, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			utilLogger.Error(token + "-pasefail")
-			return nil, result.AuthParseTokenFail
+			return nil, response.AuthParseTokenFail
 		}
 		return []byte(jwtSigningKey), nil
 	})
 	if err != nil {
-		utilLogger.Error(token + "-pasefail-" + "msg:" + err.Error())
-		return nil, result.AuthParseTokenFail
+		return nil, response.AuthParseTokenFail
 	}
 
 	if claims, ok := tokenClaims.Claims.(*JWTAccessClaims); ok && tokenClaims.Valid {
 		return claims, nil
 	} else {
-		utilLogger.Error(token + "-pasefail-" + "msg:" + err.Error())
-		return nil, result.AuthParseTokenFail
+		return nil, response.AuthParseTokenFail
 	}
 }
 
-func RefreshToken(token string) (string, error) {
-	claims, err := ParseToken(token)
+func RefreshToken(token, jwtSigningKey string) (string, error) {
+	claims, err := ParseToken(token, jwtSigningKey)
 	if err != nil {
 		return "", err
 	}
@@ -84,8 +78,8 @@ func RefreshToken(token string) (string, error) {
 }
 
 // TokenAudience get `Audience` field(information about user/oauth...) from claims
-func TokenAudience(token string) (audience []string, err error) {
-	claims, err := ParseToken(token)
+func TokenAudience(token, jwtSigningKey string) (audience []string, err error) {
+	claims, err := ParseToken(token, jwtSigningKey)
 	if err != nil {
 		return
 	}
@@ -99,22 +93,24 @@ func TokenAudience(token string) (audience []string, err error) {
 // IdentityFromToken return identity(now "username"/"union_id")
 //
 // flag: verify token type
-func IdentityFromToken(token, flag string) (string, error) {
-	audience, err := TokenAudience(token)
+func IdentityFromToken(token, flag, jwtSigningKey string) (string, error) {
+	audience, err := TokenAudience(token, jwtSigningKey)
 	if err != nil {
 		return "", err
 	}
 	identifiers := strings.Split(audience[0], "-")
 	identity, tokenType := identifiers[0], identifiers[1]
 	if identity == "" || flag != tokenType {
-		return "", result.TicketNotCorrect
+		return "", response.TicketNotCorrect
 	}
 	return strings.ToLower(identity), err
 }
 
-// GetUsername flag: verify token type
-func GetUsername(token, flag string) (string, error) {
-	claims, err := ParseToken(token)
+// GetUsername
+//
+// flag: verify token type
+func GetUsername(token, flag, jwtSigningKey string) (string, error) {
+	claims, err := ParseToken(token, jwtSigningKey)
 	if err != nil {
 		return "", err
 	}
@@ -132,7 +128,7 @@ func GetUsername(token, flag string) (string, error) {
 	reg := strings.Split(username[0], "-")
 	uid, err := reg[0], nil
 	if reg[1] != "" && flag != "" && flag != reg[1] {
-		return "", result.TicketNotCorrect
+		return "", response.TicketNotCorrect
 	}
 	return strings.ToLower(uid), err
 }
@@ -151,7 +147,7 @@ type JWTAccessGenerate struct {
 
 func (a *JWTAccessClaims) Valid() error {
 	if time.Unix(a.ExpiresAt.Unix(), 0).Before(time.Now()) {
-		return result.InvalidAccToken
+		return response.InvalidAccToken
 	}
 	return nil
 }

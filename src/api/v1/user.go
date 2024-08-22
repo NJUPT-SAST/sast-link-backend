@@ -2,356 +2,90 @@ package v1
 
 import (
 	"net/http"
-	"regexp"
-	"strings"
 
-	"github.com/NJUPT-SAST/sast-link-backend/model"
-
+	"github.com/NJUPT-SAST/sast-link-backend/http/request"
+	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
-	"github.com/NJUPT-SAST/sast-link-backend/model/result"
-	"github.com/NJUPT-SAST/sast-link-backend/service"
-	"github.com/NJUPT-SAST/sast-link-backend/util"
-	"github.com/gin-gonic/gin"
-
-	"gorm.io/datatypes"
+	"github.com/labstack/echo/v4"
 )
 
-var controllerLogger = log.Log
-
-func Register(ctx *gin.Context) {
-	// get Body from request
-	password, passwordFlag := ctx.GetPostForm("password")
-	if !passwordFlag {
-		ctx.JSON(http.StatusOK, result.Failed(result.RequestParamError))
-		return
-	}
-	if password == "" {
-		ctx.JSON(http.StatusOK, result.Failed(result.PasswordError))
-		return
-	}
-
-	ticket := ctx.GetHeader("REGISTER-TICKET")
-
-	currentPhase, _ := model.Rdb.Get(ctx, ticket).Result()
-	// check which phase current in
-	switch currentPhase {
-	case model.VERIFY_STATUS["VERIFY_ACCOUNT"], model.VERIFY_STATUS["SEND_EMAIL"]:
-		ctx.JSON(http.StatusOK, result.Failed(result.RegisterPhaseError))
-		return
-	case model.VERIFY_STATUS["SUCCESS"]:
-		ctx.JSON(http.StatusOK, result.Failed(result.UserAlreadyExist))
-		return
-	case "":
-		ctx.JSON(http.StatusOK, result.Failed(result.CheckTicketNotfound))
-		return
-	}
-
-	username, usernameErr := util.IdentityFromToken(ticket, model.REGIST_TICKET_SUB)
-	if usernameErr != nil {
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(usernameErr)))
-		return
-	}
-
-	creErr := service.CreateUserAndProfile(username, password)
-	if creErr != nil {
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(creErr)))
-		return
-	}
-	ctx.JSON(http.StatusOK, result.Success(nil))
-	// set VERIFY_STATUS to 3 if successes
-	model.Rdb.Set(ctx, ticket, model.VERIFY_STATUS["SUCCESS"], model.REGISTER_TICKET_EXP)
-}
-
-func CheckVerifyCode(ctx *gin.Context) {
-	code, codeFlag := ctx.GetPostForm("captcha")
-	var ticket, flag string
-	if ctx.GetHeader("REGISTER-TICKET") != "" {
-		ticket = ctx.GetHeader("REGISTER-TICKET")
-		flag = model.REGIST_TICKET_SUB
-	} else if ctx.GetHeader("RESETPWD-TICKET") != "" {
-		ticket = ctx.GetHeader("RESETPWD-TICKET")
-		flag = model.RESETPWD_TICKET_SUB
-	} else {
-		ctx.JSON(http.StatusOK, result.Failed(result.RequestParamError))
-	}
-
-	if !codeFlag {
-		ctx.JSON(http.StatusOK, result.Failed(result.RequestParamError))
-		return
-	}
-
-	codeError := service.CheckVerifyCode(ctx, ticket, code, flag)
-	if codeError != nil {
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(codeError)))
-		return
-	}
-	ctx.JSON(http.StatusOK, result.Success(nil))
-}
-
-func UserInfo(ctx *gin.Context) {
-	user, err := service.UserInfo(ctx)
+// USerInfo returns the user information of the current user
+func (s *APIV1Service) UserInfo(c echo.Context) error {
+	ctx := c.Request().Context()
+	studentID := request.GetUsername(c.Request())
+	user, err := s.UserService.UserInfo(ctx, studentID)
 	if err != nil {
-		controllerLogger.Errorf("user token error: %s", err.Error())
-		//ctx.JSON(http.StatusOK, result.Failed(result.GetUserinfoFail))
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleErrorWithArgu(err, result.GetUserinfoFail)))
-		return
+		log.Errorf("User token error: %s", err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
 	}
 
-	ctx.JSON(http.StatusOK, result.Success(gin.H{
+	mapUser := map[string]interface{}{
 		"email":  user.Email,
 		"userId": user.Uid,
-	}))
-}
-
-func SendEmail(ctx *gin.Context) {
-	// Get TICKET from header
-	var ticket, flag string
-	if ctx.GetHeader("REGISTER-TICKET") != "" {
-		ticket = ctx.GetHeader("REGISTER-TICKET")
-		flag = model.REGIST_TICKET_SUB
-	} else if ctx.GetHeader("RESETPWD-TICKET") != "" {
-		ticket = ctx.GetHeader("RESETPWD-TICKET")
-		flag = model.RESETPWD_TICKET_SUB
-	} else {
-		ctx.JSON(http.StatusOK, result.Failed(result.RequestParamError))
-		return
 	}
-
-	username, usernameErr := util.IdentityFromToken(ticket, flag)
-	// 错误处理机制写玉玉了
-	// 我开始乱写了啊啊啊啊
-	if usernameErr != nil {
-		controllerLogger.Errorf("username parse error: %s", usernameErr.Error())
-		ctx.JSON(http.StatusUnauthorized, result.Failed(result.HandleErrorWithArgu(usernameErr, result.TicketNotCorrect)))
-		return
-	}
-	// verify if the user email correct
-	matched, _ := regexp.MatchString("^[BPFQbpfq](1[7-9]|2[0-9])([0-3])\\d{5}@njupt.edu.cn$", username)
-	if !matched {
-		ctx.JSON(http.StatusOK, result.Failed(result.UserEmailError))
-		return
-	}
-
-	var title string
-	if flag == model.REGIST_TICKET_SUB {
-		title = "确认电子邮件注册SAST-Link账户（无需回复）"
-	} else {
-		title = "确认电子邮件重置SAST-Link账户密码（无需回复）"
-	}
-	err := service.SendEmail(ctx, username, ticket, title)
-	if err != nil {
-		controllerLogger.Errorf("send email fail: %s", usernameErr.Error())
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
-	} else {
-		ctx.JSON(http.StatusOK, result.Success(nil))
-	}
-}
-
-func VerifyAccount(ctx *gin.Context) {
-	username := ctx.Query("username")
-	// Capitalize the username
-	username = strings.ToLower(username)
-
-	flag := ctx.Query("flag")
-	tKey := ""
-	// 0 is register
-	// 1 is login
-	// 2 is resetPassword
-	if flag == "0" {
-		tKey = model.REGIST_TICKET_SUB
-	} else if flag == "1" {
-		tKey = model.LOGIN_TICKET_SUB
-	} else if flag == "2" {
-		tKey = model.RESETPWD_TICKET_SUB
-	} else {
-		ctx.JSON(http.StatusOK, result.Failed(result.RequestParamError))
-		return
-	}
-
-	ticket, err := service.VerifyAccount(ctx, username, flag)
-	if err != nil {
-		controllerLogger.Errorf("verify account fail: %s", err.Error())
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
-		return
-	}
-	ctx.JSON(http.StatusOK, result.Success(gin.H{tKey: ticket}))
-}
-
-func Login(ctx *gin.Context) {
-	// LOGIN-TICKET just save username etc...
-	// not used for login authentication
-	// confused though...
-	ticket := ctx.GetHeader("LOGIN-TICKET")
-	password := ctx.PostForm("password")
-	if ticket == "" {
-		ctx.JSON(http.StatusOK, result.Failed(result.CheckTicketNotfound))
-		return
-	}
-	if password == "" {
-		ctx.JSON(http.StatusOK, result.Failed(result.PasswordEmpty))
-		return
-	}
-
-	// Get username from ticket
-	username, err := util.IdentityFromToken(ticket, model.LOGIN_TICKET_SUB)
-	if err != nil || username == "" {
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleErrorWithArgu(err, result.TicketNotCorrect)))
-		return
-	}
-
-	uid, err := service.Login(username, password)
-	if err != nil {
-		controllerLogger.Errorf("login fail: %s", err.Error())
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, result.Failed(result.HandleErrorWithArgu(err, result.VerifyPasswordError)))
-		return
-	}
-	if uid == "" {
-		ctx.JSON(http.StatusOK, result.Failed(result.VerifyAccountError))
-		return
-	}
-
-	// Oauth: check if need to bound oauth servers like lark, github...
-	// TODO: use cookie to manage ticket etc...
-	oauthTicket := ctx.Request.Header.Get("OAUTH-TICKET")
-	if oauthTicket != "" {
-		log.Log.Debugf("Login ::: Header ::: OAUTH-TICKET ::: %v\n", oauthTicket)
-
-		audience, err := util.TokenAudience(oauthTicket)
-		if err != nil {
-			ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
-			log.Log.Errorln("util.TokenAudience ::: ", err)
-			return
-		}
-		flagIn := strings.Split(audience[0], "-")[1]
-
-		log.Debugf("Login ::: Oauth ::: flagIn ::: %v", flagIn)
-
-		switch flagIn {
-		case model.OAUTH_LARK_SUB:
-			unionID, err := util.IdentityFromToken(oauthTicket, model.OAUTH_LARK_SUB)
-			if err != nil {
-				ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
-				log.Log.Errorln("util.IdentityFromToken ::: ", err)
-				return
-			}
-
-			// TODO: save oauth user info
-			oauthLarkUserInfo, _ := model.Rdb.Get(ctx, unionID).Result()
-			service.UpsetOauthInfo(username, model.LARK_CLIENT_TYPE, unionID, datatypes.JSON(oauthLarkUserInfo))
-		case model.OAUTH_GITHUB_SUB:
-			unionID, err := util.IdentityFromToken(oauthTicket, model.OAUTH_GITHUB_SUB)
-			if err != nil {
-				ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
-				log.Log.Errorln("util.IdentityFromToken ::: ", err)
-				return
-			}
-
-			oauthGithubUserInfo, _ := model.Rdb.Get(ctx, unionID).Result()
-
-			log.Debugf("Login ::: Oauth ::: github info ::: %v", oauthGithubUserInfo)
-
-			service.UpsetOauthInfo(username, model.GITHUB_CLIENT_TYPE, unionID, datatypes.JSON(oauthGithubUserInfo))
-		default:
-			log.Errorf("Login ::: Oauth ::: flagIn ::: %v", flagIn)
-			ctx.JSON(http.StatusOK, result.Failed(result.OauthTokenError))
-			return
-		}
-	}
-
-	// Set Token with expire time and return
-	token, err := util.GenerateTokenWithExp(ctx, model.LoginJWTSubKey(uid), model.LOGIN_TOKEN_EXP)
-	if err != nil {
-		ctx.JSON(http.StatusOK, result.Failed(result.GenerateToken))
-	}
-	model.Rdb.Set(ctx, model.LoginTokenKey(uid), token, model.LOGIN_TOKEN_EXP)
-	ctx.JSON(http.StatusOK, result.Success(gin.H{
-		model.LOGIN_TOKEN_SUB: token,
-	}))
+	return c.JSON(http.StatusOK, response.Success(mapUser))
 }
 
 // Modify paassword
-func ChangePassword(ctx *gin.Context) {
-	// Get username from token
-	token := ctx.GetHeader("TOKEN")
-	uid, err := util.IdentityFromToken(token, model.LOGIN_TOKEN_SUB)
-	if err != nil || uid == "" {
-		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
-		return
+func (s *APIV1Service) ChangePassword(c echo.Context) error {
+	ctx := c.Request().Context()
+	studentID := request.GetUsername(c.Request())
+	if studentID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
 	// Get password from form
-	oldPassword := ctx.PostForm("oldPassword")
-	newPassword := ctx.PostForm("newPassword")
+	oldPassword := c.FormValue("oldPassword")
+	newPassword := c.FormValue("newPassword")
 	if oldPassword == "" || newPassword == "" {
-		ctx.JSON(http.StatusOK, result.Failed(result.PasswordEmpty))
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
+
 	// Modify password
-	err = service.ModifyPassword(ctx, uid, oldPassword, newPassword)
+	err := s.UserService.ModifyPassword(ctx, studentID, oldPassword, newPassword)
 	if err != nil {
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(err)))
-		return
+		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
 	}
-	ctx.JSON(http.StatusOK, result.Success(nil))
+	return c.JSON(http.StatusOK, response.Success(nil))
 }
 
-func ResetPassword(ctx *gin.Context) {
-	// get Body from request
-	newPassword, passwordFlag := ctx.GetPostForm("newPassword")
-	if !passwordFlag {
-		ctx.JSON(http.StatusOK, result.Failed(result.RequestParamError))
-		return
-	}
+func (s *APIV1Service) ResetPassword(c echo.Context) error {
+	ctx := c.Request().Context()
+	// Get Body from request
+	newPassword := c.FormValue("newPassword")
 	if newPassword == "" {
-		ctx.JSON(http.StatusOK, result.Failed(result.PasswordError))
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
 
-	ticket := ctx.GetHeader("RESETPWD-TICKET")
+	cookie, err := c.Cookie("RESETPWD-TICKET")
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, response.CheckTicketNotfound)
+	}
+	ticket := cookie.Value
 
-	currentPhase, _ := model.Rdb.Get(ctx, ticket).Result()
-	// check which phase current in
+	currentPhase, err := s.Store.Get(ctx, ticket)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, response.CheckTicketNotfound)
+	}
+	// Check which phase current in
 	switch currentPhase {
-	case model.VERIFY_STATUS["VERIFY_ACCOUNT"], model.VERIFY_STATUS["SEND_EMAIL"]:
-		ctx.JSON(http.StatusOK, result.Failed(result.ResetPasswordEror))
-		return
-	case model.VERIFY_STATUS["SUCCESS"]:
-		ctx.JSON(http.StatusOK, result.Failed(result.AlreadySetPasswordErr))
-		return
+	case request.VERIFY_STATUS["VERIFY_ACCOUNT"], request.VERIFY_STATUS["SEND_EMAIL"]:
+		return echo.NewHTTPError(http.StatusBadRequest, response.RegisterPhaseError)
+	case request.VERIFY_STATUS["SUCCESS"]:
+		return echo.NewHTTPError(http.StatusBadRequest, response.AlreadySetPasswordErr)
 	case "":
-		ctx.JSON(http.StatusOK, result.Failed(result.CheckTicketNotfound))
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, response.CheckTicketNotfound)
 	}
 
-	username, usernameErr := util.IdentityFromToken(ticket, model.RESETPWD_TICKET_SUB)
-	if usernameErr != nil {
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(usernameErr)))
-		return
+	studentID := request.GetUsername(c.Request())
+	if studentID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
 
-	creErr := service.ResetPassword(username, newPassword)
-	if creErr != nil {
-		ctx.JSON(http.StatusOK, result.Failed(result.HandleError(creErr)))
-		return
+	if err := s.UserService.ResetPassword(studentID, newPassword); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
 	}
-	ctx.JSON(http.StatusOK, result.Success(nil))
 
-	// set VERIFY_STATUS to 3 if successes
-	model.Rdb.Set(ctx, ticket, model.VERIFY_STATUS["SUCCESS"], model.REGISTER_TICKET_EXP)
-}
-
-func Logout(ctx *gin.Context) {
-	//verify information
-	token := ctx.GetHeader("TOKEN")
-	if token == "" {
-		ctx.JSON(http.StatusBadRequest, result.Failed(result.RequestParamError))
-		return
-	}
-	//remove Token from uid
-	uid, err := util.IdentityFromToken(token, model.LOGIN_TOKEN_SUB)
-	if err != nil || uid == "" {
-		ctx.JSON(http.StatusOK, result.Failed(result.TokenError))
-		return
-	}
-	model.Rdb.Del(ctx, model.LoginTokenKey(uid))
-	ctx.JSON(http.StatusOK, result.Success(nil))
+	// Set VERIFY_STATUS to 3 if successes
+	s.Store.Set(ctx, ticket, request.VERIFY_STATUS["SUCCESS"], request.REGISTER_TICKET_EXP)
+	return c.JSON(http.StatusOK, response.Success(nil))
 }

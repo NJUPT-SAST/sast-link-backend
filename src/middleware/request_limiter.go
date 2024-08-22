@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/didip/tollbooth/v7"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 )
 
 // Example: RequestRateLimiter(3, time.Minute) represents 3 requests per minute
-func RequestRateLimiter(maxRequests int64, period time.Duration) gin.HandlerFunc {
+func RequestRateLimiter(maxRequests int64, period time.Duration) echo.MiddlewareFunc {
 	rate := float64(maxRequests) / float64(period.Seconds())
 	limiter := tollbooth.NewLimiter(rate, nil)
 	limiter.SetMessage("Too many requests").
@@ -19,13 +19,12 @@ func RequestRateLimiter(maxRequests int64, period time.Duration) gin.HandlerFunc
 			w.WriteHeader(http.StatusTooManyRequests)
 			w.Write([]byte("429 - Too many requests"))
 		})
-	return func(c *gin.Context) {
-		httpError := tollbooth.LimitByRequest(limiter, c.Writer, c.Request)
-		if httpError != nil {
-			c.Data(httpError.StatusCode, limiter.GetMessageContentType(), []byte(httpError.Message))
-			c.Abort()
-		} else {
-			c.Next()
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if err := tollbooth.LimitByRequest(limiter, c.Response().Writer, c.Request()); err != nil {
+				return err
+			}
+			return next(c)
 		}
 	}
 }

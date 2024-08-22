@@ -2,18 +2,26 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"fmt"
-	"github.com/NJUPT-SAST/sast-link-backend/model"
-	"github.com/NJUPT-SAST/sast-link-backend/model/result"
-	"github.com/NJUPT-SAST/sast-link-backend/util"
-	"github.com/gin-gonic/gin"
 	"mime/multipart"
 	"net/http"
 	"regexp"
 	"strconv"
+
+	"github.com/NJUPT-SAST/sast-link-backend/http/response"
+	"github.com/NJUPT-SAST/sast-link-backend/log"
+	"github.com/NJUPT-SAST/sast-link-backend/plugin/storage/cos"
+	"github.com/NJUPT-SAST/sast-link-backend/store"
 )
 
-var cos = util.T_cos
+type ProfileService struct {
+	*BaseService
+}
+
+func NewProfileService(store *BaseService) *ProfileService {
+	return &ProfileService{store}
+}
 
 const reviewFailMsg = `{
         "msg_type": "post",
@@ -75,56 +83,56 @@ const picSensitiveMsg = `{
         }
 }`
 
-func ChangeProfile(profile *model.Profile, uid string) error {
-	// check org_id
+func (s *ProfileService) ChangeProfile(profile *store.Profile, uid string) error {
+	// Check org_id
 	if profile.OrgId > 26 || profile.OrgId < -1 {
-		serviceLogger.Infof("org_id input Err")
-		return result.OrgIdError
+		log.Errorf("OrgId illegal: %d", profile.OrgId)
+		return response.OrgIdError
 	}
 
-	// check hide
+	// Check hide
 	if matchErr := checkHideLegal(profile.Hide); matchErr != nil {
-		serviceLogger.Infof("hide field illegal")
 		return matchErr
 	}
 
-	// verify if profile exist by uid(student ID)
-	resProfile, err := model.SelectProfileByUid(uid)
+	// Verify if profile exist by uid(student ID)
+	resProfile, err := s.Store.SelectProfileByUid(uid)
 	if err != nil {
-		serviceLogger.Errorln("CheckProfileByUid Err,ErrMsg:", err)
+		log.Errorf("CheckProfile error: %s", err.Error())
 		return err
 	}
 	if resProfile == nil {
-		serviceLogger.Infof("profile don`t exist")
-		return result.ProfileNotExist
+		log.Errorf("Profile [%s] Not Exist\n", uid)
+		return response.ProfileNotExist
 	}
 
-	// update profile
-	if err := model.UpdateProfile(resProfile, profile); err != nil {
-		serviceLogger.Errorln("UpdateProfile Err,ErrMsg:", err)
+	// Update profile
+	if err := s.Store.UpdateProfile(resProfile, profile); err != nil {
+		log.Errorf("UpdateProfile error: %s", err.Error())
 		return err
 	}
 	return nil
 }
-func GetProfileInfo(uid string) (*model.Profile, error) {
-	// verify if profile exist by uid(student ID)
-	resProfile, err := model.SelectProfileByUid(uid)
+
+func (s *ProfileService) GetProfileInfo(uid string) (*store.Profile, error) {
+	// Verify if profile exist by uid(student ID)
+	resProfile, err := s.Store.SelectProfileByUid(uid)
 	if err != nil {
-		serviceLogger.Errorln("CheckProfileByUid Err,ErrMsg:", err)
+		log.Errorf("CheckProfile error: %s", err.Error())
 		return nil, err
 	}
 	if resProfile == nil {
-		serviceLogger.Infof("profile don`t exist")
-		return nil, result.ProfileNotExist
+		log.Errorf("Profile [%s] Not Exist\n", uid)
+		return nil, response.ProfileNotExist
 	}
 
 	hideFiled := resProfile.Hide
-	// check hide
+	// Check hide
 	if matchErr := checkHideLegal(hideFiled); matchErr != nil {
-		serviceLogger.Infof("hide field illegal")
+		log.Errorf("Hide field illegal")
 		return nil, matchErr
 	}
-	// hide filed
+	// Hide filed
 	for i := range hideFiled {
 		switch hideFiled[i] {
 		case "bio":
@@ -136,19 +144,19 @@ func GetProfileInfo(uid string) (*model.Profile, error) {
 		}
 	}
 	return resProfile, nil
-
 }
-func GetProfileOrg(OrgId int) (string, string, error) {
-	// check org_id
+
+func (s *ProfileService) GetProfileOrg(OrgId int) (string, string, error) {
+	// Check org_id
 	if OrgId > 26 {
-		serviceLogger.Errorln("org_id input Err,ErrMsg:")
-		return "", "", result.OrgIdError
+		log.Errorf("OrgId illegal: %d", OrgId)
+		return "", "", response.OrgIdError
 	} else if OrgId == -1 || OrgId == 0 {
 		return "", "", nil
 	} else {
-		//get dep and org
-		if dep, org, err := model.GetDepAndOrgByOrgId(OrgId); err != nil {
-			serviceLogger.Errorln("GetDepAndOrgByOrgId Err,ErrMsg:", err)
+		// Get dep and org
+		if dep, org, err := s.Store.GetDepAndOrgByOrgId(OrgId); err != nil {
+			log.Errorf("GetDepAndOrgByOrgId error: %s", err.Error())
 			return "", "", err
 		} else {
 			return dep, org, nil
@@ -156,43 +164,53 @@ func GetProfileOrg(OrgId int) (string, string, error) {
 	}
 }
 
-func UploadAvatar(avatar *multipart.FileHeader, uid string, ctx *gin.Context) (string, error) {
-	//construct fileName
-	userInfo, userInfoErr := model.UserInfo(uid)
+func (s *ProfileService) UploadAvatar(avatar *multipart.FileHeader, uid string, ctx context.Context) (string, error) {
+	// Construct fileName
+	userInfo, userInfoErr := s.Store.UserInfo(uid)
 	if userInfoErr != nil {
-		serviceLogger.Errorln("user not exist,ErrMsg:", userInfoErr)
+		log.Errorf("User not exist,ErrMsg:", userInfoErr)
 		return "", userInfoErr
 	}
-	fileName := strconv.Itoa(int(userInfo.ID))
 
-	//get file stream
+	fileName := strconv.Itoa(int(userInfo.ID))
+	// Get file stream
 	fd, fileIOErr := avatar.Open()
 	if fileIOErr != nil {
-		serviceLogger.Errorln("get file stream err,ErrMsg:", fileIOErr)
+		log.Errorf("Open file fail,ErrMsg:", fileIOErr)
 		return "", fileIOErr
 	}
 	defer fd.Close()
 
-	//upload to cos
-	uploadKey := "avatar/" + fileName + ".jpg"
-	if _, cosUpErr := cos.Object.Put(ctx, uploadKey, fd, nil); cosUpErr != nil {
-		serviceLogger.Errorln("upload avatar to cos fail,ErrMsg:", cosUpErr)
-		return "", cosUpErr
+	systemSetting, err := s.Store.GetSystemSetting(ctx, store.StorageSettingType)
+	if err != nil {
+		log.Errorf("Get system setting error: %s", err.Error())
+		return "", err
+	}
+	storageSetting, err := systemSetting.GetStorageSetting()
+	if err != nil {
+		log.Errorf("Get storage setting error: %s", err.Error())
+		return "", err
 	}
 
-	//write to database, file url refer:tencent cos bucket file
-	if dBUpErr := model.UpdateAvatar("https://sast-link-1309205610.cos.ap-shanghai.myqcloud.com/"+uploadKey, userInfo.ID); dBUpErr != nil {
-		//del cos file
-		if _, cosDelErr := cos.Object.Delete(ctx, uploadKey); cosDelErr != nil {
-			serviceLogger.Errorln("upload avatar to cos fail,ErrMsg:", cosDelErr)
-			return "", cosDelErr
-		}
-
-		serviceLogger.Errorln("write file url to database Err,ErrMsg:", dBUpErr)
-		return "", dBUpErr
+	client := cos.NewClient(storageSetting)
+	uploadKey := fmt.Sprintf("avatar/%s.jpg", fileName)
+	avatarURL, err := client.UploadObject(ctx, uploadKey, fd)
+	if err != nil {
+		log.Errorf("Upload file %s fail: %s", uploadKey, err.Error())
+		client.DeleteObject(ctx, uploadKey)
+		return "", err
 	}
 
-	return "https://sast-link-1309205610.cos.ap-shanghai.myqcloud.com/" + uploadKey, nil
+	// Write to database, file url refer:tencent cos bucket file
+	if err := s.Store.UpdateAvatar(avatarURL, userInfo.ID); err != nil {
+		// If update avatar to database fail, delete file in cos
+		client.DeleteObject(ctx, uploadKey)
+
+		log.Errorf("Update avatar to database fail: %s, %s", avatarURL, err.Error())
+		return "", err
+	}
+
+	return avatarURL, nil
 }
 
 func checkHideLegal(hide []string) error {
@@ -208,17 +226,17 @@ func checkHideLegal(hide []string) error {
 		matched, matchErr := regexp.MatchString(hideFiledPattern[0]+"|"+hideFiledPattern[1]+"|"+hideFiledPattern[2], hide[i])
 
 		if matchErr != nil {
-			serviceLogger.Errorln("match hide field Err,ErrMsg:", matchErr)
+			log.Errorf("Hide field match fail,ErrMsg:", matchErr)
 			return matchErr
 		} else if matched == false || i > len(hideFiledPattern) {
-			serviceLogger.Infof("hide field illegal")
-			return result.CheckHideIllegal
+			log.Errorf("Hide field illegal")
+			return response.CheckHideIllegal
 		}
 	}
 	return nil
 }
 
-func SentMsgToBot(checkRes *model.CheckRes) error {
+func (s *ProfileService) SentMsgToBot(checkRes *store.CheckRes) error {
 	var message []byte
 	if checkRes.Code != 0 {
 		message = []byte(fmt.Sprintf(reviewFailMsg, checkRes.Data.Url, checkRes.Message))
@@ -228,49 +246,66 @@ func SentMsgToBot(checkRes *model.CheckRes) error {
 		return nil
 	}
 
-	// set request
+	// Set request
 	url := "https://open.feishu.cn/open-apis/bot/v2/hook/a569c93d-ef19-49ef-ba30-0b2ca73e4aa5"
 	req, reqErr := http.NewRequest("POST", url, bytes.NewBuffer(message))
 	req.Header.Set("Content-Type", "application/json")
 
-	// do request
+	// Do request
 	client := &http.Client{}
 	resp, reqErr := client.Do(req)
 	if reqErr != nil {
-		serviceLogger.Errorln("Sent message to group bot fail,ErrMsg:", reqErr)
+		log.Errorf("Sent msg to feishu bot fail,ErrMsg:", reqErr)
 		return reqErr
 	}
 	defer resp.Body.Close()
 	return nil
 }
 
-func DealWithFrozenImage(ctx *gin.Context, checkRes *model.CheckRes) error {
+func (s *ProfileService) DealWithFrozenImage(ctx context.Context, checkRes *store.CheckRes) error {
 	compileRegex := regexp.MustCompile("[0-9]+")
 	matchArr := compileRegex.FindAllString(checkRes.Data.Url, -1)
 	if matchArr == nil {
-		return result.PicURLErr
+		return response.PicURLErr
 	}
 	userId := matchArr[1]
-	source := "avatar/" + userId + ".jpg"
-	//mv image
-	sourceURL := fmt.Sprintf("sast-link-1309205610.cos.ap-shanghai.myqcloud.com/%s", source)
-	dest := "ban/" + userId + ".jpg"
-	_, _, err := cos.Object.Copy(ctx, dest, sourceURL, nil)
-	if err == nil {
-		_, err := cos.Object.Delete(ctx, source, nil)
-		if err != nil {
-			serviceLogger.Errorln("del file fail,ErrMsg:", err)
-			return err
-		}
-	} else {
-		serviceLogger.Errorln("cp file fail,ErrMsg:", err)
+
+	systemSetting, err := s.Store.ListSystemSetting(ctx)
+	if err != nil {
+		log.Errorf("Get system setting error: %s", err.Error())
+		return err
+	}
+	storageSetting, err := systemSetting[store.StorageSettingType].(*store.SystemSetting).GetStorageSetting()
+	if err != nil {
+		log.Errorf("Get storage setting error: %s", err.Error())
+		return err
 	}
 
-	//replace image to Err image
-	avatarURL := "https://sast-link-1309205610.cos.ap-shanghai.myqcloud.com/ErrorImage.jpg"
+	client := cos.NewClient(storageSetting)
+	// Mv image
+	source := "avatar/" + userId + ".jpg"
+	dest := "ban/" + userId + ".jpg"
+	if err := client.MoveObject(ctx, source, dest); err != nil {
+		log.Errorf("Move file %s to %s failed: %s", source, dest, err)
+		return err
+	}
+	if err := client.DeleteObject(ctx, source); err != nil {
+		log.Errorf("Delete file %s failed: %s", source, err.Error())
+		return err
+	}
+
+	// Replace image to Err image
+	// TODO: Get error image url from system setting
+
+	siteSetting, err := systemSetting[store.WebsiteSettingType].(*store.SystemSetting).GetWebsiteSetting()
+	if err != nil {
+		log.Errorf("Get storage setting error: %s", err.Error())
+		return err
+	}
+	avatarURL := siteSetting.AvatarErrorURLImage
 	parseUint, _ := strconv.Atoi(userId)
-	if upErr := model.UpdateAvatar(avatarURL, uint(parseUint)); upErr != nil {
-		serviceLogger.Errorln("updateAvatar fail,ErrMsg:", upErr)
+	if upErr := s.Store.UpdateAvatar(avatarURL, uint(parseUint)); upErr != nil {
+		log.Errorf("Update avatar failed: %s", upErr)
 		return upErr
 	}
 	return nil

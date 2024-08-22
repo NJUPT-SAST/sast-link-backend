@@ -4,50 +4,25 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	mr "math/rand"
 	"net"
 	"net/http"
 	"net/mail"
 	"net/smtp"
-	"net/url"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 
-	"github.com/NJUPT-SAST/sast-link-backend/config"
-	"github.com/tencentyun/cos-go-sdk-v5"
-
 	"github.com/google/uuid"
-)
-
-var (
-	T_cos *cos.Client = connectToTencentCOS()
 )
 
 const (
 	larkSmtpServer = "smtp.feishu.cn:465"
 )
-
-func connectToTencentCOS() *cos.Client {
-	// 将 examplebucket-1250000000 和 COS_REGION 修改为用户真实的信息
-	// 存储桶名称，由 bucketname-appid 组成，appid 必须填入，可以在 COS 控制台查看存储桶名称。https://console.cloud.tencent.com/cos5/bucket
-	// COS_REGION 可以在控制台查看，https://console.cloud.tencent.com/cos5/bucket, 关于地域的详情见 https://cloud.tencent.com/document/product/436/6224
-	u, _ := url.Parse("https://sast-link-1309205610.cos.ap-shanghai.myqcloud.com")
-	// 用于 Get Service 查询，默认全地域 service.cos.myqcloud.com
-	su, _ := url.Parse("https://cos.ap-shanghai.myqcloud.com")
-	b := &cos.BaseURL{BucketURL: u, ServiceURL: su}
-	// 1.永久密钥
-	cos_conf := config.Config.Sub("cos")
-	client := cos.NewClient(b, &http.Client{
-		Transport: &cos.AuthorizationTransport{
-			SecretID:  cos_conf.GetString("secret_id"),  // 用户的 SecretId，建议使用子账号密钥，授权遵循最小权限指引，降低使用风险。子账号密钥获取可参考 https://cloud.tencent.com/document/product/598/37140
-			SecretKey: cos_conf.GetString("secret_key"), // 用户的 SecretKey，建议使用子账号密钥，授权遵循最小权限指引，降低使用风险。子账号密钥获取可参考 https://cloud.tencent.com/document/product/598/37140
-		},
-	})
-	return client
-}
 
 func OutputHTML(w http.ResponseWriter, req *http.Request, filename string) {
 	file, err := os.Open(filename)
@@ -66,26 +41,25 @@ func GenerateUUID() string {
 	return uuid.String()
 }
 
-// Generate random string
-func GenerateRandomString(length int) (string, error) {
-	randomBytes := make([]byte, length)
-	_, err := rand.Read(randomBytes)
-	if err != nil {
-		return "", err
+var letters = []rune("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+// GenerateRandomString return a random string with length n
+func GenerateRandomString(n int) (string, error) {
+	var sb strings.Builder
+	sb.Grow(n)
+	for i := 0; i < n; i++ {
+		// The reason for using crypto/rand instead of math/rand is that
+		// the former relies on hardware to generate random numbers and
+		// thus has a stronger source of random numbers.
+		randNum, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+		if err != nil {
+			return "", err
+		}
+		if _, err := sb.WriteRune(letters[randNum.Uint64()]); err != nil {
+			return "", err
+		}
 	}
-
-	// Encode the random bytes to base64
-	randomString := base64.URLEncoding.EncodeToString(randomBytes)
-
-	// Remove any characters that might be problematic
-	//randomString = cleanRandomString(randomString)
-
-	// Trim to desired length
-	if len(randomString) > length {
-		randomString = randomString[:length]
-	}
-
-	return randomString, nil
+	return sb.String(), nil
 }
 
 // GenerateCode generate a random code
@@ -193,4 +167,18 @@ func SendEmail(sender, secret, recipient, content, title string) error {
 func ShaHashing(in string) string {
 	sha512Hash := sha512.Sum512([]byte(in))
 	return hex.EncodeToString(sha512Hash[:])
+}
+
+// GetStudentIDFromEmail get student id from email
+//
+// The student id is the part before the '@' in the email. The student id is lowercase.
+func GetStudentIDFromEmail(email string) string {
+	if !strings.Contains(email, "@") {
+		return ""
+	}
+
+	split := regexp.MustCompile(`@`)
+	uid := split.Split(email, 2)[0]
+	// Lowercase the uid
+	return strings.ToLower(uid)
 }

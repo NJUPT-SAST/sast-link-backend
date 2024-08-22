@@ -12,8 +12,7 @@ func TestInfo(t *testing.T) {
     Warnf("warn %s", "format")
     WarnWithFields("warn", Fields{"key": "value"})
     Debug("ignore")
-    logLevel = "debug"
-    SetLevel(logLevelSwitcher(logLevel))
+    SetLevel(logLevelSwitcher("debug"))
     Debug("debug")
     Debugf("debug %s", "format")
     DebugWithFields("debug", Fields{"key": "value"})
