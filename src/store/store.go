@@ -62,7 +62,7 @@ func NewPostgresDB(profile *config.Config) (*gorm.DB, error) {
 		log.Panicf("Failed to connect database: %s", err)
 		return nil, err
 	}
-	log.Infof("Connected to database: %s", dsn)
+	log.Infof("Connected to database: %s:%d", profile.PostgresHost, profile.PostgresPort)
 	return db, nil
 }
 

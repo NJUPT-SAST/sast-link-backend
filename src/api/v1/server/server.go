@@ -3,20 +3,23 @@ package server
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/http"
 	"time"
 
-	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/api/v1"
+	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/pkg/errors"
 )
 
 type Server struct {
 	Profile *config.Config
 	Store   *store.Store
 
-	echoServer  *echo.Echo
+	echoServer *echo.Echo
 }
 
 // NewServer create a server instance with configuration and store.
@@ -51,7 +54,22 @@ func NewServer(ctx context.Context, profile *config.Config, store *store.Store) 
 }
 
 func (s *Server) Start() error {
-	return s.echoServer.Start(fmt.Sprintf("%s:%d", s.Profile.Addr, s.Profile.Port))
+	address := fmt.Sprintf("%s:%d", s.Profile.Addr, s.Profile.Port)
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return errors.Wrap(err, "failed to listen")
+	}
+
+	go func() {
+		s.echoServer.Listener = listener
+		if err := s.echoServer.Start(address); err != nil {
+			if err != http.ErrServerClosed {
+				fmt.Printf("failed to start echo server: %v\n", err)
+			}
+		}
+	}()
+
+	return nil
 }
 
 // Shutdown shutdown the echo server and close the database connection.
@@ -68,5 +86,5 @@ func (s *Server) Shutdown(ctx context.Context) {
 		fmt.Printf("failed to close database, error: %v\n", err)
 	}
 
-	fmt.Printf("SAST Link is shutdown\n")
+	fmt.Printf("SAST Link is shutdown, bye\n")
 }

@@ -40,20 +40,20 @@ func run(_ *cobra.Command, _ []string) {
 	storeInstance, err := store.NewStore(ctx, instanceConfig)
 	if err != nil {
 		cancel()
-		fmt.Errorf("Failed to create store: %s", err)
+		fmt.Printf("Failed to create store: %s", err)
 		return
 	}
 
 	s, err := server.NewServer(ctx, instanceConfig, storeInstance)
 	if err != nil {
 		cancel()
-		fmt.Errorf("Failed to create server: %s", err)
+		fmt.Printf("Failed to create server: %s", err)
 		return
 	}
 
 	if err := s.Start(); err != nil {
 		if err != http.ErrServerClosed {
-			fmt.Errorf("Failed to start server: %s", err)
+			fmt.Printf("Failed to start server: %s", err)
 			cancel()
 		}
 	}

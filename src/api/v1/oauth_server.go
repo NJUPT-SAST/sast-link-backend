@@ -30,12 +30,12 @@ type OAuthServer struct {
 
 func NewOAuthServer(ctx context.Context, config *config.Config) (*OAuthServer, error) {
 	// postgresql://username:password@ip:port/dbname
-	dsn := fmt.Sprintf(`postgres://%s:%s@%s:%s/%s?sslmode=disable`,
-		config.PostgresHost,
+	dsn := fmt.Sprintf(`postgres://%s:%s@%s:%d/%s?sslmode=disable`,
 		config.PostgresUser,
 		config.PostgresPWD,
-		config.PostgresDB,
+		config.PostgresHost,
 		config.PostgresPort,
+		config.PostgresDB,
 	)
 	pgxConn, err := pgxpool.Connect(ctx, dsn)
 	if err != nil {
