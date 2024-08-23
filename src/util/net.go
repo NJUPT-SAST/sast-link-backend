@@ -8,6 +8,7 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 )
 
+// FIXME(aimisaka): Need to remove the log package reference, util package should not depend on log package.
 func PostWithHeader(url string, header map[string]string, body any) (*http.Response, error) {
 	jsonData, err := json.Marshal(body)
 	if err != nil {

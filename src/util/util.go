@@ -1,11 +1,14 @@
 package util
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/sha512"
 	"crypto/tls"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"image"
 	"math/big"
 	mr "math/rand"
 	"net"
@@ -17,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chai2010/webp"
 	"github.com/google/uuid"
 )
 
@@ -84,9 +88,14 @@ func GenerateCode() string {
 // sendEmail send email to user
 func SendEmail(sender, secret, recipient, content, title string) error {
 	// https://gist.github.com/chrisgillis/10888032
-	from := mail.Address{"", sender}
-	to := mail.Address{"", recipient}
-	//title := "确认电子邮件注册SAST-Link账户（无需回复）"
+	from := mail.Address{
+		Name:    "SAST-Link",
+		Address: sender,
+	}
+	to := mail.Address{
+		Name:    "",
+		Address: recipient,
+	}
 	body := content
 
 	// Setup headers
@@ -181,4 +190,31 @@ func GetStudentIDFromEmail(email string) string {
 	uid := split.Split(email, 2)[0]
 	// Lowercase the uid
 	return strings.ToLower(uid)
+}
+
+// ImageToWebp converts an image to WebP format and returns the result as a byte array.
+//
+// quality is a float32 value between 0 and 100. A quality of 75 is recommended.
+func ImageToWebp(data []byte, quality float32) ([]byte, error) {
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("error decoding image: %w", err)
+	}
+
+	var buf bytes.Buffer
+	err = webp.Encode(&buf, img, &webp.Options{Lossless: false, Quality: quality})
+	if err != nil {
+		return nil, fmt.Errorf("error encoding image to WebP: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// MapToJSONString converts a map to a JSON string.
+func MapToJSONString(m map[string]string) (string, error) {
+	jsonBytes, err := json.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+	return string(jsonBytes), nil
 }
