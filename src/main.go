@@ -8,10 +8,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/api/v1/server"
+	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -84,6 +85,7 @@ func init() {
 	setupDefaults()
 	setupCommandLine()
 	config.SetupConfig()
+	log.SetupLogger()
 }
 
 func setupDefaults() {
@@ -151,14 +153,15 @@ func bindFlagsToViper() {
 func printGreeting(config *config.Config) {
 	fmt.Printf(`---
 Server profile
-version: %s
-addr:    %s
-port:    %d
-mode:    %s
-dsn:     %s:%d
-redis:   %s:%d
+version:   %s
+addr:      %s
+port:      %d
+mode:      %s
+dsn:       %s:%d
+redis:     %s:%d
+log level: %s
 ---
-`, config.Version, config.Addr, config.Port, config.Mode, config.PostgresHost, config.PostgresPort, config.RedisHost, config.RedisPort)
+`, config.Version, config.Addr, config.Port, config.Mode, config.PostgresHost, config.PostgresPort, config.RedisHost, config.RedisPort, config.LogLevel)
 
 	print(greetingBanner)
 	if len(config.Addr) == 0 {

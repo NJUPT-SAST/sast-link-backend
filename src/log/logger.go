@@ -17,9 +17,6 @@ import (
 
 var (
 	Log = logrus.New()
-	// logLevel = config.Config.GetString("log.level")
-	// Next
-	// logger = logrus.New()
 )
 
 // Fields wraps logrus.Fields, which is a map[string]interface{}
@@ -84,7 +81,7 @@ func (f *CustomFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return []byte(formattedLog), nil
 }
 
-func SetLogger() {
+func SetupLogger() {
 	// use ansicolor to add console color
 	// FIXME: Waiting for test.
 	// see: https://github.com/sirupsen/logrus/issues/1115
@@ -99,12 +96,12 @@ func SetLogger() {
 		FullTimestamp:   true,
 	})
 
-	file, err := os.OpenFile("log.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err == nil {
-		Log.SetOutput(file)
-	} else {
-		Log.Info("Failed to log to file, using default stderr")
-	}
+	// file, err := os.OpenFile("log.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	// if err == nil {
+	// 	Log.SetOutput(file)
+	// } else {
+	// 	Log.Info("Failed to log to file, using default stderr")
+	// }
 }
 
 func SetLevel(level logrus.Level) {
