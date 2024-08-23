@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -25,15 +26,21 @@ func (s *APIV1Service) Login(c echo.Context) error {
 	// confused though...
 	ctx := c.Request().Context()
 
-	password := c.FormValue("password")
-	if password == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
+	cookie, err := c.Cookie(request.LOGIN_TICKET_SUB)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, response.CheckTicketNotfound)
 	}
-
-	username := request.GetUsername(c.Request())
-
-	if username == "" {
-		return echo.NewHTTPError(http.StatusUnauthorized, response.TicketNotCorrect)
+	ticket := cookie.Value
+	// Get username from ticket
+	username, err := util.IdentityFromToken(ticket, request.LOGIN_TICKET_SUB, s.Config.Secret)
+	if err != nil {
+		log.Errorf("Get username from token fail: %s", err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, response.InternalErr)
+	}
+	password := c.FormValue("password")
+	if password == "" || username == "" {
+		log.Errorf("Login fail, username: %s, password: %s", username, password)
+		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
 
 	uid, err := s.UserService.Login(username, password)
@@ -52,6 +59,12 @@ func (s *APIV1Service) Login(c echo.Context) error {
 	}
 	s.Store.Set(ctx, request.LoginTokenKey(uid), token, request.LOGIN_ACCESS_TOKEN_EXP)
 	response.SetCookie(c, request.AccessTokenCookieName, token)
+
+	// Upset the token to database
+	if err := s.Store.UpsetAccessTokensUserSetting(ctx, uid, token, ""); err != nil {
+		log.Errorf("Failed to upset access token to database: %s", err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, errors.New("Failed to upset access token to database"))
+	}
 
 	return c.JSON(http.StatusOK, response.Success(token))
 }
@@ -257,6 +270,8 @@ func (s *APIV1Service) Verify(c echo.Context) error {
 	}
 	// Capitalize the username
 	username = strings.ToLower(username)
+
+	log.Infof("Verify username: %s", username)
 
 	flag, _ := strconv.Atoi(c.QueryParam("flag"))
 	tKey := ""

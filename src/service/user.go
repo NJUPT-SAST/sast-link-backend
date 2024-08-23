@@ -97,7 +97,7 @@ func (s *UserService) processRegistration(ctx context.Context, username string) 
 
 // processLogin handles the account login verification
 func (s *UserService) processLogin(ctx context.Context, username string) (string, error) {
-	user, err := s.VerifyAccountLogin(ctx, username);
+	user, err := s.VerifyAccountLogin(ctx, username)
 	if err != nil || user == nil {
 		return "", err
 	}

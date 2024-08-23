@@ -9,8 +9,8 @@ import (
 
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
-	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
+	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
 )
@@ -27,6 +27,13 @@ func NewAuthInterceptor(store *store.Store, secret string) *AuthInterceptor {
 func (m *AuthInterceptor) AuthenticationInterceptor(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		r, _ := c.Request(), c.Response().Writer
+
+		log.Debugf("Request URI: %s", r.RequestURI)
+		defer func() {
+			log.Debug("Incomming request",
+				log.Fields{"method": r.Method, "uri": r.RequestURI, "client_ip": c.RealIP(), "user_agent": r.UserAgent()})
+		}()
+
 		if isUnauthorizeAllowed(r.RequestURI) {
 			return next(c)
 		}
@@ -35,10 +42,14 @@ func (m *AuthInterceptor) AuthenticationInterceptor(next echo.HandlerFunc) echo.
 
 		username, err := m.authenticate(r.Context(), accesstoken)
 		if err != nil {
+			log.ErrorWithFields("Failed to authenticate",
+				log.Fields{"client_ip": clientIP, "user_agent": r.UserAgent(), "error": err.Error()})
 			return echo.NewHTTPError(http.StatusUnauthorized, fmt.Errorf("Access unauthorized"))
 		}
 		user, err := m.store.UserInfo(username)
 		if err != nil {
+			log.ErrorWithFields("Failed to get user",
+				log.Fields{"client_ip": clientIP, "user_agent": r.UserAgent(), "username": username, "error": err.Error()})
 			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Errorf("Failed to get user"))
 		}
 
@@ -67,11 +78,13 @@ func (m *AuthInterceptor) AuthenticationInterceptor(next echo.HandlerFunc) echo.
 		// Must use string to store in context
 		ctx = context.WithValue(ctx, request.UserIDContextKey, strconv.Itoa(int(user.ID)))
 		// Here we use the student ID as the username
-		ctx = context.WithValue(ctx, request.UserNameContextKey, user.Uid)
+		ctx = context.WithValue(ctx, request.UserNameContextKey, *user.Uid) // c.Set(string(request.UserNameContextKey), *user.Uid)
 		ctx = context.WithValue(ctx, request.IsAuthenticatedContextKey, true)
 		// Set the access token in the context for oauth server use
 		ctx = context.WithValue(ctx, request.AccessTokenContextKey, accesstoken)
 		// ctx = context.WithValue(ctx, request.UserRolesContextKey, user.Role.String())
+		
+		c.SetRequest(r.WithContext(ctx))
 
 		return next(c)
 	}
@@ -92,10 +105,10 @@ func (m *AuthInterceptor) authenticate(ctx context.Context, accessToken string) 
 		return "", errors.Wrap(err, "failed to get user")
 	}
 	if user == nil {
-		return "", errors.Errorf("user not found with ID: %d", userID)
+		return "", errors.Errorf("user not found with ID: %s", userID)
 	}
 
-	accessTokens, err := m.store.GetUserAccessTokens(userID)
+	accessTokens, err := m.store.GetUserAccessTokens(ctx, userID)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get user access tokens")
 	}
@@ -105,7 +118,7 @@ func (m *AuthInterceptor) authenticate(ctx context.Context, accessToken string) 
 	}
 
 	log.DebugWithFields("User authenticated",
-		log.Fields{"username": user.Uid, "access_token": accessToken})
+		log.Fields{"username": *user.Uid})
 
 	return *user.Uid, nil
 }
@@ -126,6 +139,7 @@ func getAccessToken(r *http.Request) string {
 	// Check the cookie header
 	var accessToken string
 	for cookie := range r.Cookies() {
+		log.Infof("Cookie: %s", r.Cookies()[cookie].Name)
 		if r.Cookies()[cookie].Name == request.AccessTokenCookieName {
 			accessToken = r.Cookies()[cookie].Value
 		}

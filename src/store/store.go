@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -143,7 +144,10 @@ func (s *Store) Get(ctx context.Context, key string) (string, error) {
 	key = REDIS_KEY_PREFIX + key
 	val, err := s.rdb.Get(ctx, key).Result()
 	if err != nil {
-		return "", err
+		// Return nil if the key does not exist
+		if !errors.Is(err, redis.Nil) {
+			return "", err
+		}
 	}
 	return val, nil
 }

@@ -15,6 +15,6 @@ func ValidatePassword(password string) bool {
 // Return true if the email is valid
 func ValidateEmail(email string) bool {
 	// "^[BPFQbpfq](1[7-9]|2[0-9])([0-3])\\d{5}@njupt.edu.cn$" Matches the email format of NJUPT
-	emailReg := regexp.MustCompile(`^[BPFQbpfq](1[7-9]|2[0-9])([0-3])\\d{5}@njupt.edu.cn$`)
+	emailReg := regexp.MustCompile(`^[BPFQbpfq](1[7-9]|2[0-9])([0-3])\d{5}@njupt.edu.cn$`)
 	return emailReg.MatchString(email)
 }

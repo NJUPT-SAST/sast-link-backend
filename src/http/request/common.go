@@ -20,13 +20,13 @@ const (
 	GITHUB_CLIENT_TYPE = "github"
 
 
-	// For JWT
-	LOGIN_TOKEN_SUB     = "loginToken"
-	LOGIN_TICKET_SUB    = "loginTicket"
-	REGIST_TICKET_SUB   = "registerTicket"
-	RESETPWD_TICKET_SUB = "resetPwdTicket"
-	OAUTH_LARK_SUB      = "oauthLarkToken"
-	OAUTH_GITHUB_SUB    = "oauthGithubToken"
+	// For JWT/Redis key/cookie
+	LOGIN_TOKEN_SUB     = "login-token"
+	LOGIN_TICKET_SUB    = "login-ticket"
+	REGIST_TICKET_SUB   = "register-ticket"
+	RESETPWD_TICKET_SUB = "reset-password-ticket"
+	OAUTH_LARK_SUB      = "oauth-lark-token"
+	OAUTH_GITHUB_SUB    = "oauth-github-token"
 
 	AccessTokenCookieName = "sast-link-access-token"
 )

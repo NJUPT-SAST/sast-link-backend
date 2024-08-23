@@ -1,6 +1,8 @@
 package request
 
-import "net/http"
+import (
+	"net/http"
+)
 
 type ContextKey int
 
@@ -10,7 +12,7 @@ const (
 	UserNameContextKey
 	UserRolesContextKey
 	IsAuthenticatedContextKey
-    AccessTokenContextKey
+	AccessTokenContextKey
 )
 
 func getContextStringValue(r *http.Request, key ContextKey) string {

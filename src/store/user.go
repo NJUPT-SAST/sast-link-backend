@@ -100,7 +100,7 @@ func (s *Store) UserByField(field, value string) (*User, error) {
 }
 
 func (s *Store) UserInfo(username string) (*User, error) {
-	var user = User{Uid: &username}
+	var user = User{}
 	var err error
 	if strings.Contains(username, "@") {
 		err = s.db.Where("email = ?", username).Where("is_deleted = ?", false).First(&user).Error
@@ -110,8 +110,9 @@ func (s *Store) UserInfo(username string) (*User, error) {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Errorf("User [%s] Not Exist\n", username)
-			return nil, err
+			return nil, nil
 		}
+		return nil, err
 	}
 	return &user, nil
 }

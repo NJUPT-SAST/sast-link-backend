@@ -46,21 +46,22 @@ func GenerateTokenWithExp(ctx context.Context, identifier, jwtSigningKey string,
 	return access, err
 }
 
+// ParseToken parse the token
 func ParseToken(token, jwtSigningKey string) (*JWTAccessClaims, error) {
 	tokenClaims, err := jwt.ParseWithClaims(token, &JWTAccessClaims{}, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, response.AuthParseTokenFail
+			return nil, errors.New("unexpected signing method")
 		}
 		return []byte(jwtSigningKey), nil
 	})
 	if err != nil {
-		return nil, response.AuthParseTokenFail
+		return nil, errors.New("parse token fail")
 	}
 
 	if claims, ok := tokenClaims.Claims.(*JWTAccessClaims); ok && tokenClaims.Valid {
 		return claims, nil
 	} else {
-		return nil, response.AuthParseTokenFail
+		return nil, errors.New("token claims invalid")
 	}
 }
 
@@ -81,10 +82,10 @@ func RefreshToken(token, jwtSigningKey string) (string, error) {
 func TokenAudience(token, jwtSigningKey string) (audience []string, err error) {
 	claims, err := ParseToken(token, jwtSigningKey)
 	if err != nil {
-		return
+		return nil, err
 	}
 	if err = claims.Valid(); err != nil {
-		return
+		return nil, err
 	}
 
 	return claims.GetAudience()
@@ -98,7 +99,7 @@ func IdentityFromToken(token, flag, jwtSigningKey string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	identifiers := strings.Split(audience[0], "-")
+	identifiers := strings.SplitN(audience[0], "-", 2)
 	identity, tokenType := identifiers[0], identifiers[1]
 	if identity == "" || flag != tokenType {
 		return "", response.TicketNotCorrect
