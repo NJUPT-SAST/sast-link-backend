@@ -1,16 +1,19 @@
 package store
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
+
+	"github.com/NJUPT-SAST/sast-link-backend/log"
+	"github.com/pkg/errors"
 )
 
 type UserSettingKey int32
 
 const (
-	UserSettingKey_USER_SETTING_KEY_UNSPECIFIED UserSettingKey = 0
+	USER_SETTING_KEY_UNSPECIFIED UserSettingKey = 0
 	// Access tokens for the user.
-	UserSettingKey_USER_SETTING_ACCESS_TOKENS UserSettingKey = 1
+	USER_SETTING_ACCESS_TOKENS UserSettingKey = 1
 )
 
 // Enum value maps for UserSettingKey.
@@ -25,10 +28,13 @@ var (
 	}
 )
 
+// UserSetting represents a user setting.
+//
+// The value is a JSON string.
 type UserSetting struct {
-	UserID string
-	Key    UserSettingKey
-	Value  string
+	UserID string         `json:"user_id,omitempty"`
+	Key    UserSettingKey `json:"key,omitempty"`
+	Value  string         `json:"value,omitempty"`
 }
 
 type FindUserSetting struct {
@@ -72,7 +78,7 @@ func (a *AccessTokensUserSetting) String() string {
 
 func (e UserSettingKey) String() string {
 	switch e {
-	case UserSettingKey_USER_SETTING_ACCESS_TOKENS:
+	case USER_SETTING_ACCESS_TOKENS:
 		return "USER_SETTING_ACCESS_TOKENS"
 	default:
 		return "USER_SETTING_KEY_UNSPECIFIED"
@@ -98,17 +104,37 @@ func (x *AccessTokensUserSetting) GetAccessTokens() []*AccessTokensUserSetting_A
 	return nil
 }
 
-func (s *Store) ListUserSettings(find *FindUserSetting) ([]*UserSetting, error) {
+func (s *Store) ListUserSettings(ctx context.Context, find *FindUserSetting) ([]*UserSetting, error) {
 	var userSettings []*UserSetting
 	err := s.db.Table("user_setting").Where("user_id = ?", find.UserID).Find(&userSettings).Error
 	if err != nil {
 		return nil, err
 	}
+
+	for _, userSetting := range userSettings {
+		s.Set(ctx, userSetting.UserID, userSetting, 0)
+	}
+
 	return userSettings, nil
 }
 
-func (s *Store) GetUserSetting(find *FindUserSetting) (*UserSetting, error) {
-	list, err := s.ListUserSettings(find)
+func (s *Store) GetUserSetting(ctx context.Context, find *FindUserSetting) (*UserSetting, error) {
+	// Get user setting from cache
+	userSettingStr, err := s.Get(ctx, find.UserID)
+	if err != nil {
+		log.Errorf("Failed to get user setting from cache: %v", err)
+		return nil, err
+	}
+
+	if userSettingStr != "" {
+		var userSetting UserSetting
+		if err := json.Unmarshal([]byte(userSettingStr), &userSetting); err != nil {
+			return nil, err
+		}
+		return &userSetting, nil
+	}
+
+	list, err := s.ListUserSettings(ctx, find)
 	if err != nil {
 		return nil, err
 	}
@@ -121,20 +147,66 @@ func (s *Store) GetUserSetting(find *FindUserSetting) (*UserSetting, error) {
 	}
 
 	userSetting := list[0]
-	//TODO: Cache the user setting.
+	s.Set(ctx, find.UserID, userSetting, 0)
 	return userSetting, nil
 }
 
-func (s *Store) GetUserAccessTokens(userID string) ([]*AccessTokensUserSetting_AccessToken, error) {
-    userSetting, err := s.GetUserSetting(&FindUserSetting{
-        UserID: userID,
-        Key: UserSettingKey_USER_SETTING_ACCESS_TOKENS,
-    })
-    if err != nil {
-        return nil, err
-    }
-    if userSetting == nil {
-        return nil, nil
-    }
-    return userSetting.GetAccessTokens().GetAccessTokens(), nil
+func (s *Store) GetUserAccessTokens(ctx context.Context, userID string) ([]*AccessTokensUserSetting_AccessToken, error) {
+	userSetting, err := s.GetUserSetting(ctx, &FindUserSetting{
+		UserID: userID,
+		Key:    USER_SETTING_ACCESS_TOKENS,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if userSetting == nil {
+		return nil, nil
+	}
+	return userSetting.GetAccessTokens().GetAccessTokens(), nil
+}
+
+func (s *Store) UpsetAccessTokensUserSetting(ctx context.Context, userID string, accessToken, description string) error {
+	userSetting, err := s.GetUserSetting(ctx, &FindUserSetting{
+		UserID: userID,
+		Key:    USER_SETTING_ACCESS_TOKENS,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to get user setting")
+	}
+
+	userAccessToken := &AccessTokensUserSetting_AccessToken{
+		AccessToken: accessToken,
+		Description: description,
+		CreatedTs:   0,
+		LastUsedTs:  0,
+	}
+
+	if userSetting == nil {
+		userSetting = &UserSetting{
+			UserID: userID,
+			Key:    USER_SETTING_ACCESS_TOKENS,
+			Value:  "",
+		}
+	}
+
+	accessTokens := userSetting.GetAccessTokens()
+	if accessTokens == nil {
+		accessTokens = &AccessTokensUserSetting{}
+	}
+
+	accessTokens.AccessTokens = append(accessTokens.AccessTokens, userAccessToken)
+	userSetting.Value = accessTokens.String()
+
+	return s.UpsetUserSetting(ctx, userSetting)
+}
+
+func (s *Store) UpsetUserSetting(ctx context.Context, userSetting *UserSetting) error {
+	// Perform upsert operation
+	err := s.db.Table("user_setting").Where("user_id = ? AND key = ?", userSetting.UserID, userSetting.Key).Assign(userSetting).FirstOrCreate(&userSetting).Error
+	if err != nil {
+		return err
+	}
+
+	// Update the user setting in the cache
+	return s.Set(ctx, userSetting.UserID, userSetting, 0)
 }
