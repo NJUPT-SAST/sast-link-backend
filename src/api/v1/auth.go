@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
@@ -101,7 +102,7 @@ func (s *APIV1Service) LoginWithSSO(c echo.Context) error {
 		// s.UpsetOauthInfo(studentID, store.LARK_CLIENT_TYPE, userInfo.IdentifierID, datatypes.JSON(oauthLarkUserInfo))
 		// Store the sso user info in redis for binding email
 		s.Store.Set(ctx, fmt.Sprintf("BIND-EMAIL-%s-%s", idpName, userInfo.IdentifierID), studentID, store.BIND_EMAIL_EXP)
-		systemSetting, err := s.Store.GetSystemSetting(ctx, store.WebsiteSettingType)
+		systemSetting, err := s.Store.GetSystemSetting(ctx, config.WebsiteSettingType)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, response.InternalErr)
 		}

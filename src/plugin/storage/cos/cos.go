@@ -17,18 +17,24 @@ type Client struct {
 	Client *cos.Client
 }
 
+// NewClient create a new COS client
+//
+// Refer to https://cloud.tencent.com/document/product/436/31215
 func NewClient(config *store.StorageSetting) *Client {
-	bucketURL, err := url.Parse(config.Bucket)
+	// https://cloud.tencent.com/document/product/436/31215
+	bucketURLStr := fmt.Sprintf("https://%s-%s.cos.%s.myqcloud.com", config.Bucket, config.AccessKey, config.Region)
+	serviceURLStr := fmt.Sprintf("https://cos.%s.myqcloud.com", config.Region)
+	bucketURL, err := url.Parse(bucketURLStr)
 	if err != nil {
 		panic(err)
 	}
-	endpoint, err := url.Parse(config.Endpoint)
+	serviceURL, err := url.Parse(serviceURLStr)
 	if err != nil {
 		panic(err)
 	}
 	b := &cos.BaseURL{
 		BucketURL:  bucketURL,
-		ServiceURL: endpoint,
+		ServiceURL: serviceURL,
 	}
 	client := cos.NewClient(b, &http.Client{
 		Transport: &cos.AuthorizationTransport{

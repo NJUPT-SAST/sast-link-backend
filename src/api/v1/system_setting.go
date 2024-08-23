@@ -5,7 +5,7 @@ import (
 
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
-	"github.com/NJUPT-SAST/sast-link-backend/store"
+	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/labstack/echo/v4"
 )
 
@@ -17,7 +17,7 @@ func (s *APIV1Service) SystemSetting(c echo.Context) error {
 		log.Error("The setting type is empty")
 		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
-	systemSetting, err := s.SysSettingService.GetSysSetting(ctx, store.TypeFromString(settingType))
+	systemSetting, err := s.SysSettingService.GetSysSetting(ctx, config.TypeFromString(settingType))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
 	}
@@ -39,7 +39,7 @@ func (s *APIV1Service) UpsetSystemSetting(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
 
-	if err := s.SysSettingService.UpSetSysSetting(ctx, store.TypeFromString(settingType), settingValue); err != nil {
+	if err := s.SysSettingService.UpSetSysSetting(ctx, config.TypeFromString(settingType), settingValue); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
 	}
 	return c.JSON(http.StatusOK, response.Success(nil))

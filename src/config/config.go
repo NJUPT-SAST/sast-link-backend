@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/NJUPT-SAST/sast-link-backend/version"
 	"github.com/spf13/viper"
 )
@@ -40,6 +41,9 @@ type Config struct {
 	LogFile  string
 	// Version is the current version of server
 	Version string
+
+	// System settings, it will store to database
+	SystemSettings map[string]string // key is system setting type, value is setting value which is json string
 }
 
 func (p *Config) IsDev() bool {
@@ -62,7 +66,7 @@ func NewConfig() *Config {
 		RedisPort:    viper.GetInt("redis.port"),
 		RedisPWD:     viper.GetString("redis.password"),
 		RedisDB:      viper.GetInt("redis.db"),
-		Secret:       viper.GetString("secret"),
+		Secret:       viper.GetString("jwt.secret"),
 		LogLevel:     viper.GetString("log.level"),
 		LogFile:      viper.GetString("log.file"),
 		Version:      version.GetCurrentVersion(viper.GetString("mode")),
@@ -106,5 +110,73 @@ func SetupConfig() {
 			fmt.Printf("Config file not found: %s\n", err)
 			os.Exit(1)
 		}
+	}
+}
+
+// SystemSettingType represents the system setting type.
+type SystemSettingType string
+
+const (
+	// WebsiteSettingType represents the website setting type.
+	WebsiteSettingType SystemSettingType = "website"
+	// EmailSettingType represents the email setting type.
+	EmailSettingType SystemSettingType = "email"
+	// StorageSettingType represents the storage setting type.
+	StorageSettingType SystemSettingType = "storage"
+	// IdpSettingType represents the identity provider setting type.
+	IdpSettingType SystemSettingType = "idp"
+)
+
+// String converts the SystemSettingType to string.
+func (t SystemSettingType) String() string {
+	return string(t)
+}
+
+func TypeFromString(t string) SystemSettingType {
+	switch t {
+	case "website":
+		return WebsiteSettingType
+	case "email":
+		return EmailSettingType
+	case "storage":
+		return StorageSettingType
+	case "idp":
+		return IdpSettingType
+	}
+	return ""
+}
+
+// LoadSystemSettings loads system settings from config file.
+func (c *Config) LoadSystemSettings() {
+	// Load system settings from config file
+	websiteSettings := viper.GetStringMapString(WebsiteSettingType.String())
+	emailSettings := viper.GetStringMapString(EmailSettingType.String())
+	storageSettings := viper.GetStringMapString(StorageSettingType.String())
+	idpSettings := viper.GetStringMapString(IdpSettingType.String())
+
+	c.SystemSettings = make(map[string]string)
+	// Transform map to JSON string
+	if jsonString, err := util.MapToJSONString(websiteSettings); err == nil {
+		c.SystemSettings[WebsiteSettingType.String()] = jsonString
+	} else {
+		fmt.Printf("Error converting website settings to JSON: %v\n", err)
+	}
+
+	if jsonString, err := util.MapToJSONString(emailSettings); err == nil {
+		c.SystemSettings[EmailSettingType.String()] = jsonString
+	} else {
+		fmt.Printf("Error converting email settings to JSON: %v\n", err)
+	}
+
+	if jsonString, err := util.MapToJSONString(storageSettings); err == nil {
+		c.SystemSettings[StorageSettingType.String()] = jsonString
+	} else {
+		fmt.Printf("Error converting storage settings to JSON: %v\n", err)
+	}
+
+	if jsonString, err := util.MapToJSONString(idpSettings); err == nil {
+		c.SystemSettings[IdpSettingType.String()] = jsonString
+	} else {
+		fmt.Printf("Error converting IDP settings to JSON: %v\n", err)
 	}
 }

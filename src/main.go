@@ -57,6 +57,13 @@ func run(_ *cobra.Command, _ []string) {
 			cancel()
 		}
 	}
+	// After server started, we can load system settings from config file.
+	instanceConfig.LoadSystemSettings()
+	// Store system settings to database
+	if err := storeInstance.InitSystemSetting(ctx, instanceConfig); err != nil {
+		fmt.Printf("Failed to init system settings: %s", err)
+		cancel()
+	}
 
 	printGreeting(instanceConfig)
 

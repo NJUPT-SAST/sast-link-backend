@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -115,8 +116,22 @@ func (s *Store) Close() error {
 
 // Set sets a key-value pair with expiration time.
 func (s *Store) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	var valueToStore string
+	// Check if the value is already a string
+	switch v := value.(type) {
+	case string:
+		valueToStore = v
+	default:
+		// Convert value to JSON string if it's not already a string
+		jsonValue, err := json.Marshal(value)
+		if err != nil {
+			return fmt.Errorf("failed to marshal value to JSON: %w", err)
+		}
+		valueToStore = string(jsonValue)
+	}
+
 	key = REDIS_KEY_PREFIX + key
-	err := s.rdb.Set(ctx, key, value, expiration).Err()
+	err := s.rdb.Set(ctx, key, valueToStore, expiration).Err()
 	if err != nil {
 		return err
 	}

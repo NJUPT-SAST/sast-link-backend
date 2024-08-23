@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
@@ -123,7 +124,7 @@ func GenerateVerifyCode() string {
 // TODO: Send email
 func (s *Store) SendEmail(ctx context.Context, recipient, content, title string) error {
 	// FIXME: Get email sender and secret from system settings
-	settings, err := s.GetSystemSetting(ctx, EmailSettingType)
+	settings, err := s.GetSystemSetting(ctx, config.EmailSettingType)
 	if err != nil {
 		return err
 	}

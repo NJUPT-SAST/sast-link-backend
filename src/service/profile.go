@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"regexp"
@@ -11,8 +12,10 @@ import (
 
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
+	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/plugin/storage/cos"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
+	"github.com/NJUPT-SAST/sast-link-backend/util"
 )
 
 type ProfileService struct {
@@ -168,7 +171,7 @@ func (s *ProfileService) UploadAvatar(avatar *multipart.FileHeader, uid string, 
 	// Construct fileName
 	userInfo, userInfoErr := s.Store.UserInfo(uid)
 	if userInfoErr != nil {
-		log.Errorf("User not exist,ErrMsg:", userInfoErr)
+		log.Errorf("User not exist: %s", userInfoErr.Error())
 		return "", userInfoErr
 	}
 
@@ -176,12 +179,24 @@ func (s *ProfileService) UploadAvatar(avatar *multipart.FileHeader, uid string, 
 	// Get file stream
 	fd, fileIOErr := avatar.Open()
 	if fileIOErr != nil {
-		log.Errorf("Open file fail,ErrMsg:", fileIOErr)
+		log.Errorf("Open file fail: %s", fileIOErr.Error())
 		return "", fileIOErr
 	}
 	defer fd.Close()
 
-	systemSetting, err := s.Store.GetSystemSetting(ctx, store.StorageSettingType)
+	// Convert image to WebP
+	fileBytes, err := io.ReadAll(fd)
+	if err != nil {
+		log.Errorf("Read file fail: %s", err.Error())
+		return "", err
+	}
+	webpBytes, err := util.ImageToWebp(fileBytes, 75)
+	if err != nil {
+		log.Errorf("Transfer image to webp fail: %s", err.Error())
+		return "", err
+	}
+
+	systemSetting, err := s.Store.GetSystemSetting(ctx, config.StorageSettingType)
 	if err != nil {
 		log.Errorf("Get system setting error: %s", err.Error())
 		return "", err
@@ -194,7 +209,7 @@ func (s *ProfileService) UploadAvatar(avatar *multipart.FileHeader, uid string, 
 
 	client := cos.NewClient(storageSetting)
 	uploadKey := fmt.Sprintf("avatar/%s.jpg", fileName)
-	avatarURL, err := client.UploadObject(ctx, uploadKey, fd)
+	avatarURL, err := client.UploadObject(ctx, uploadKey, bytes.NewReader(webpBytes))
 	if err != nil {
 		log.Errorf("Upload file %s fail: %s", uploadKey, err.Error())
 		client.DeleteObject(ctx, uploadKey)
@@ -226,7 +241,7 @@ func checkHideLegal(hide []string) error {
 		matched, matchErr := regexp.MatchString(hideFiledPattern[0]+"|"+hideFiledPattern[1]+"|"+hideFiledPattern[2], hide[i])
 
 		if matchErr != nil {
-			log.Errorf("Hide field match fail,ErrMsg:", matchErr)
+			log.Errorf("Hide field match fail: %s", matchErr.Error())
 			return matchErr
 		} else if matched == false || i > len(hideFiledPattern) {
 			log.Errorf("Hide field illegal")
@@ -236,7 +251,7 @@ func checkHideLegal(hide []string) error {
 	return nil
 }
 
-func (s *ProfileService) SentMsgToBot(checkRes *store.CheckRes) error {
+func (s *ProfileService) SentMsgToBot(ctx context.Context, checkRes *store.CheckRes) error {
 	var message []byte
 	if checkRes.Code != 0 {
 		message = []byte(fmt.Sprintf(reviewFailMsg, checkRes.Data.Url, checkRes.Message))
@@ -246,8 +261,19 @@ func (s *ProfileService) SentMsgToBot(checkRes *store.CheckRes) error {
 		return nil
 	}
 
+	systemSetting, err := s.Store.GetSystemSetting(ctx, config.WebsiteSettingType)
+	if err != nil {
+		log.Errorf("Get system setting error: %s", err.Error())
+		return err
+	}
+	webSetting, err := systemSetting.GetWebsiteSetting()
+	if err != nil {
+		log.Errorf("Get website setting error: %s", err.Error())
+		return err
+	}
+
 	// Set request
-	url := "https://open.feishu.cn/open-apis/bot/v2/hook/a569c93d-ef19-49ef-ba30-0b2ca73e4aa5"
+	url := webSetting.ImageReviewWebhook
 	req, reqErr := http.NewRequest("POST", url, bytes.NewBuffer(message))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -255,7 +281,7 @@ func (s *ProfileService) SentMsgToBot(checkRes *store.CheckRes) error {
 	client := &http.Client{}
 	resp, reqErr := client.Do(req)
 	if reqErr != nil {
-		log.Errorf("Sent msg to feishu bot fail,ErrMsg:", reqErr)
+		log.Errorf("Sent msg to feishu bot fail: %s", reqErr.Error())
 		return reqErr
 	}
 	defer resp.Body.Close()
@@ -275,7 +301,7 @@ func (s *ProfileService) DealWithFrozenImage(ctx context.Context, checkRes *stor
 		log.Errorf("Get system setting error: %s", err.Error())
 		return err
 	}
-	storageSetting, err := systemSetting[store.StorageSettingType].(*store.SystemSetting).GetStorageSetting()
+	storageSetting, err := systemSetting[config.StorageSettingType].(*store.SystemSetting).GetStorageSetting()
 	if err != nil {
 		log.Errorf("Get storage setting error: %s", err.Error())
 		return err
@@ -294,10 +320,7 @@ func (s *ProfileService) DealWithFrozenImage(ctx context.Context, checkRes *stor
 		return err
 	}
 
-	// Replace image to Err image
-	// TODO: Get error image url from system setting
-
-	siteSetting, err := systemSetting[store.WebsiteSettingType].(*store.SystemSetting).GetWebsiteSetting()
+	siteSetting, err := systemSetting[config.WebsiteSettingType].(*store.SystemSetting).GetWebsiteSetting()
 	if err != nil {
 		log.Errorf("Get storage setting error: %s", err.Error())
 		return err

@@ -103,7 +103,7 @@ func (s *APIV1Service) DealCensorRes(c echo.Context) error {
 	}
 
 	// Judge if picture review fail or need manual re-review and sent to feishu bot
-	sentMsgErr := s.ProfileService.SentMsgToBot(&checkRes)
+	sentMsgErr := s.ProfileService.SentMsgToBot(ctx, &checkRes)
 	if sentMsgErr != nil {
 		log.Errorf("SentMsgToBot service wrong: %s", sentMsgErr.Error())
 		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
