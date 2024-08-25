@@ -85,13 +85,15 @@ func (s *Store) ChangePassword(uid string, password string) error {
 }
 
 // UserByField find user by specific database table field name
-func (s *Store) UserByField(field, value string) (*User, error) {
+//
+// If user not found, return nil
+func (s *Store) UserByField(ctx context.Context, field, value string) (*User, error) {
 	var user User
-	err := s.db.Where(fmt.Sprintf("%s = ?", field), value).Where("is_deleted = ?", false).First(&user).Error
+	err := s.db.WithContext(ctx).Where(fmt.Sprintf("%s = ?", field), value).Where("is_deleted = ?", false).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// userLogger.Errorf("User with [%s: %s] Not Exist\n", field, value)
-			log.Errorf("User with [%s: %s] Not Exist\n", field, value)
+			log.Debugf("User with [%s: %s] Not Exist\n", field, value)
 			return nil, nil
 		}
 		return nil, response.InternalErr

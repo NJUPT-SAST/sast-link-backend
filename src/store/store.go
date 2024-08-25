@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 )
 
@@ -59,6 +59,7 @@ func NewPostgresDB(profile *config.Config) (*gorm.DB, error) {
 		NamingStrategy: schema.NamingStrategy{
 			SingularTable: true,
 		},
+		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
 		log.Panicf("Failed to connect database: %s", err)
@@ -116,23 +117,11 @@ func (s *Store) Close() error {
 }
 
 // Set sets a key-value pair with expiration time.
+//
+// If the value is a struct, it need to implement encoding.BinaryMarshaler.
 func (s *Store) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
-	var valueToStore string
-	// Check if the value is already a string
-	switch v := value.(type) {
-	case string:
-		valueToStore = v
-	default:
-		// Convert value to JSON string if it's not already a string
-		jsonValue, err := json.Marshal(value)
-		if err != nil {
-			return fmt.Errorf("failed to marshal value to JSON: %w", err)
-		}
-		valueToStore = string(jsonValue)
-	}
-
 	key = REDIS_KEY_PREFIX + key
-	err := s.rdb.Set(ctx, key, valueToStore, expiration).Err()
+	err := s.rdb.Set(ctx, key, value, expiration).Err()
 	if err != nil {
 		return err
 	}
@@ -140,14 +129,17 @@ func (s *Store) Set(ctx context.Context, key string, value interface{}, expirati
 }
 
 // Get gets the value of a key.
+//
+// If the key does not exist, Get returns "".
 func (s *Store) Get(ctx context.Context, key string) (string, error) {
 	key = REDIS_KEY_PREFIX + key
 	val, err := s.rdb.Get(ctx, key).Result()
 	if err != nil {
 		// Return nil if the key does not exist
-		if !errors.Is(err, redis.Nil) {
-			return "", err
+		if errors.Is(err, redis.Nil) {
+			return "", nil
 		}
+		return "", err
 	}
 	return val, nil
 }

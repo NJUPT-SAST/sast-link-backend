@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/pkg/errors"
 )
 
 type Server struct {
@@ -54,15 +52,8 @@ func NewServer(ctx context.Context, profile *config.Config, store *store.Store) 
 }
 
 func (s *Server) Start() error {
-	address := fmt.Sprintf("%s:%d", s.Profile.Addr, s.Profile.Port)
-	listener, err := net.Listen("tcp", address)
-	if err != nil {
-		return errors.Wrap(err, "failed to listen")
-	}
-
 	go func() {
-		s.echoServer.Listener = listener
-		if err := s.echoServer.Start(address); err != nil {
+		if err := s.echoServer.Start(fmt.Sprintf("%s:%d", s.Profile.Addr, s.Profile.Port)); err != nil {
 			if err != http.ErrServerClosed {
 				fmt.Printf("failed to start echo server: %v\n", err)
 			}

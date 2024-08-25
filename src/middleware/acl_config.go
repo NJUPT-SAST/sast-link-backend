@@ -3,13 +3,12 @@ package middleware
 import "strings"
 
 var authenticationAllowlist = map[string]bool{
-	"/api/v1/user/login":          true,
-	"/api/v1/user/register":       true,
-	"/api/v1/check_verify_code":   true,
-	"/api/v1/user/reset_password": true,
-	"/api/v1/verify/*":            true,
-	"/api/v1/oauth2/*":            true,
-	"/api/v1/sendEmail":           true,
+	"/api/v1/user/login":         true,
+	"/api/v1/user/register":      true,
+	"/api/v1/user/resetPassword": true,
+	"/api/v1/verify/*":           true,
+	"/api/v1/oauth2/*":           true,
+	"/api/v1/sendEmail":          true,
 }
 
 // isUnauthorizeAllowed returns whether the method is exempted from authentication.

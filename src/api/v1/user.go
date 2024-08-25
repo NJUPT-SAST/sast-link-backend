@@ -6,6 +6,7 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
+	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/labstack/echo/v4"
 )
 
@@ -56,8 +57,9 @@ func (s *APIV1Service) ResetPassword(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
 
-	cookie, err := c.Cookie("RESETPWD-TICKET")
+	cookie, err := c.Cookie(request.RESETPWD_TICKET_SUB)
 	if err != nil {
+		log.Errorf("Get cookie error: %s", err.Error())
 		return echo.NewHTTPError(http.StatusBadRequest, response.CheckTicketNotfound)
 	}
 	ticket := cookie.Value
@@ -69,15 +71,15 @@ func (s *APIV1Service) ResetPassword(c echo.Context) error {
 	// Check which phase current in
 	switch currentPhase {
 	case request.VERIFY_STATUS["VERIFY_ACCOUNT"], request.VERIFY_STATUS["SEND_EMAIL"]:
-		return echo.NewHTTPError(http.StatusBadRequest, response.RegisterPhaseError)
+		return echo.NewHTTPError(http.StatusBadRequest, response.ResetPasswordEror)
 	case request.VERIFY_STATUS["SUCCESS"]:
 		return echo.NewHTTPError(http.StatusBadRequest, response.AlreadySetPasswordErr)
 	case "":
 		return echo.NewHTTPError(http.StatusBadRequest, response.CheckTicketNotfound)
 	}
 
-	studentID := request.GetUsername(c.Request())
-	if studentID == "" {
+	studentID, err := util.IdentityFromToken(ticket, request.RESETPWD_TICKET_SUB, s.Config.Secret)
+	if err != nil || studentID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
 
@@ -87,5 +89,6 @@ func (s *APIV1Service) ResetPassword(c echo.Context) error {
 
 	// Set VERIFY_STATUS to 3 if successes
 	s.Store.Set(ctx, ticket, request.VERIFY_STATUS["SUCCESS"], request.REGISTER_TICKET_EXP)
+	log.Debugf("Reset password success: %s", studentID)
 	return c.JSON(http.StatusOK, response.Success(nil))
 }

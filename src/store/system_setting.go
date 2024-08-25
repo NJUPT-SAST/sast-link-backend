@@ -20,6 +20,21 @@ type SystemSetting struct {
 	Description string `json:"description"`
 }
 
+func (s *SystemSetting) String() string {
+	j, _ := json.Marshal(s)
+	return string(j)
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface.
+func (s SystemSetting) MarshalBinary() (data []byte, err error) {
+	return json.Marshal(s)
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+func (s *SystemSetting) UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data, s)
+}
+
 // GetSettings return the system setting by type.
 func (s *SystemSetting) GetSettings() (interface{}, error) {
 	switch config.SystemSettingType(s.Name) {
@@ -249,7 +264,7 @@ func (s *Store) GetSystemSetting(ctx context.Context, settingType config.SystemS
 	// If the system setting does not exist in the cache, get it from the database
 	var setting SystemSetting
 	s.db.Table("system_setting").Where("name = ?", settingType.String()).First(&setting)
-	if err := s.Set(ctx, settingType.String(), &setting, 0); err != nil {
+	if err := s.Set(ctx, settingType.String(), setting, 0); err != nil {
 		return nil, err
 	}
 

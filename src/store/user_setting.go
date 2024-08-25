@@ -37,6 +37,21 @@ type UserSetting struct {
 	Value  string         `json:"value,omitempty"`
 }
 
+func (s *UserSetting) String() string {
+	j, _ := json.Marshal(s)
+	return string(j)
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface.
+func (s UserSetting) MarshalBinary() (data []byte, err error) {
+	return json.Marshal(s)
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+func (s *UserSetting) UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data, s)
+}
+
 type FindUserSetting struct {
 	UserID string
 	Key    UserSettingKey
@@ -106,7 +121,7 @@ func (x *AccessTokensUserSetting) GetAccessTokens() []*AccessTokensUserSetting_A
 
 func (s *Store) ListUserSettings(ctx context.Context, find *FindUserSetting) ([]*UserSetting, error) {
 	var userSettings []*UserSetting
-	err := s.db.Table("user_setting").Where("user_id = ?", find.UserID).Find(&userSettings).Error
+	err := s.db.WithContext(ctx).Table("user_setting").Where("user_id = ?", find.UserID).Find(&userSettings).Error
 	if err != nil {
 		return nil, err
 	}
@@ -195,6 +210,7 @@ func (s *Store) UpsetAccessTokensUserSetting(ctx context.Context, userID string,
 	}
 
 	accessTokens.AccessTokens = append(accessTokens.AccessTokens, userAccessToken)
+	log.Debugf("User [%s] has %d access tokens", userID, len(accessTokens.AccessTokens))
 	userSetting.Value = accessTokens.String()
 
 	return s.UpsetUserSetting(ctx, userSetting)
@@ -202,7 +218,7 @@ func (s *Store) UpsetAccessTokensUserSetting(ctx context.Context, userID string,
 
 func (s *Store) UpsetUserSetting(ctx context.Context, userSetting *UserSetting) error {
 	// Perform upsert operation
-	err := s.db.Table("user_setting").Where("user_id = ? AND key = ?", userSetting.UserID, userSetting.Key).Assign(userSetting).FirstOrCreate(&userSetting).Error
+	err := s.db.Table("user_setting").Where("user_id = ? AND key = ?", userSetting.UserID, userSetting.Key).Assign(userSetting).Updates(userSetting).Error
 	if err != nil {
 		return err
 	}

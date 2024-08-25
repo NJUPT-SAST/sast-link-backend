@@ -89,11 +89,14 @@ func SetupLogger() {
 	Log.SetLevel(logLevelSwitcher(viper.GetString("log.level")))
 	// add caller message(method and file)
 	Log.SetReportCaller(true)
-	Log.SetFormatter(&logrus.TextFormatter{
-		ForceColors:     true,
-		ForceQuote:      true,
+	// Log.SetFormatter(&logrus.TextFormatter{
+	// 	ForceColors:     true,
+	// 	ForceQuote:      true,
+	// 	TimestampFormat: time.RFC3339,
+	// 	FullTimestamp:   true,
+	// })
+	Log.SetFormatter(&CustomFormatter{
 		TimestampFormat: time.RFC3339,
-		FullTimestamp:   true,
 	})
 
 	// file, err := os.OpenFile("log.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)

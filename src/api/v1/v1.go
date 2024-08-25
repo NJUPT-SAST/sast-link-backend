@@ -72,7 +72,7 @@ func (s *APIV1Service) RegistryRoutes(ctx context.Context, echoServer *echo.Echo
 		oauth.GET("/authorize", s.Authorize)
 		oauth.POST("/token", s.AccessToken)
 		oauth.POST("/refresh", s.RefreshToken)
-		oauth.POST("/create-client", s.CreateClient)
+		oauth.POST("/createClient", s.CreateClient)
 		oauth.GET("/userinfo", s.OauthUserInfo)
 	}
 	profileGroup := v1.Group("/profile")

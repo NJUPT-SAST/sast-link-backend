@@ -2,10 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"strings"
-
-	"github.com/redis/go-redis/v9"
 
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
@@ -80,7 +79,7 @@ func (s *UserService) VerifyAccount(ctx context.Context, username string, flag i
 // processRegistration handles the account registration verification
 func (s *UserService) processRegistration(ctx context.Context, username string) (string, error) {
 	if user, err := s.VerifyAccountRegister(ctx, username); err != nil || user != nil {
-		return "", err
+		return "", errors.New("user already exists")
 	}
 
 	ticket, err := util.GenerateTokenWithExp(ctx, request.RegisterJWTSubKey(username), s.Config.Secret, request.REGISTER_TICKET_EXP)
@@ -147,7 +146,7 @@ func (s *UserService) VerifyAccountLogin(ctx context.Context, username string) (
 	if strings.Contains(username, "@") {
 		return s.verifyUserByEmail(ctx, username)
 	}
-	return s.Store.UserByField("uid", username)
+	return s.Store.UserByField(ctx, "uid", username)
 }
 
 // verifyUserByEmail verifies if the user's email is valid
@@ -156,13 +155,9 @@ func (s *UserService) verifyUserByEmail(ctx context.Context, email string) (*sto
 		return nil, response.UserEmailError
 	}
 
-	user, err := s.Store.UserByField("email", email)
+	user, err := s.Store.UserByField(ctx, "email", email)
 	if err != nil {
 		return nil, err
-	}
-
-	if user == nil {
-		return nil, response.UserNotExist
 	}
 
 	return user, nil
@@ -212,20 +207,12 @@ func (s *UserService) UserInfo(ctx context.Context, studentID string) (*store.Us
 	return s.Store.UserInfo(studentID)
 }
 
-func (s *UserService) SendEmail(ctx context.Context, username, ticket, title string) error {
-	val, err := s.Store.Get(ctx, ticket)
-	if err != nil {
-		// Key does not exists
-		if err == redis.Nil {
-			return response.CheckTicketNotfound
-		}
-		return err
-	}
-
+func (s *UserService) SendEmail(ctx context.Context, username, status, title string) error {
 	// Determine if the ticket is correct
-	if val != request.VERIFY_STATUS["VERIFY_ACCOUNT"] {
+	if status != request.VERIFY_STATUS["VERIFY_ACCOUNT"] {
 		return response.TicketNotCorrect
 	}
+
 	code := store.GenerateVerifyCode()
 	s.Store.Set(ctx, request.VerifyCodeKey(username), code, request.VERIFY_CODE_EXP)
 	content := store.InsertCode(code)
@@ -233,38 +220,30 @@ func (s *UserService) SendEmail(ctx context.Context, username, ticket, title str
 	if emailErr != nil {
 		return emailErr
 	}
-	log.Infof("Send Email to [%s] with code [%s]\n", username, code)
-	// Update the status of the ticket
-	s.Store.Set(ctx, ticket, request.VERIFY_STATUS["SEND_EMAIL"], request.REGISTER_TICKET_EXP)
+
+	log.Debugf("Send Email to [%s] with code [%s]\n", username, code)
 	return nil
 }
 
-func (s *UserService) CheckVerifyCode(ctx context.Context, ticket, code, flag, username string) error {
-	status, err := s.Store.Get(ctx, ticket)
-	if err != nil {
-		if err == redis.Nil {
-			return response.CheckTicketNotfound
-		}
-		return err
-	}
+func (s *UserService) CheckVerifyCode(ctx context.Context, status, code, flag, username string) error {
 	if status != request.VERIFY_STATUS["SEND_EMAIL"] {
 		return response.TicketNotCorrect
 	}
 
-	rCode, cErr := s.Store.Get(ctx, request.VerifyCodeKey(username))
-	if cErr != nil {
-		if cErr == redis.Nil {
-			return response.CaptchaError
-		}
-		return cErr
+	target, err := s.Store.Get(ctx, request.VerifyCodeKey(username))
+	if err != nil {
+		log.Errorf("CheckVerifyCode error: %s", err.Error())
+		return err
+	}
+	if target == "" {
+		return response.VerifyCodeError
 	}
 
-	if code != rCode {
-		return response.CaptchaError
+	if code != target {
+		log.Errorf("CheckVerifyCode error, request code: %s, target code: %s", code, target)
+		return response.VerifyCodeError
 	}
 
-	// Update the status of the ticket
-	s.Store.Set(ctx, ticket, request.VERIFY_STATUS["VERIFY_CAPTCHA"], request.REGISTER_TICKET_EXP)
 	return nil
 }
 

@@ -164,7 +164,7 @@ func (s *APIV1Service) BindEmailWithSSO(c echo.Context) error {
 	}
 
 	// User not found, Need to register to bind the sso id
-	user, err := s.Store.UserByField("uid", studentID)
+	user, err := s.Store.UserByField(ctx, "uid", studentID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, response.InternalErr)
 	}
@@ -209,28 +209,37 @@ func (s *APIV1Service) Register(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
 	}
 
-	cookie, err := c.Cookie("REGISTER-TICKET")
+	cookie, err := c.Cookie(request.REGIST_TICKET_SUB)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, response.CheckTicketNotfound)
 	}
 	ticket := cookie.Value
 
-	currentPhase, _ := s.Store.Get(ctx, ticket)
-	if currentPhase != request.VERIFY_STATUS["VERIFY_ACCOUNT"] {
+	currentPhase, err := s.Store.Get(ctx, ticket)
+	if err != nil {
+		log.Errorf("Get status from redis fail: %s", err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
+	}
+	switch currentPhase {
+	case request.VERIFY_STATUS["VERIFY_ACCOUNT"], request.VERIFY_STATUS["SEND_EMAIL"]:
 		return echo.NewHTTPError(http.StatusBadRequest, response.RegisterPhaseError)
+	case request.VERIFY_STATUS["SUCCESS"]:
+		return echo.NewHTTPError(http.StatusBadRequest, response.UserAlreadyExist)
+	case "":
+		return echo.NewHTTPError(http.StatusBadRequest, response.CheckTicketNotfound)
 	}
 
-	username, usernameErr := util.IdentityFromToken(ticket, request.REGIST_TICKET_SUB, s.Config.Secret)
-	if usernameErr != nil {
+	studentID, err := util.IdentityFromToken(ticket, request.REGIST_TICKET_SUB, s.Config.Secret)
+	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, response.InternalErr)
 	}
 
-	creErr := s.CreateUserAndProfile(username, password)
-	if creErr != nil {
+	if s.CreateUserAndProfile(studentID, password) != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
 	}
 	// set VERIFY_STATUS to 3 if successes
 	s.Store.Set(ctx, ticket, request.VERIFY_STATUS["SUCCESS"], request.REGISTER_TICKET_EXP)
+	log.Debugf("User [%s] register success", studentID)
 	return c.JSON(http.StatusOK, response.Success(nil))
 }
 
@@ -243,21 +252,34 @@ func (s *APIV1Service) CheckVerifyCode(c echo.Context) error {
 
 	// Get TICKET from cookies
 	var ticket, flag string
-	if cookie, err := c.Cookie("REGISTER-TICKET"); err == nil {
+	if cookie, err := c.Cookie(request.REGIST_TICKET_SUB); err == nil {
 		ticket = cookie.Value
 		flag = request.REGIST_TICKET_SUB
-	} else if cookie, err := c.Cookie("RESETPWD-TICKET"); err == nil {
+	} else if cookie, err := c.Cookie(request.RESETPWD_TICKET_SUB); err == nil {
 		ticket = cookie.Value
 		flag = request.RESETPWD_TICKET_SUB
 	} else {
 		return echo.NewHTTPError(http.StatusBadRequest, response.CheckTicketNotfound)
 	}
 
-	studentID := request.GetUsername(c.Request())
-	codeError := s.UserService.CheckVerifyCode(ctx, ticket, code, flag, studentID)
-	if codeError != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, codeError.Error())
+	studentID, err := util.IdentityFromToken(ticket, flag, s.Config.Secret)
+	if err != nil {
+		log.Errorf("Get username from token fail: %s", err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, response.InternalErr)
 	}
+
+	status, err := s.Store.Get(ctx, ticket)
+	if err != nil || status == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, response.CheckTicketNotfound)
+	}
+
+	if err := s.UserService.CheckVerifyCode(ctx, status, code, flag, studentID); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	// Update the status of the ticket
+	s.Store.Set(ctx, ticket, request.VERIFY_STATUS["VERIFY_CAPTCHA"], request.REGISTER_TICKET_EXP)
+	log.Debugf("User [%s] check verify code success", studentID)
 	return c.JSON(http.StatusOK, response.Success(nil))
 }
 
@@ -291,7 +313,7 @@ func (s *APIV1Service) Verify(c echo.Context) error {
 	ticket, err := s.UserService.VerifyAccount(ctx, username, flag)
 	if err != nil {
 		log.Errorf("Verify account fail: %s", err.Error())
-		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
 	response.SetCookie(c, tKey, ticket)
@@ -323,25 +345,26 @@ func (s *APIV1Service) SendEmail(c echo.Context) error {
 	ctx := c.Request().Context()
 	// Get TICKET from cookies
 	var ticket, flag string
-	if cookie, err := c.Cookie("REGISTER-TICKET"); err == nil {
+	if cookie, err := c.Cookie(request.REGIST_TICKET_SUB); err == nil {
 		ticket = cookie.Value
 		flag = request.REGIST_TICKET_SUB
-	} else if cookie, err := c.Cookie("RESETPWD-TICKET"); err == nil {
+	} else if cookie, err := c.Cookie(request.RESETPWD_TICKET_SUB); err == nil {
 		ticket = cookie.Value
 		flag = request.RESETPWD_TICKET_SUB
 	} else {
 		return echo.NewHTTPError(http.StatusBadRequest, response.CheckTicketNotfound)
 	}
 
-	username, usernameErr := util.IdentityFromToken(ticket, flag, s.Config.Secret)
+	studentID, err := util.IdentityFromToken(ticket, flag, s.Config.Secret)
 	// 错误处理机制写玉玉了
 	// 我开始乱写了啊啊啊啊
-	if usernameErr != nil {
-		log.Errorf("username parse error: %s", usernameErr.Error())
+	if err != nil {
+		log.Errorf("username parse error: %s", err.Error())
 		return echo.NewHTTPError(http.StatusUnauthorized, response.TicketNotCorrect)
 	}
-	// verify if the user email correct
-	if !validator.ValidateEmail(username) {
+
+	// Verify if the user email correct
+	if !validator.ValidateEmail(studentID) {
 		return echo.NewHTTPError(http.StatusBadRequest, response.UserEmailError)
 	}
 
@@ -351,11 +374,18 @@ func (s *APIV1Service) SendEmail(c echo.Context) error {
 	} else {
 		title = "确认电子邮件重置SAST-Link账户密码（无需回复）"
 	}
-	err := s.UserService.SendEmail(ctx, username, ticket, title)
-	if err != nil {
+	status, err := s.Store.Get(ctx, ticket)
+	if err != nil || status == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, response.CheckTicketNotfound)
+	}
+
+	if err := s.UserService.SendEmail(ctx, studentID, status, title); err != nil {
 		log.Errorf("Send email fail: %s", err.Error())
 		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
-	} else {
-		return c.JSON(http.StatusOK, response.Success(nil))
 	}
+
+	// Update the status of the ticket
+	s.Store.Set(ctx, ticket, request.VERIFY_STATUS["SEND_EMAIL"], request.REGISTER_TICKET_EXP)
+	log.Debugf("User [%s] send email success", studentID)
+	return c.JSON(http.StatusOK, response.Success(nil))
 }

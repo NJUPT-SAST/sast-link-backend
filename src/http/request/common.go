@@ -38,6 +38,13 @@ var (
 		"VERIFY_CAPTCHA": "2",
 		"SUCCESS":        "3",
 	}
+	// Reverse map
+	VERIFY_STATUS_REVERSE = map[string]string{
+		"0": "VERIFY_ACCOUNT",
+		"1": "SEND_EMAIL",
+		"2": "VERIFY_CAPTCHA",
+		"3": "SUCCESS",
+	}
 )
 
 // Redis key, for indexing
