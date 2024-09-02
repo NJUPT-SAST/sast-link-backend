@@ -17,9 +17,13 @@ import (
 // 3. string, if the error is string, it will return the error message
 // if the error is other type, it will return "未知错误"
 func Error(c echo.Context, err interface{}) error {
+	code := http.StatusInternalServerError
 	switch e := err.(type) {
 	case LocalError:
-		return c.JSON(e.ErrCode, Failed(e))
+		if checkStatusCode(e.ErrCode) {
+			code = e.ErrCode
+		}
+		return c.JSON(code, Failed(e))
 	case error:
 		return c.JSON(http.StatusInternalServerError, Failed(errors.New(e.Error())))
 	case string:
@@ -27,6 +31,11 @@ func Error(c echo.Context, err interface{}) error {
 	default:
 		return c.JSON(http.StatusInternalServerError, Failed(errors.New("未知错误")))
 	}
+}
+
+// 100-599 are standard HTTP status codes
+func checkStatusCode(code int) bool {
+	return code >= 100 && code <= 599
 }
 
 type Response struct {
@@ -81,7 +90,7 @@ var (
 	PASSWORD_INCORRECT = LocalError{ErrCode: 1003, ErrMsg: "password incorrect"}
 	USER_NOT_FOUND     = LocalError{ErrCode: 1004, ErrMsg: "user not found"}
 	// Unauthorized http status code is 401
-	UNAUTHORIZED       = LocalError{ErrCode: 401, ErrMsg: "unauthorized"}
+	UNAUTHORIZED = LocalError{ErrCode: 401, ErrMsg: "unauthorized"}
 	// Request error
 	REQUIRED_PARAMS = LocalError{ErrCode: 2001, ErrMsg: "required params"}
 	// User error
@@ -101,7 +110,6 @@ var (
 	// Profile error
 	PROFILE_INFO_ERROR = LocalError{ErrCode: 7001, ErrMsg: "profile error"}
 	PROFILE_ORG_ERROR  = LocalError{ErrCode: 7002, ErrMsg: "profile organization error"}
-
 )
 
 // warp error
