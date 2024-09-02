@@ -12,7 +12,6 @@ import (
 	"github.com/tidwall/gjson"
 	"golang.org/x/oauth2"
 
-	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 )
@@ -256,24 +255,24 @@ func LarkExchangeToken(ctx context.Context, oauth2Setting *OAuth2Setting, redire
 	}
 	res, err := util.PostWithHeader(oauth2Setting.TokenUrl, header, data)
 	if err != nil {
-	    log.Errorf("util.PostWithHeader ::: %s", err.Error())
-	    return "", err
+		log.Errorf("util.PostWithHeader ::: %s", err.Error())
+		return "", err
 	}
 
 	body, err := io.ReadAll(res.Body)
 	defer res.Body.Close()
 	if err != nil {
-	    log.Errorf("io.ReadAll ::: %s", err.Error())
-	    return "", response.InternalErr
+		log.Errorf("io.ReadAll ::: %s", err.Error())
+		return "", errors.Wrap(err, "failed to read response body")
 	}
 	if resCode := gjson.Get(string(body), "code").Int(); resCode != 0 {
-	    log.Errorf("LarkExchangeToken ::: gjson.Get ::: response code: %d\n", resCode)
-	    return "", errors.New("Failed to exchange token")
+		log.Errorf("LarkExchangeToken ::: gjson.Get ::: response code: %d\n", resCode)
+		return "", errors.New("Failed to exchange token")
 	}
 
 	userAccessToken := gjson.Get(string(body), "data.access_token").String()
 	if userAccessToken == "" {
-	    return "", errors.New(`Missing "access_token" from authorization response`)
+		return "", errors.New(`Missing "access_token" from authorization response`)
 	}
 
 	return userAccessToken, nil
@@ -285,20 +284,20 @@ func LarkUserInfo(ctx context.Context, oauth2Setting *OAuth2Setting, accessToken
 	}
 	res, err := util.GetWithHeader(oauth2Setting.UserInfoUrl, header)
 	if err != nil {
-	    log.Errorf("util.GetWithHeader ::: %s", err.Error())
-        return nil, errors.Wrap(err, "failed to get user information")
+		log.Errorf("util.GetWithHeader ::: %s", err.Error())
+		return nil, errors.Wrap(err, "failed to get user information")
 	}
 
 	body, err := io.ReadAll(res.Body)
 	defer res.Body.Close()
 	if err != nil {
-	    log.Errorf("io.ReadAll ::: %s", err.Error())
-        return nil, errors.Wrap(err, "failed to read response body")
+		log.Errorf("io.ReadAll ::: %s", err.Error())
+		return nil, errors.Wrap(err, "failed to read response body")
 	}
 	if resCode := gjson.Get(string(body), "code").Int(); resCode != 0 {
-	    log.Errorf("LarkUserInfo ::: gjson.Get ::: response code: %d\n", resCode)
-        return nil, errors.New("Failed to get user information")
-    }
+		log.Errorf("LarkUserInfo ::: gjson.Get ::: response code: %d\n", resCode)
+		return nil, errors.New("Failed to get user information")
+	}
 
 	var claims map[string]any
 	err = json.Unmarshal(body, &claims)
@@ -337,7 +336,7 @@ func larkAppAccessToken(oauth2Setting *OAuth2Setting) (string, error) {
 
 	if code := gjson.Get(string(body), "code").Int(); code != 0 {
 		log.Errorf("gjson.Get ::: code: %d", code)
-		return "", response.InternalErr
+		return "", errors.New("Failed to get app_access_token")
 	}
 
 	acceToken := gjson.Get(string(body), "app_access_token").String()
@@ -352,29 +351,29 @@ func larkAppAccessToken(oauth2Setting *OAuth2Setting) (string, error) {
 
 // mapClaimsToUserInfo maps the claims to the identity provider user info.
 func mapClaimsToUserInfo(claims map[string]any, fieldMapping map[string]string) *IdentityProviderUserInfo {
-    userInfo := &IdentityProviderUserInfo{
-        Fields:      claims,
-        Identifier:  extractStringField(claims, fieldMapping, "identifier"),
-        DisplayName: extractStringField(claims, fieldMapping, "display_name"),
-        Email:       extractStringField(claims, fieldMapping, "email"),
-    }
+	userInfo := &IdentityProviderUserInfo{
+		Fields:      claims,
+		Identifier:  extractStringField(claims, fieldMapping, "identifier"),
+		DisplayName: extractStringField(claims, fieldMapping, "display_name"),
+		Email:       extractStringField(claims, fieldMapping, "email"),
+	}
 
-    if userInfo.Identifier == "" {
-        return nil
-    }
+	if userInfo.Identifier == "" {
+		return nil
+	}
 
-    if userInfo.DisplayName == "" {
-        userInfo.DisplayName = userInfo.Identifier
-    }
+	if userInfo.DisplayName == "" {
+		userInfo.DisplayName = userInfo.Identifier
+	}
 
-    return userInfo
+	return userInfo
 }
 
 func extractStringField(claims map[string]any, fieldMapping map[string]string, fieldKey string) string {
-    if fieldName, exists := fieldMapping[fieldKey]; exists && fieldName != "" {
-        if value, ok := claims[fieldName].(string); ok {
-            return value
-        }
-    }
-    return ""
+	if fieldName, exists := fieldMapping[fieldKey]; exists && fieldName != "" {
+		if value, ok := claims[fieldName].(string); ok {
+			return value
+		}
+	}
+	return ""
 }

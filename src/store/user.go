@@ -2,16 +2,16 @@ package store
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
-	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"gorm.io/gorm"
+
+	"github.com/pkg/errors"
 )
 
 type User struct {
@@ -49,6 +49,10 @@ func (store *Store) CreateUserAndProfile(user *User, profile *Profile) error {
 }
 
 // CheckPassword check user password, return uid if matched
+//
+// error:
+// 1. User not exist
+// 2. Password is incorrect
 func (s *Store) CheckPassword(username string, password string) (string, error) {
 	var user User
 
@@ -63,16 +67,17 @@ func (s *Store) CheckPassword(username string, password string) (string, error) 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Errorf("User [%s] Not Exist\n", username)
-			return "", response.UserNotExist
+			return "", errors.New("User not exist")
 		}
 	}
 
 	// Encrypt and verify password
 	pwdEncrypted := util.ShaHashing(password)
 	if *user.Password != pwdEncrypted {
-		return "", response.PasswordError
+		return "", errors.New("Password is incorrect")
 	}
-	return *user.Uid, err
+
+	return *user.Uid, nil
 }
 
 func (s *Store) ChangePassword(uid string, password string) error {
@@ -96,11 +101,15 @@ func (s *Store) UserByField(ctx context.Context, field, value string) (*User, er
 			log.Debugf("User with [%s: %s] Not Exist\n", field, value)
 			return nil, nil
 		}
-		return nil, response.InternalErr
+		log.Errorf("Failed to query user by field: %s\n", field)
+		return nil, errors.Wrap(err, "failed to query user by field")
 	}
 	return &user, nil
 }
 
+// UserInfo returns the user information of the current user
+//
+// If user not found, return nil
 func (s *Store) UserInfo(username string) (*User, error) {
 	var user = User{}
 	var err error

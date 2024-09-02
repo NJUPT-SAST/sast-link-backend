@@ -2,17 +2,15 @@ package service
 
 import (
 	"context"
-	"errors"
 	"regexp"
 	"strings"
 
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
-	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/NJUPT-SAST/sast-link-backend/validator"
-	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	_ "github.com/redis/go-redis/v9"
 )
 
@@ -35,14 +33,13 @@ func (s *UserService) CreateUserAndProfile(email, password string) error {
 	uid = strings.ToLower(uid)
 
 	if !validator.ValidatePassword(password) {
-		return response.PasswordIllegal
+		return errors.New("Password is invalid")
 	}
 
-	var err error
 	// Encrypt password
 	pwdEncrypt := util.ShaHashing(password)
 
-	err = s.Store.CreateUserAndProfile(&store.User{
+	if err := s.Store.CreateUserAndProfile(&store.User{
 		Email:    &email,
 		Password: &pwdEncrypt,
 		Uid:      &uid,
@@ -50,13 +47,11 @@ func (s *UserService) CreateUserAndProfile(email, password string) error {
 		Nickname: &uid,
 		Email:    &email,
 		OrgId:    -1,
-	})
-
-	if err != nil {
-		return err
-	} else {
-		return nil
+	}); err != nil {
+		return errors.Wrap(err, "Create user and profile failed")
 	}
+
+	return nil
 }
 
 // VerifyAccount handles account verification based on the operation flag
@@ -72,19 +67,19 @@ func (s *UserService) VerifyAccount(ctx context.Context, username string, flag i
 		log.Debugf("[%s] enter resetPWD verify\n", username)
 		return s.processPasswordReset(ctx, username)
 	default:
-		return "", response.RequestParamError
+		return "", errors.New("Invalid request parameter")
 	}
 }
 
 // processRegistration handles the account registration verification
 func (s *UserService) processRegistration(ctx context.Context, username string) (string, error) {
 	if user, err := s.VerifyAccountRegister(ctx, username); err != nil || user != nil {
-		return "", errors.New("user already exists")
+		return "", errors.New("User already exists")
 	}
 
 	ticket, err := util.GenerateTokenWithExp(ctx, request.RegisterJWTSubKey(username), s.Config.Secret, request.REGISTER_TICKET_EXP)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "generate token failed")
 	}
 
 	if err := s.Store.Set(ctx, ticket, request.VERIFY_STATUS["VERIFY_ACCOUNT"], request.REGISTER_TICKET_EXP); err != nil {
@@ -152,7 +147,7 @@ func (s *UserService) VerifyAccountLogin(ctx context.Context, username string) (
 // verifyUserByEmail verifies if the user's email is valid
 func (s *UserService) verifyUserByEmail(ctx context.Context, email string) (*store.User, error) {
 	if !validator.ValidateEmail(email) {
-		return nil, response.UserEmailError
+		return nil, errors.New("Invalid email address")
 	}
 
 	user, err := s.Store.UserByField(ctx, "email", email)
@@ -177,11 +172,11 @@ func (s *UserService) ModifyPassword(ctx context.Context, username, oldPassword,
 	}
 
 	if uid == "" {
-		return response.PasswordError
+		return errors.New("Password is incorrect")
 	}
-	pErr := s.Store.ChangePassword(uid, newPassword)
-	if pErr != nil {
-		return pErr
+	if err := s.Store.ChangePassword(uid, newPassword); err != nil {
+		log.Errorf("Change password failed: %s", err.Error())
+		return errors.Wrap(err, "Change password failed")
 	}
 	return nil
 }
@@ -189,7 +184,7 @@ func (s *UserService) ModifyPassword(ctx context.Context, username, oldPassword,
 func (s *UserService) ResetPassword(username, newPassword string) error {
 	// Check password form
 	if !validator.ValidatePassword(newPassword) {
-		return response.PasswordIllegal
+		return errors.New("Password is invalid")
 	}
 
 	split := regexp.MustCompile(`@`)
@@ -203,6 +198,7 @@ func (s *UserService) ResetPassword(username, newPassword string) error {
 	return nil
 }
 
+// UserInfo returns the user information of the current user
 func (s *UserService) UserInfo(ctx context.Context, studentID string) (*store.User, error) {
 	return s.Store.UserInfo(studentID)
 }
@@ -210,15 +206,15 @@ func (s *UserService) UserInfo(ctx context.Context, studentID string) (*store.Us
 func (s *UserService) SendEmail(ctx context.Context, username, status, title string) error {
 	// Determine if the ticket is correct
 	if status != request.VERIFY_STATUS["VERIFY_ACCOUNT"] {
-		return response.TicketNotCorrect
+		return errors.New("Ticket is not correct")
 	}
 
 	code := store.GenerateVerifyCode()
 	s.Store.Set(ctx, request.VerifyCodeKey(username), code, request.VERIFY_CODE_EXP)
 	content := store.InsertCode(code)
-	emailErr := s.Store.SendEmail(ctx, username, content, title)
-	if emailErr != nil {
-		return emailErr
+	if err := s.Store.SendEmail(ctx, username, content, title); err != nil {
+		log.Errorf("Send email failed: %s", err.Error())
+		return errors.Wrap(err, "Send email failed")
 	}
 
 	log.Debugf("Send Email to [%s] with code [%s]\n", username, code)
@@ -227,7 +223,7 @@ func (s *UserService) SendEmail(ctx context.Context, username, status, title str
 
 func (s *UserService) CheckVerifyCode(ctx context.Context, status, code, flag, username string) error {
 	if status != request.VERIFY_STATUS["SEND_EMAIL"] {
-		return response.TicketNotCorrect
+		return errors.New("Ticket is not correct")
 	}
 
 	target, err := s.Store.Get(ctx, request.VerifyCodeKey(username))
@@ -236,25 +232,13 @@ func (s *UserService) CheckVerifyCode(ctx context.Context, status, code, flag, u
 		return err
 	}
 	if target == "" {
-		return response.VerifyCodeError
+		return errors.New("Verify code is expired")
 	}
 
 	if code != target {
-		log.Errorf("CheckVerifyCode error, request code: %s, target code: %s", code, target)
-		return response.VerifyCodeError
+		log.Errorf("Verify code is incorrect, expect [%s], got [%s]\n", target, code)
+		return errors.New("Verify code is incorrect")
 	}
 
 	return nil
-}
-
-func (s *UserService) CheckToken(ctx *gin.Context, key, token string) bool {
-	val, err := s.Store.Get(ctx, key)
-	if err != nil {
-		log.Errorf("CheckToken error: %s", err.Error())
-		return false
-	}
-	if val != token {
-		return false
-	}
-	return true
 }

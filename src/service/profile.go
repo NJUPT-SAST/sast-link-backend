@@ -10,12 +10,13 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/NJUPT-SAST/sast-link-backend/http/response"
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/config"
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/plugin/storage/cos"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
+
+	"github.com/pkg/errors"
 )
 
 type ProfileService struct {
@@ -89,8 +90,8 @@ const picSensitiveMsg = `{
 func (s *ProfileService) ChangeProfile(profile *store.Profile, uid string) error {
 	// Check org_id
 	if profile.OrgId > 26 || profile.OrgId < -1 {
-		log.Errorf("OrgId illegal: %d", profile.OrgId)
-		return response.OrgIdError
+		log.Errorf("Orgenization id invalid: %d", profile.OrgId)
+		return errors.New("Orgenization id invalid")
 	}
 
 	// Check hide
@@ -106,7 +107,7 @@ func (s *ProfileService) ChangeProfile(profile *store.Profile, uid string) error
 	}
 	if resProfile == nil {
 		log.Errorf("Profile [%s] Not Exist\n", uid)
-		return response.ProfileNotExist
+		return errors.New("Profile not exist")
 	}
 
 	// Update profile
@@ -126,7 +127,7 @@ func (s *ProfileService) GetProfileInfo(uid string) (*store.Profile, error) {
 	}
 	if resProfile == nil {
 		log.Errorf("Profile [%s] Not Exist\n", uid)
-		return nil, response.ProfileNotExist
+		return nil, errors.New("Profile not exist")
 	}
 
 	hideFiled := resProfile.Hide
@@ -153,7 +154,7 @@ func (s *ProfileService) GetProfileOrg(OrgId int) (string, string, error) {
 	// Check org_id
 	if OrgId > 26 {
 		log.Errorf("OrgId illegal: %d", OrgId)
-		return "", "", response.OrgIdError
+		return "", "", errors.New("Orgenization id is invalid")
 	} else if OrgId == -1 || OrgId == 0 {
 		return "", "", nil
 	} else {
@@ -238,14 +239,14 @@ func checkHideLegal(hide []string) error {
 
 	//matching declared Filed, and if hide > declared Filed, match fail
 	for i := range hide {
-		matched, matchErr := regexp.MatchString(hideFiledPattern[0]+"|"+hideFiledPattern[1]+"|"+hideFiledPattern[2], hide[i])
+		matched, err := regexp.MatchString(hideFiledPattern[0]+"|"+hideFiledPattern[1]+"|"+hideFiledPattern[2], hide[i])
 
-		if matchErr != nil {
-			log.Errorf("Hide field match fail: %s", matchErr.Error())
-			return matchErr
+		if err != nil {
+			log.Errorf("Hide field match fail: %s", err.Error())
+			return errors.Wrap(err, "failed to match hide field")
 		} else if matched == false || i > len(hideFiledPattern) {
-			log.Errorf("Hide field illegal")
-			return response.CheckHideIllegal
+			log.Errorf("Hide field invalid")
+			return errors.New("Hide field invalid")
 		}
 	}
 	return nil
@@ -264,25 +265,25 @@ func (s *ProfileService) SentMsgToBot(ctx context.Context, checkRes *store.Check
 	systemSetting, err := s.Store.GetSystemSetting(ctx, config.WebsiteSettingType)
 	if err != nil {
 		log.Errorf("Get system setting error: %s", err.Error())
-		return err
+		return errors.Wrap(err, "failed to get system setting")
 	}
 	webSetting, err := systemSetting.GetWebsiteSetting()
 	if err != nil {
 		log.Errorf("Get website setting error: %s", err.Error())
-		return err
+		return errors.Wrap(err, "failed to get website setting")
 	}
 
 	// Set request
 	url := webSetting.ImageReviewWebhook
-	req, reqErr := http.NewRequest("POST", url, bytes.NewBuffer(message))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(message))
 	req.Header.Set("Content-Type", "application/json")
 
 	// Do request
 	client := &http.Client{}
-	resp, reqErr := client.Do(req)
-	if reqErr != nil {
-		log.Errorf("Sent msg to feishu bot fail: %s", reqErr.Error())
-		return reqErr
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Errorf("Sent msg to feishu bot fail: %s", err.Error())
+		return errors.Wrap(err, "failed to send message to feishu bot")
 	}
 	defer resp.Body.Close()
 	return nil
@@ -292,19 +293,19 @@ func (s *ProfileService) DealWithFrozenImage(ctx context.Context, checkRes *stor
 	compileRegex := regexp.MustCompile("[0-9]+")
 	matchArr := compileRegex.FindAllString(checkRes.Data.Url, -1)
 	if matchArr == nil {
-		return response.PicURLErr
+		return errors.New("Failed to match image url")
 	}
 	userId := matchArr[1]
 
 	systemSetting, err := s.Store.ListSystemSetting(ctx)
 	if err != nil {
 		log.Errorf("Get system setting error: %s", err.Error())
-		return err
+		return errors.Wrap(err, "failed to get system setting")
 	}
 	storageSetting, err := systemSetting[config.StorageSettingType].(*store.SystemSetting).GetStorageSetting()
 	if err != nil {
 		log.Errorf("Get storage setting error: %s", err.Error())
-		return err
+		return errors.Wrap(err, "failed to get storage setting")
 	}
 
 	client := cos.NewClient(storageSetting)
@@ -313,23 +314,23 @@ func (s *ProfileService) DealWithFrozenImage(ctx context.Context, checkRes *stor
 	dest := "ban/" + userId + ".jpg"
 	if err := client.MoveObject(ctx, source, dest); err != nil {
 		log.Errorf("Move file %s to %s failed: %s", source, dest, err)
-		return err
+		return errors.Wrap(err, "failed to move file to ban")
 	}
 	if err := client.DeleteObject(ctx, source); err != nil {
 		log.Errorf("Delete file %s failed: %s", source, err.Error())
-		return err
+		return errors.Wrap(err, "failed to delete file")
 	}
 
 	siteSetting, err := systemSetting[config.WebsiteSettingType].(*store.SystemSetting).GetWebsiteSetting()
 	if err != nil {
-		log.Errorf("Get storage setting error: %s", err.Error())
-		return err
+		log.Errorf("Get website setting error: %s", err.Error())
+		return errors.Wrap(err, "failed to get website setting")
 	}
 	avatarURL := siteSetting.AvatarErrorURLImage
 	parseUint, _ := strconv.Atoi(userId)
-	if upErr := s.Store.UpdateAvatar(avatarURL, uint(parseUint)); upErr != nil {
-		log.Errorf("Update avatar failed: %s", upErr)
-		return upErr
+	if err := s.Store.UpdateAvatar(avatarURL, uint(parseUint)); err != nil {
+		log.Errorf("Update avatar failed: %s", err)
+		return errors.Wrap(err, "failed to update avatar")
 	}
 	return nil
 }

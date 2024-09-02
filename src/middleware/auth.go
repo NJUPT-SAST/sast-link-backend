@@ -2,12 +2,12 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
+	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
@@ -44,19 +44,19 @@ func (m *AuthInterceptor) AuthenticationInterceptor(next echo.HandlerFunc) echo.
 		if err != nil {
 			log.ErrorWithFields("Failed to authenticate",
 				log.Fields{"client_ip": clientIP, "user_agent": r.UserAgent(), "error": err.Error()})
-			return echo.NewHTTPError(http.StatusUnauthorized, fmt.Errorf("Access unauthorized"))
+			return response.Error(c, response.UNAUTHORIZED)
 		}
 		user, err := m.store.UserInfo(username)
 		if err != nil {
 			log.ErrorWithFields("Failed to get user",
 				log.Fields{"client_ip": clientIP, "user_agent": r.UserAgent(), "username": username, "error": err.Error()})
-			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Errorf("Failed to get user"))
+			return response.Error(c, response.UNAUTHORIZED)
 		}
 
 		if user == nil {
 			log.DebugWithFields("User not found",
 				log.Fields{"client_ip": clientIP, "user_agent": r.UserAgent(), "username": username})
-			return echo.NewHTTPError(http.StatusUnauthorized, fmt.Errorf("User not found"))
+			return response.Error(c, response.UNAUTHORIZED)
 		}
 
 		log.DebugWithFields("User found",
@@ -83,7 +83,7 @@ func (m *AuthInterceptor) AuthenticationInterceptor(next echo.HandlerFunc) echo.
 		// Set the access token in the context for oauth server use
 		ctx = context.WithValue(ctx, request.AccessTokenContextKey, accesstoken)
 		// ctx = context.WithValue(ctx, request.UserRolesContextKey, user.Role.String())
-		
+
 		c.SetRequest(r.WithContext(ctx))
 
 		return next(c)

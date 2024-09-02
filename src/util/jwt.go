@@ -5,14 +5,13 @@ package util
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
-	"github.com/NJUPT-SAST/sast-link-backend/http/response"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -102,9 +101,9 @@ func IdentityFromToken(token, flag, jwtSigningKey string) (string, error) {
 	identifiers := strings.SplitN(audience[0], "-", 2)
 	identity, tokenType := identifiers[0], identifiers[1]
 	if identity == "" || flag != tokenType {
-		return "", response.TicketNotCorrect
+		return "", errors.New("token type not correct")
 	}
-	return strings.ToLower(identity), err
+	return strings.ToLower(identity), nil
 }
 
 // GetUsername
@@ -129,7 +128,7 @@ func GetUsername(token, flag, jwtSigningKey string) (string, error) {
 	reg := strings.Split(username[0], "-")
 	uid, err := reg[0], nil
 	if reg[1] != "" && flag != "" && flag != reg[1] {
-		return "", response.TicketNotCorrect
+		return "", errors.New("Token type not correct")
 	}
 	return strings.ToLower(uid), err
 }
@@ -148,7 +147,7 @@ type JWTAccessGenerate struct {
 
 func (a *JWTAccessClaims) Valid() error {
 	if time.Unix(a.ExpiresAt.Unix(), 0).Before(time.Now()) {
-		return response.InvalidAccToken
+		return errors.New("Token is expired")
 	}
 	return nil
 }

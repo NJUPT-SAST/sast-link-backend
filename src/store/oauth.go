@@ -1,13 +1,10 @@
 package store
 
 import (
-	// "encoding/json"
-	"errors"
-
-	"github.com/NJUPT-SAST/sast-link-backend/http/response"
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+
+	"github.com/pkg/errors"
 )
 
 // OAuth2Info struct
@@ -19,7 +16,7 @@ type OAuth2Info struct {
 	UserID  string         `gorm:"not null"`
 }
 
-func (s *Store)UpdateLarkUserInfo(info OAuth2Info) error {
+func (s *Store) UpdateLarkUserInfo(info OAuth2Info) error {
 	return s.db.Table("oauth2_info").
 		Where("user_id = ?", info.UserID).
 		Where("client = ?", info.Client).
@@ -28,6 +25,8 @@ func (s *Store)UpdateLarkUserInfo(info OAuth2Info) error {
 }
 
 // OauthInfoByUID find user by specific client id in oauth2_info table
+//
+// return (nil, nil) if user not found
 func (s *Store) OauthInfoByUID(clientType, oauthUID string) (*OAuth2Info, error) {
 	var client OAuth2Info
 	err := s.db.Table("oauth2_info").
@@ -38,8 +37,7 @@ func (s *Store) OauthInfoByUID(clientType, oauthUID string) (*OAuth2Info, error)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		log.Errorf("model.OauthInfoByUID ::: %s", err.Error())
-		return nil, response.InternalErr
+		return nil, errors.Wrap(err, "failed to find oauth info by uid")
 	}
 	return &client, nil
 }

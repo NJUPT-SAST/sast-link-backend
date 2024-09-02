@@ -123,7 +123,7 @@ func ResponseTokenHandler(w http.ResponseWriter, data map[string]interface{}, he
 		log.Errorf("Oauth2 ::: ResponseTokenHandler:error:[%s]", err)
 		return json.NewEncoder(w).Encode(response.Failed(err))
 	} else {
-		return json.NewEncoder(w).Encode(response.Success(data))
+		return json.NewEncoder(w).Encode(response.Success(map[string]string{"access_token": data["access_token"].(string)}))
 	}
 }
 
@@ -139,19 +139,19 @@ type ClientStoreItem struct {
 func (s *APIV1Service) CreateClient(c echo.Context) error {
 	redirectURI := c.FormValue("redirect_uri")
 	if redirectURI == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
+		return echo.NewHTTPError(http.StatusBadRequest, response.REQUIRED_PARAMS)
 	}
 
 	// token := c.GetHeader("TOKEN")
 	studentID := request.GetUsername(c.Request())
 	if studentID == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, response.RequestParamError)
+		return echo.NewHTTPError(http.StatusBadRequest, response.REQUIRED_PARAMS)
 	}
 
 	clientID := util.GenerateUUID()
 	secret, err := util.GenerateRandomString(32)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
+		return echo.NewHTTPError(http.StatusInternalServerError, response.REQUIRED_PARAMS)
 	}
 
 	if s.OAuthServer.ClientStore.Create(&models.Client{
@@ -160,7 +160,7 @@ func (s *APIV1Service) CreateClient(c echo.Context) error {
 		Domain: redirectURI,
 		UserID: studentID,
 	}) != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
+		return echo.NewHTTPError(http.StatusInternalServerError, response.REQUIRED_PARAMS)
 	}
 
 	return c.JSON(http.StatusOK, response.Success(map[string]string{
@@ -173,16 +173,16 @@ func (s *APIV1Service) CreateClient(c echo.Context) error {
 func (s *APIV1Service) OauthUserInfo(c echo.Context) error {
 	ctx := c.Request().Context()
 	if request.GetIsAuthenticated(c.Request()) == false {
-		return c.JSON(http.StatusOK, response.Failed(response.Unauthorized))
+		return c.JSON(http.StatusUnauthorized, response.Failed(response.UNAUTHORIZED))
 	}
 	accessToken := request.GetAccessToken(c.Request())
 	if accessToken == "" {
-		return c.JSON(http.StatusOK, response.Failed(response.Unauthorized))
+		return c.JSON(http.StatusUnauthorized, response.Failed(response.UNAUTHORIZED))
 	}
 	mg := s.OAuthServer.Srv.Manager
 	ti, err := mg.LoadAccessToken(ctx, accessToken)
 	if err != nil {
-		return c.JSON(http.StatusOK, response.Failed(response.Unauthorized))
+		return c.JSON(http.StatusUnauthorized, response.Failed(response.UNAUTHORIZED))
 	}
 	// TODO: scope check
 	ti.GetScope()
@@ -190,18 +190,18 @@ func (s *APIV1Service) OauthUserInfo(c echo.Context) error {
 	user, err := s.OauthService.OauthUserInfo(ti.GetUserID())
 	if err != nil {
 		log.Errorf("Failed to get user info: %s", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
+		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
 	}
 
 	profileInfo, serErr := s.ProfileService.GetProfileInfo(*user.Uid)
 	if serErr != nil {
 		log.Errorf("Failed to get profile info: %s", serErr)
-		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
+		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
 	}
 
-	if dep, org, getOrgErr := s.ProfileService.GetProfileOrg(profileInfo.OrgId); getOrgErr != nil {
-		log.Errorf("Failed to get profile org: %s", getOrgErr)
-		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
+	if dep, org, err := s.ProfileService.GetProfileOrg(profileInfo.OrgId); err != nil {
+		log.Errorf("Failed to get profile org: %s", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
 	} else {
 		return c.JSON(http.StatusOK, response.Success(map[string]interface{}{
 			"nickname": profileInfo.Nickname,
@@ -226,7 +226,7 @@ func (s *APIV1Service) Authorize(c echo.Context) error {
 	// Redirect user to login page if user not login or
 	// get code directly if user has logged in
 	if s.OAuthServer.Srv.HandleAuthorizeRequest(w, r) != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
+		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
 	}
 
 	return c.JSON(http.StatusOK, response.Success(nil))
@@ -237,7 +237,7 @@ func (s *APIV1Service) AccessToken(c echo.Context) error {
 	w := c.Response().Writer
 	r := c.Request()
 	if s.OAuthServer.Srv.HandleTokenRequest(w, r) != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
+		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
 	}
 
 	return c.JSON(http.StatusOK, response.Success(nil))
@@ -249,7 +249,7 @@ func (s *APIV1Service) RefreshToken(c echo.Context) error {
 	r := c.Request()
 	err := s.OAuthServer.Srv.HandleTokenRequest(w, r)
 	if err == nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalErr)
+		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
 	}
 
 	return c.JSON(http.StatusOK, response.Success(nil))
@@ -261,41 +261,41 @@ func (s *OAuthServer) clientInfoHandler(r *http.Request) (clientID, clientSecret
 	if r.Form.Get("grant_type") == "refresh_token" {
 		ti, err := s.Srv.Manager.LoadRefreshToken(r.Context(), r.Form.Get("refresh_token"))
 		if err != nil {
-			return "", "", response.RefreshTokenErr
+			return "", "", response.RESHRESH_TOKEN_INVALID
 		}
 		clientID = ti.GetClientID()
 		if clientID == "" {
-			return "", "", response.ClientErr
+			return "", "", response.CLIENT_ID_INVALID
 		}
 		cli, err := s.Srv.Manager.GetClient(r.Context(), clientID)
 		if err != nil {
-			return "", "", response.ClientErr
+			return "", "", response.CLIENT_ERROR
 		}
 		clientSecret = cli.GetSecret()
 		if clientSecret == "" {
-			return "", "", response.ClientErr
+			return "", "", response.CLIENT_SECRET_INVALID
 		}
 		return clientID, clientSecret, nil
 	}
 	clientID = r.Form.Get("client_id")
 	if clientID == "" {
-		return "", "", response.ClientErr
+		return "", "", response.CLIENT_ID_INVALID
 	}
 	clientSecret = r.Form.Get("client_secret")
 	if clientSecret == "" {
-		return "", "", response.ClientErr
+		return "", "", response.CLIENT_SECRET_INVALID
 	}
 	return clientID, clientSecret, nil
 }
 
 func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string, err error) {
 	if !request.GetIsAuthenticated(r) {
-		return "", response.Unauthorized
+		return "", response.UNAUTHORIZED
 	}
 
 	stuID := request.GetUsername(r)
 	if stuID == "" {
-		return "", response.UsernameError
+		return "", response.USER_NOT_FOUND
 	}
 
 	return stuID, nil

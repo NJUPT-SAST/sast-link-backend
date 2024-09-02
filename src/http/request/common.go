@@ -20,7 +20,7 @@ const (
 	GITHUB_CLIENT_TYPE = "github"
 
 
-	// For JWT/Redis key/cookie
+	// JWT/Redis-key/cookie
 	LOGIN_TOKEN_SUB     = "login-token"
 	LOGIN_TICKET_SUB    = "login-ticket"
 	REGIST_TICKET_SUB   = "register-ticket"
