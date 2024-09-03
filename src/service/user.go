@@ -242,3 +242,30 @@ func (s *UserService) CheckVerifyCode(ctx context.Context, status, code, flag, u
 
 	return nil
 }
+
+// DeleteUserAccessToken deletes the access token of the user
+func (s *UserService) DeleteUserAccessToken(ctx context.Context, studentID, accessToken string) error {
+	// Delete token from redis
+	go s.Store.Delete(ctx, request.LoginTokenKey(studentID))
+
+	userAccessTokens, err := s.Store.GetUserAccessTokens(ctx, studentID)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get user access tokens")
+	}
+	updateAccessTokens := make([]*store.UserSetting_AccessToken, 0)
+	for _, token := range userAccessTokens {
+		if token.AccessToken != accessToken {
+			updateAccessTokens = append(updateAccessTokens, token)
+		}
+	}
+	updateUserSetting := store.AccessTokensUserSetting{AccessTokens: updateAccessTokens}
+	if err := s.Store.UpsetUserSetting(ctx, &store.UserSetting{
+		UserID: studentID,
+		Key:    store.USER_SETTING_ACCESS_TOKENS,
+		Value:  updateUserSetting.String(),
+	}); err != nil {
+		return errors.Wrap(err, "Failed to upset user setting")
+	}
+
+	return nil
+}

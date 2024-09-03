@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -136,12 +137,32 @@ func SetCookie(ctx echo.Context, key, value string) {
 }
 
 // SetCookieWithExpire sets a cookie with an expiration time
-func SetCookieWithExpire(ctx echo.Context, key, value string, expire int, unit time.Duration) {
-	expireTime := time.Now().Add(time.Duration(expire) * unit)
+//
+// If expire is -1, the cookie will be deleted
+func SetCookieWithExpire(ctx echo.Context, key, value string, expire time.Duration) {
+	maxAge := int(expire.Seconds())
+
+	secure := false
+	sameSite := http.SameSiteStrictMode
+
+	// Determine if the request is HTTPS, if it is, set the cookie to secure and SameSite=None
+	// This is to prevent CSRF attacks
+	origin := ctx.Response().Header().Get("Origin")
+	if origin != "" {
+		isHTTPS := strings.HasPrefix(origin, "https://")
+		if isHTTPS {
+			secure = true
+			sameSite = http.SameSiteNoneMode
+		}
+	}
+
 	ctx.SetCookie(&http.Cookie{
 		Name:     key,
 		Value:    value,
 		HttpOnly: true,
-		Expires:  expireTime,
+		MaxAge:   maxAge,
+		Path:     "/",
+		Secure:   secure,
+		SameSite: sameSite,
 	})
 }

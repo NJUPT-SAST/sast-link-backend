@@ -98,7 +98,7 @@ func (m *AuthInterceptor) authenticate(ctx context.Context, accessToken string) 
 	// Validate the login access token
 	userID, err := util.IdentityFromToken(accessToken, request.AccessTokenCookieName, m.secret)
 	if err != nil {
-		return "", errors.Wrap(err, "malformed ID in the token")
+		return "", errors.Wrap(err, "invalid or expired access token")
 	}
 	user, err := m.store.UserInfo(userID)
 	if err != nil {
@@ -139,7 +139,6 @@ func getAccessToken(r *http.Request) string {
 	// Check the cookie header
 	var accessToken string
 	for cookie := range r.Cookies() {
-		log.Infof("Cookie: %s", r.Cookies()[cookie].Name)
 		if r.Cookies()[cookie].Name == request.AccessTokenCookieName {
 			accessToken = r.Cookies()[cookie].Value
 		}
@@ -147,7 +146,7 @@ func getAccessToken(r *http.Request) string {
 	return accessToken
 }
 
-func validateAccessToken(accessTokenString string, userAccessTokens []*store.AccessTokensUserSetting_AccessToken) bool {
+func validateAccessToken(accessTokenString string, userAccessTokens []*store.UserSetting_AccessToken) bool {
 	for _, userAccessToken := range userAccessTokens {
 		if accessTokenString == userAccessToken.AccessToken {
 			return true

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
@@ -55,7 +56,7 @@ func (s *APIV1Service) Login(c echo.Context) error {
 		return response.Error(c, response.INTENAL_ERROR)
 	}
 	s.Store.Set(ctx, request.LoginTokenKey(uid), token, request.LOGIN_ACCESS_TOKEN_EXP)
-	response.SetCookie(c, request.AccessTokenCookieName, token)
+	response.SetCookieWithExpire(c, request.AccessTokenCookieName, token, request.LOGIN_ACCESS_TOKEN_EXP)
 
 	// Upset the token to database
 	if err := s.Store.UpsetAccessTokensUserSetting(ctx, uid, token, ""); err != nil {
@@ -74,7 +75,7 @@ func (s *APIV1Service) LoginWithSSO(c echo.Context) error {
 	// Get Idp name from query
 	idpName := c.QueryParam("idp")
 	identityProvider, err := s.Store.GetIdentityProviderByName(idpName)
-	if err != nil || identityProvider == nil{
+	if err != nil || identityProvider == nil {
 		return response.Error(c, "identity provider not found")
 	}
 
@@ -187,7 +188,7 @@ func (s *APIV1Service) BindEmailWithSSO(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
 	}
 	s.Store.Set(ctx, request.LoginTokenKey(studentID), token, request.LOGIN_ACCESS_TOKEN_EXP)
-	response.SetCookie(c, request.AccessTokenCookieName, token)
+	response.SetCookieWithExpire(c, request.AccessTokenCookieName, token, request.LOGIN_ACCESS_TOKEN_EXP)
 
 	return c.JSON(http.StatusOK, response.Success(map[string]string{request.AccessTokenCookieName: token}))
 }
@@ -291,15 +292,19 @@ func (s *APIV1Service) Verify(c echo.Context) error {
 
 	flag, _ := strconv.Atoi(c.QueryParam("flag"))
 	tKey := ""
+	var tExp time.Duration
 	// 0 is register
 	// 1 is login
 	// 2 is resetPassword
 	if flag == 0 {
 		tKey = request.REGIST_TICKET_SUB
+		tExp = request.REGISTER_TICKET_EXP
 	} else if flag == 1 {
 		tKey = request.LOGIN_TICKET_SUB
+		tExp = request.LOGIN_TICKET_EXP
 	} else if flag == 2 {
 		tKey = request.RESETPWD_TICKET_SUB
+		tExp = request.RESETPWD_TICKET_EXP
 	} else {
 		return response.Error(c, response.REQUIRED_PARAMS)
 	}
@@ -310,26 +315,28 @@ func (s *APIV1Service) Verify(c echo.Context) error {
 		return response.Error(c, "verify account fail")
 	}
 
-	response.SetCookie(c, tKey, ticket)
+	response.SetCookieWithExpire(c, tKey, ticket, tExp)
 	return c.JSON(http.StatusOK, response.Success(map[string]string{"ticket": ticket}))
 }
 
 func (s *APIV1Service) Logout(c echo.Context) error {
 	ctx := c.Request().Context()
-	cookie, err := c.Cookie(request.LOGIN_TOKEN_SUB)
-	if err != nil {
-		return response.Error(c, response.TICKET_NOT_FOUND)
+	accessToken := request.GetAccessToken(c.Request())
+	if accessToken == "" {
+		return response.Error(c, response.UNAUTHORIZED)
 	}
-	token := cookie.Value
-	if token == "" {
-		return response.Error(c, response.TICKET_NOT_FOUND)
+	studentID := request.GetUsername(c.Request())
+	if studentID == "" {
+		return response.Error(c, response.UNAUTHORIZED)
 	}
-	uid, err := util.IdentityFromToken(token, request.LOGIN_TOKEN_SUB, s.Config.Secret)
-	if err != nil || uid == "" {
-		return response.Error(c, response.TICKET_NOT_FOUND)
+
+	// Delete the access token
+	if err := s.UserService.DeleteUserAccessToken(ctx, studentID, accessToken); err != nil {
+		log.Errorf("Delete access token fail: %s", err.Error())
 	}
-	// Delete token from redis
-	s.Store.Delete(ctx, request.LoginTokenKey(uid))
+
+	response.SetCookieWithExpire(c, request.AccessTokenCookieName, "", 0)
+
 	return c.JSON(http.StatusOK, response.Success(nil))
 }
 
