@@ -1,56 +1,29 @@
 package store
 
 import (
-	"gorm.io/datatypes"
-	"gorm.io/gorm"
+	"net/url"
+	"strings"
 
-	"github.com/pkg/errors"
+	"github.com/go-oauth2/oauth2/v4/errors"
 )
 
-// OAuth2Info struct
-type OAuth2Info struct {
-	ID      uint           `gorm:"primaryKey"`
-	Client  string         `gorm:"not null"` // Client is equal to the idp name
-	Info    datatypes.JSON `gorm:"default:'[]'"`
-	OauthID string         `gorm:"not null"`
-	UserID  string         `gorm:"not null"`
-}
-
-func (s *Store) UpdateLarkUserInfo(info OAuth2Info) error {
-	return s.db.Table("oauth2_info").
-		Where("user_id = ?", info.UserID).
-		Where("client = ?", info.Client).
-		Update("oauth_user_id = ?", info.OauthID).
-		Update("info = ?", info.Info).Error
-}
-
-// OauthInfoByUID find user by specific client id in oauth2_info table
-//
-// return (nil, nil) if user not found
-func (s *Store) OauthInfoByUID(clientType, oauthUID string) (*OAuth2Info, error) {
-	var client OAuth2Info
-	err := s.db.Table("oauth2_info").
-		Where("oauth_user_id = ?", oauthUID).
-		Where("client = ?", clientType).
-		First(&client).Error
+func (s *Store) ValidateURIHandler(baseURI string, redirectURIs string) (err error) {
+	base, err := url.Parse(baseURI)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, errors.Wrap(err, "failed to find oauth info by uid")
+		return err
 	}
-	return &client, nil
-}
 
-// UpsetOauthInfo insert or update oauth2_info table
-func (s *Store) UpsetOauthInfo(oauthInfo OAuth2Info) {
-	// return Db.Table("oauth2_info").Save(oauthInfo).Error
-	stmt := `
-	       	INSERT INTO oauth2_info (client, info, oauth_user_id, user_id)
-	       	VALUES (?, ?, ?, ?)
-	       	ON CONFLICT (client, user_id) DO UPDATE
-	       	SET info = EXCLUDED.info, oauth_user_id = EXCLUDED.oauth_user_id, client = EXCLUDED.client
-	`
+	// Since the oauth2 package only supports one redirectURI, we need to split the string and check each one
+	uriList := strings.Split(redirectURIs, ",")
+	for _, redirectURI := range uriList {
+		redirect, err := url.Parse(redirectURI)
+		if err != nil {
+			return err
+		}
 
-	s.db.Exec(stmt, oauthInfo.Client, oauthInfo.Info, oauthInfo.OauthID, oauthInfo.UserID)
+		if strings.HasSuffix(redirect.Host, base.Host) {
+			return nil
+		}
+	}
+	return errors.ErrInvalidRedirectURI
 }

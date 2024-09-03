@@ -3,7 +3,6 @@ package v1
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -11,56 +10,31 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
+	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/go-oauth2/oauth2/v4/errors"
 	"github.com/go-oauth2/oauth2/v4/manage"
 	"github.com/go-oauth2/oauth2/v4/models"
 	"github.com/go-oauth2/oauth2/v4/server"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/labstack/echo/v4"
-	pg "github.com/vgarvardt/go-oauth2-pg/v4"
-	"github.com/vgarvardt/go-pg-adapter/pgx4adapter"
 )
 
 type OAuthServer struct {
 	Srv         *server.Server
-	TokenStore  *pg.TokenStore
-	ClientStore *pg.ClientStore
+	TokenStore  *store.TokenStore
+	ClientStore *store.ClientStore
 }
 
-func NewOAuthServer(ctx context.Context, config *config.Config) (*OAuthServer, error) {
-	// postgresql://username:password@ip:port/dbname
-	dsn := fmt.Sprintf(`postgres://%s:%s@%s:%d/%s?sslmode=disable`,
-		config.PostgresUser,
-		config.PostgresPWD,
-		config.PostgresHost,
-		config.PostgresPort,
-		config.PostgresDB,
-	)
-	pgxConn, err := pgxpool.Connect(ctx, dsn)
-	if err != nil {
-		log.Panicf("Failed to connect to PostgreSQL for OAuth server: %s", err)
-		return nil, err
-	}
-
-	tokenAdapter := pgx4adapter.NewPool(pgxConn)
-	tokenStore, err := pg.NewTokenStore(tokenAdapter, pg.WithTokenStoreGCInterval(time.Minute))
-	if err != nil {
-		log.Panicf("Failed to create token store for OAuth server: %s", err)
-		return nil, err
-	}
-	clientAdapter := pgx4adapter.NewPool(pgxConn)
-	clientStore, err := pg.NewClientStore(clientAdapter)
-	if err != nil {
-		log.Panicf("Failed to create client store for OAuth server: %s", err)
-		return nil, err
-	}
+func NewOAuthServer(ctx context.Context, config *config.Config, dbStore store.Store) (*OAuthServer, error) {
+	tokenStore := store.NewTokenStore(dbStore, store.WithTokenStoreGCInterval(5*time.Minute))
+	clientStore := store.NewClientStore(dbStore)
 
 	mg := manage.NewDefaultManager()
 	mg.MapTokenStorage(tokenStore)
 	mg.SetAuthorizeCodeTokenCfg(manage.DefaultAuthorizeCodeTokenCfg)
-	// use PostgreSQL client store with pgx.Connection adapter
 	mg.MapClientStorage(clientStore)
+	// Custom URI validation handler, we need to use multiple redirect uri
+	mg.SetValidateURIHandler(dbStore.ValidateURIHandler)
 
 	srv := server.NewServer(server.NewConfig(), mg)
 
@@ -127,16 +101,10 @@ func ResponseTokenHandler(w http.ResponseWriter, data map[string]interface{}, he
 	}
 }
 
-// ClientStoreItem data item
-type ClientStoreItem struct {
-	ID     string `db:"id"`
-	Secret string `db:"secret"`
-	Domain string `db:"domain"`
-	Data   []byte `db:"data"`
-}
-
 // CreateClient creates a new client
 func (s *APIV1Service) CreateClient(c echo.Context) error {
+	ctx := c.Request().Context()
+
 	redirectURI := c.FormValue("redirect_uri")
 	if redirectURI == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, response.REQUIRED_PARAMS)
@@ -154,7 +122,7 @@ func (s *APIV1Service) CreateClient(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, response.REQUIRED_PARAMS)
 	}
 
-	if s.OAuthServer.ClientStore.Create(&models.Client{
+	if s.OAuthServer.ClientStore.Create(ctx, &models.Client{
 		ID:     clientID,
 		Secret: secret,
 		Domain: redirectURI,

@@ -47,7 +47,7 @@ func (s *APIV1Service) Login(c echo.Context) error {
 	uid, err := s.UserService.Login(username, password)
 	if err != nil {
 		log.Errorf("Login fail: %s", err.Error())
-		return response.Error(c, response.Failed(err))
+		return response.Error(c, response.LOGIN_FAILED)
 	}
 
 	// Set Token with expire time and return
@@ -316,7 +316,7 @@ func (s *APIV1Service) Verify(c echo.Context) error {
 	}
 
 	response.SetCookieWithExpire(c, tKey, ticket, tExp)
-	return c.JSON(http.StatusOK, response.Success(map[string]string{"ticket": ticket}))
+	return c.JSON(http.StatusOK, response.Success(map[string]string{tKey: ticket}))
 }
 
 func (s *APIV1Service) Logout(c echo.Context) error {

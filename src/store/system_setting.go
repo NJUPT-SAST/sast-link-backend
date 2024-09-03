@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
@@ -16,8 +17,14 @@ import (
 // It container the system setting information, such as the email sender and secret key, etc.
 type SystemSetting struct {
 	Name        string `json:"name"`
+	Type		string `json:"type"`
 	Value       string `json:"value"`
 	Description string `json:"description"`
+}
+
+// Check value is empty or not
+func (s *SystemSetting) IsEmpty() bool {
+	return s.Value == `{}`
 }
 
 func (s *SystemSetting) String() string {
@@ -37,7 +44,7 @@ func (s *SystemSetting) UnmarshalBinary(data []byte) error {
 
 // GetSettings return the system setting by type.
 func (s *SystemSetting) GetSettings() (interface{}, error) {
-	switch config.SystemSettingType(s.Name) {
+	switch config.SystemSettingType(s.Type) {
 	case config.WebsiteSettingType:
 		var setting WebsiteSetting
 		if err := json.Unmarshal([]byte(s.Value), &setting); err != nil {
@@ -68,7 +75,7 @@ func (s *SystemSetting) GetSettings() (interface{}, error) {
 
 // GetWebsiteSetting get the website setting. If the system setting is not a website setting, return nil.
 func (s *SystemSetting) GetWebsiteSetting() (*WebsiteSetting, error) {
-	if s.Name != config.WebsiteSettingType.String() {
+	if s.Type != config.WebsiteSettingType.String() {
 		return nil, nil
 	}
 	var setting WebsiteSetting
@@ -158,26 +165,33 @@ type StorageSetting struct {
 // If the system setting already exists in the database, it will be updated.
 func (s *Store) InitSystemSetting(ctx context.Context, profile *config.Config) error {
 	// Initialize the system setting
-	settings := make(map[config.SystemSettingType]SystemSetting)
-	settings[config.WebsiteSettingType] = SystemSetting{
+	settings := make(map[string]SystemSetting)
+	settings[config.WebsiteSettingType.String()] = SystemSetting{
 		Name:        config.WebsiteSettingType.String(),
 		Value:       profile.SystemSettings[config.WebsiteSettingType.String()],
 		Description: "Website setting",
 	}
-	settings[config.EmailSettingType] = SystemSetting{
+	settings[config.EmailSettingType.String()] = SystemSetting{
 		Name:        config.EmailSettingType.String(),
 		Value:       profile.SystemSettings[config.EmailSettingType.String()],
 		Description: "Email setting",
 	}
-	settings[config.StorageSettingType] = SystemSetting{
+	settings[config.StorageSettingType.String()] = SystemSetting{
 		Name:        config.StorageSettingType.String(),
 		Value:       profile.SystemSettings[config.StorageSettingType.String()],
 		Description: "Storage setting",
 	}
-	settings[config.IdpSettingType] = SystemSetting{
-		Name:        config.IdpSettingType.String(),
-		Value:       profile.SystemSettings[config.IdpSettingType.String()],
-		Description: "Identity provider setting",
+
+	// k is idp-xxx
+	for k, setting := range profile.SystemSettings {
+		// Identity provider setting need to be initialized separately
+		if strings.HasPrefix(k, config.IdpSettingType.String()) {
+			settings[k] = SystemSetting{
+				Name:        k,
+				Value:       setting,
+				Description: "Identity provider setting",
+			}
+		}
 	}
 
 	// Insert the system setting into the database
@@ -212,9 +226,13 @@ func (s *Store) InsertSystemSetting(ctx context.Context, setting *SystemSetting)
 	// Check if the record exists
 	err := s.db.Table("system_setting").Where("name = ?", setting.Name).First(&existingSetting).Error
 	if err == nil {
-		// Record exists, log and cache
-		log.Infof("Record with name %s already exists, skipping insert.", setting.Name)
-		return s.Set(ctx, existingSetting.Name, existingSetting, 0)
+		if !existingSetting.IsEmpty() || setting.IsEmpty() {
+			// Record exists, log and cache
+			log.Infof("Record with name %s already exists, skipping insert.", setting.Name)
+			return s.Set(ctx, existingSetting.Name, existingSetting, 0)
+		}
+		// Record exists, but the value is empty, proceed with the insert
+		// s.db.Table("system_setting").Where("name = ?", setting.Name).Delete(&existingSetting)
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		// An error occurred other than "record not found"
 		log.Errorf("Failed to check if record exists: %s", err.Error())

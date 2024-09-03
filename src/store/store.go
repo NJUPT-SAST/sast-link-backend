@@ -153,3 +153,20 @@ func (s *Store) Delete(ctx context.Context, key string) error {
 	}
 	return nil
 }
+
+// Exec executes a query without returning any rows.
+func (s *Store) Exec(ctx context.Context, query string, args ...interface{}) error {
+	tx := s.db.Exec(query, args...)
+	if tx.Error != nil {
+		return tx.Error
+	}
+	return nil
+}
+
+func (s *Store) SelectOne(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+	tx := s.db.Raw(query, args...).First(dest)
+	if tx.Error != nil {
+		return tx.Error
+	}
+	return nil
+}

@@ -152,7 +152,7 @@ func (c *Config) LoadSystemSettings() {
 	websiteSettings := viper.GetStringMapString(WebsiteSettingType.String())
 	emailSettings := viper.GetStringMapString(EmailSettingType.String())
 	storageSettings := viper.GetStringMapString(StorageSettingType.String())
-	idpSettings := viper.GetStringMapString(IdpSettingType.String())
+	idpSettings := viper.GetStringMap(IdpSettingType.String())
 
 	c.SystemSettings = make(map[string]string)
 	// Transform map to JSON string
@@ -174,9 +174,13 @@ func (c *Config) LoadSystemSettings() {
 		fmt.Printf("Error converting storage settings to JSON: %v\n", err)
 	}
 
-	if jsonString, err := util.MapToJSONString(idpSettings); err == nil {
-		c.SystemSettings[IdpSettingType.String()] = jsonString
-	} else {
-		fmt.Printf("Error converting IDP settings to JSON: %v\n", err)
+	for k, v := range idpSettings {
+		idpSetting := v.(map[string]interface{})
+		if jsonString, err := util.MapToJSONStringInterface(idpSetting); err == nil {
+			// All idp settings are stored format like "idp-xxx"
+			c.SystemSettings[fmt.Sprintf("%s-%s", IdpSettingType.String(), k)] = jsonString
+		} else {
+			fmt.Printf("Error converting IDP settings to JSON: %v\n", err)
+		}
 	}
 }

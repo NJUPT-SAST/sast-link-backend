@@ -218,3 +218,11 @@ func MapToJSONString(m map[string]string) (string, error) {
 	}
 	return string(jsonBytes), nil
 }
+
+func MapToJSONStringInterface(m map[string]interface{}) (string, error) {
+	jsonBytes, err := json.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+	return string(jsonBytes), nil
+}

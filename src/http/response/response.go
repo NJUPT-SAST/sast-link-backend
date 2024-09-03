@@ -90,6 +90,7 @@ var (
 	TICKET_INVALID     = LocalError{ErrCode: 1002, ErrMsg: "ticket invalid"}
 	PASSWORD_INCORRECT = LocalError{ErrCode: 1003, ErrMsg: "password incorrect"}
 	USER_NOT_FOUND     = LocalError{ErrCode: 1004, ErrMsg: "user not found"}
+	LOGIN_FAILED       = LocalError{ErrCode: 1005, ErrMsg: "login failed, please check your username and password"}
 	// Unauthorized http status code is 401
 	UNAUTHORIZED = LocalError{ErrCode: 401, ErrMsg: "unauthorized"}
 	// Request error
