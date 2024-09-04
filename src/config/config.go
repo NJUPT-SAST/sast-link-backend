@@ -88,6 +88,7 @@ func SetupConfig() {
 		}
 		// Otherwise use default paths
 		viper.AddConfigPath(".")
+		viper.AddConfigPath("../config")
 		viper.AddConfigPath("$HOME/.sast-link/")
 		viper.AddConfigPath("/etc/sast-link/")
 		viper.AddConfigPath("./config")
@@ -174,11 +175,16 @@ func (c *Config) LoadSystemSettings() {
 		fmt.Printf("Error converting storage settings to JSON: %v\n", err)
 	}
 
-	for k, v := range idpSettings {
+	for _, v := range idpSettings {
 		idpSetting := v.(map[string]interface{})
 		if jsonString, err := util.MapToJSONStringInterface(idpSetting); err == nil {
 			// All idp settings are stored format like "idp-xxx"
-			c.SystemSettings[fmt.Sprintf("%s-%s", IdpSettingType.String(), k)] = jsonString
+			if idpSetting["name"] == nil {
+				fmt.Printf("IDP setting name is nil\n")
+				continue
+			}
+			key := fmt.Sprintf("%s-%s", IdpSettingType.String(), idpSetting["name"])
+			c.SystemSettings[key] = jsonString
 		} else {
 			fmt.Printf("Error converting IDP settings to JSON: %v\n", err)
 		}

@@ -1,5 +1,13 @@
 package config
 
+import "testing"
+
+func TestLoadSystemSetting(t *testing.T) {
+	SetupConfig()
+	instanceConfig := NewConfig()
+	instanceConfig.LoadSystemSettings()
+}
+
 // func TestConfig(t *testing.T) {
 // 	configs := []string{
 // 		"postgres.host",

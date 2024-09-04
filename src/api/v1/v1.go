@@ -47,24 +47,27 @@ func (s *APIV1Service) RegistryRoutes(ctx context.Context, echoServer *echo.Echo
 	// AuthInterceptor is a middleware that checks the user's authentication status.
 	echoServer.Use(middleware_link.NewAuthInterceptor(s.Store, s.Config.Secret).AuthenticationInterceptor)
 
+	// Set the rate limit to 3 requests per minute
+	// FIXME: 3 request per minute for a user and not all users
+	// v1.GET("/sendEmail", s.SendEmail, middleware_link.RequestRateLimiter(3, 1))
+	v1.GET("/sendEmail", s.SendEmail)
+	v1.GET("/listIDP", s.ListIDP)
 	userGroup := v1.Group("/user")
 	{
 		userGroup.POST("/register", s.Register)
 		userGroup.POST("/login", s.Login)
+		userGroup.POST("/loginWithSSO", s.LoginWithSSO)
 		userGroup.POST("/logout", s.Logout)
 		userGroup.GET("/info", s.UserInfo)
 		userGroup.POST("/changePassword", s.ChangePassword)
 		userGroup.POST("/resetPassword", s.ResetPassword)
+		userGroup.POST("/bindEmailWithSSO", s.BindEmailWithSSO)
 	}
 	verifyGroup := v1.Group("/verify")
 	{
 		verifyGroup.GET("/account", s.Verify)
 		verifyGroup.POST("/verifyCode", s.CheckVerifyCode)
 	}
-	// Set the rate limit to 3 requests per minute
-	// FIXME: 3 request per minute for a user and not all users
-	// v1.GET("/sendEmail", s.SendEmail, middleware_link.RequestRateLimiter(3, 1))
-	v1.GET("/sendEmail", s.SendEmail)
 
 	oauth := v1.Group("/oauth2")
 	{

@@ -1,34 +1,75 @@
 package store
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
+	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/plugin/idp/oauth2"
 )
 
-func (s *Store) CreateIdentityProvider(idp *oauth2.IdentityProviderSetting) error {
+func (s *Store) CreateIdentityProvider(ctx context.Context, idp *oauth2.IdentityProviderSetting) error {
 	// Check if the identity provider already exists
-	if _, err := s.GetIdentityProviderByName(idp.Name); err == nil {
+	if _, err := s.GetIdentityProviderByName(ctx, idp.Name); err == nil {
 		return errors.Errorf("identity provider %s already exists", idp.Name)
 	}
-	return s.db.Table("idp").Create(idp).Error
+	if err := s.db.Table("idp").Create(idp).Error; err != nil {
+		return err
+	}
+
+	return s.Set(ctx, idp.Name, idp, 0)
 }
 
-func (s *Store) GetIdentityProviderByName(name string) (*oauth2.IdentityProviderSetting, error) {
-	var idp oauth2.IdentityProviderSetting
-	if err := s.db.Table("idp").Where("name = ?", name).First(&idp).Error; err != nil {
+func (s *Store) GetIdentityProviderByName(ctx context.Context, name string) (*oauth2.IdentityProviderSetting, error) {
+	if !strings.HasPrefix(name, config.IdpSettingType.String()) {
+		name = fmt.Sprintf("%s-%s", config.IdpSettingType.String(), name)
+	}
+	var idpSetting *SystemSetting
+	idpCache, err := s.Get(ctx, name)
+	if err == nil && idpCache != "" {
+		json.Unmarshal([]byte(idpCache), &idpSetting)
+		return idpSetting.GetIdpSetting(), nil
+	}
+
+	idpSetting, err = s.GetSystemSetting(ctx, name)
+	if err != nil {
 		return nil, err
 	}
-	return &idp, nil
+	return idpSetting.GetIdpSetting(), nil
 }
 
-func (s *Store) ListIdentityProviders() ([]oauth2.IdentityProviderSetting, error) {
+// ListIdentityProviders returns all identity providers
+func (s *Store) ListIdentityProviders(ctx context.Context) ([]oauth2.IdentityProviderSetting, error) {
 	var idps []oauth2.IdentityProviderSetting
-	if err := s.db.Table("idp").Find(&idps).Error; err != nil {
-		return nil, err
+	// FIX: cache cna't update when add new idp
+	// idpCache, err := s.Get(ctx, config.IdpSettingType.String())
+	// if err == nil && idpCache != "" {
+	// 	json.Unmarshal([]byte(idpCache), &idps)
+	// 	return idps, nil
+	// }
+
+	systemSetting, err := s.ListSystemSetting(ctx)
+	if err != nil {
+		return idps, err
 	}
+
+	for _, setting := range systemSetting {
+		if setting.Type == config.IdpSettingType.String() {
+			idp := setting.GetIdpSetting()
+			if idp != nil {
+				s.Set(ctx, idp.Name, idp, 0)
+				idps = append(idps, *idp)
+			}
+		}
+	}
+
+	s.Set(ctx, config.IdpSettingType.String(), idps, 0)
 	return idps, nil
 }
 

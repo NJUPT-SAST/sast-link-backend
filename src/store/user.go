@@ -136,7 +136,7 @@ func GenerateVerifyCode() string {
 // TODO: Send email
 func (s *Store) SendEmail(ctx context.Context, recipient, content, title string) error {
 	// FIXME: Get email sender and secret from system settings
-	settings, err := s.GetSystemSetting(ctx, config.EmailSettingType)
+	settings, err := s.GetSystemSetting(ctx, config.EmailSettingType.String())
 	if err != nil {
 		return err
 	}

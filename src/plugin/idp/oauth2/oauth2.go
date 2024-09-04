@@ -51,6 +51,56 @@ type IdentityProviderSetting struct {
 	Config isidentityProviderConfig `json:"config"`
 }
 
+// UnmarshalJSON implements the custom unmarshalling for IdentityProviderSetting.
+func (s *IdentityProviderSetting) UnmarshalJSON(data []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	// Unmarshal common fields
+	if name, ok := raw["name"].(string); ok {
+		s.Name = name
+	}
+	if typ, ok := raw["type"].(string); ok {
+		s.Type = IdentityProviderType(typ)
+	}
+
+	switch s.Type {
+	case IDPTypeOAuth2:
+		var config OAuth2Setting
+		rawConfig, err := json.Marshal(raw["config"])
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(rawConfig, &config); err != nil {
+			return err
+		}
+		s.Config = &config
+	default:
+		return fmt.Errorf("identity provider type %s is not supported", s.Type)
+	}
+
+	return nil
+}
+
+// func (s *IdentityProviderSetting) MarshalJSON() ([]byte, error) {
+// 	switch s.Type {
+// 	case IDPTypeOAuth2:
+// 		return json.Marshal(struct {
+// 			Name   string         `json:"name"`
+// 			Type   string         `json:"type"`
+// 			Config *OAuth2Setting `json:"config"`
+// 		}{
+// 			Name:   s.Name,
+// 			Type:   string(s.Type),
+// 			Config: s.Config.(*OAuth2Setting),
+// 		})
+// 	default:
+// 		return nil, fmt.Errorf("identity provider type %s is not supported", s.Type)
+// 	}
+// }
+
 // NewIdentityProvider initializes a new OAuth2 Identity Provider with the given configuration.
 func NewIdentityProvider(name string, idpType IdentityProviderType, config *isidentityProviderConfig) (*IdentityProviderSetting, error) {
 	if idpType != IDPTypeOAuth2 {
@@ -81,8 +131,8 @@ func NewIdentityProvider(name string, idpType IdentityProviderType, config *isid
 }
 
 func (s *IdentityProviderSetting) GetOauth2Setting() *OAuth2Setting {
-	if s, ok := s.Config.(*Oauth2IdentityProvider); ok {
-		return s.config
+	if provider, ok := s.Config.(*OAuth2Setting); ok {
+		return provider
 	}
 	return nil
 }

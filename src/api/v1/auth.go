@@ -74,7 +74,7 @@ func (s *APIV1Service) LoginWithSSO(c echo.Context) error {
 	ctx := c.Request().Context()
 	// Get Idp name from query
 	idpName := c.QueryParam("idp")
-	identityProvider, err := s.Store.GetIdentityProviderByName(idpName)
+	identityProvider, err := s.Store.GetIdentityProviderByName(ctx, idpName)
 	if err != nil || identityProvider == nil {
 		return response.Error(c, "identity provider not found")
 	}
@@ -83,6 +83,7 @@ func (s *APIV1Service) LoginWithSSO(c echo.Context) error {
 	if identityProvider.Type == oauth2.IDPTypeOAuth2 {
 		oauth2Idp, err := oauth2.NewOauth2IdentityProvider(identityProvider)
 		if err != nil {
+			log.Errorf("Failed to create oauth2 identity provider: %s", err.Error())
 			return response.Error(c, "failed to create oauth2 identity provider")
 		}
 		token, err := oauth2Idp.ExchangeToken(ctx, identityProvider.GetOauth2Setting(), c.QueryParam("redirect_url"), c.QueryParam("code"))
@@ -95,7 +96,7 @@ func (s *APIV1Service) LoginWithSSO(c echo.Context) error {
 		}
 	} else {
 		// Now only support OAuth2
-		return response.Error(c, "identity provider type not support")
+		return response.Error(c, fmt.Sprintf("identity provider type %s not supported", identityProvider.Type))
 	}
 
 	// Get user from our database
@@ -110,20 +111,20 @@ func (s *APIV1Service) LoginWithSSO(c echo.Context) error {
 		// s.UpsetOauthInfo(studentID, store.LARK_CLIENT_TYPE, userInfo.IdentifierID, datatypes.JSON(oauthLarkUserInfo))
 		// Store the sso user info in redis for binding email
 		s.Store.Set(ctx, fmt.Sprintf("BIND-EMAIL-%s-%s", idpName, userInfo.IdentifierID), studentID, store.BIND_EMAIL_EXP)
-		systemSetting, err := s.Store.GetSystemSetting(ctx, config.WebsiteSettingType)
+		systemSetting, err := s.Store.GetSystemSetting(ctx, config.WebsiteSettingType.String())
 		if err != nil {
 			log.Errorf("Get website setting fail: %s", err.Error())
 			return response.Error(c, response.INTENAL_ERROR)
 		}
 
-		webSetting, err := systemSetting.GetWebsiteSetting()
-		if err != nil || webSetting == nil {
-			log.Errorf("Get website setting fail: %s", err.Error())
+		webSetting := systemSetting.GetWebsiteSetting()
+		if webSetting == nil {
 			return response.Error(c, response.INTENAL_ERROR)
 		}
 		frontendURL := webSetting.FrontendURL
+
 		// User email need to user input in frontend
-		targetURL := fmt.Sprintf("%s/sso-bind-email?client_type=%s&idp_user_id=%s", frontendURL, idpName, userInfo.IdentifierID)
+		targetURL := fmt.Sprintf("%s/bindEmailWithSSO?client_type=%s&idp_user_id=%s", frontendURL, idpName, userInfo.IdentifierID)
 
 		// Redirect to frontend
 		return c.Redirect(http.StatusTemporaryRedirect, targetURL)

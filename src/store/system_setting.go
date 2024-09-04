@@ -17,7 +17,7 @@ import (
 // It container the system setting information, such as the email sender and secret key, etc.
 type SystemSetting struct {
 	Name        string `json:"name"`
-	Type		string `json:"type"`
+	Type        string `json:"type"`
 	Value       string `json:"value"`
 	Description string `json:"description"`
 }
@@ -74,51 +74,51 @@ func (s *SystemSetting) GetSettings() (interface{}, error) {
 }
 
 // GetWebsiteSetting get the website setting. If the system setting is not a website setting, return nil.
-func (s *SystemSetting) GetWebsiteSetting() (*WebsiteSetting, error) {
+func (s *SystemSetting) GetWebsiteSetting() *WebsiteSetting {
 	if s.Type != config.WebsiteSettingType.String() {
-		return nil, nil
+		return nil
 	}
 	var setting WebsiteSetting
 	if err := json.Unmarshal([]byte(s.Value), &setting); err != nil {
-		return nil, err
+		return nil
 	}
-	return &setting, nil
+	return &setting
 }
 
 // GetEmailSetting get the email setting. If the system setting is not an email setting, return nil.
-func (s *SystemSetting) GetEmailSetting() (*EmailSetting, error) {
-	if s.Name != config.EmailSettingType.String() {
-		return nil, nil
+func (s *SystemSetting) GetEmailSetting() *EmailSetting {
+	if s.Type != config.EmailSettingType.String() {
+		return nil
 	}
 	var setting EmailSetting
 	if err := json.Unmarshal([]byte(s.Value), &setting); err != nil {
-		return nil, err
+		return nil
 	}
-	return &setting, nil
+	return &setting
 }
 
 // GetStorageSetting get the storage setting. If the system setting is not a storage setting, return nil.
-func (s *SystemSetting) GetStorageSetting() (*StorageSetting, error) {
-	if s.Name != config.StorageSettingType.String() {
-		return nil, nil
+func (s *SystemSetting) GetStorageSetting() *StorageSetting {
+	if s.Type != config.StorageSettingType.String() {
+		return nil
 	}
 	var setting StorageSetting
 	if err := json.Unmarshal([]byte(s.Value), &setting); err != nil {
-		return nil, err
+		return nil
 	}
-	return &setting, nil
+	return &setting
 }
 
 // GetIdpSetting get the identity provider setting. If the system setting is not an identity provider setting, return nil.
-func (s *SystemSetting) GetIdpSetting() (*oauth2.IdentityProviderSetting, error) {
-	if s.Name != config.IdpSettingType.String() {
-		return nil, nil
+func (s *SystemSetting) GetIdpSetting() *oauth2.IdentityProviderSetting {
+	if s.Type != config.IdpSettingType.String() {
+		return nil
 	}
 	var setting oauth2.IdentityProviderSetting
 	if err := json.Unmarshal([]byte(s.Value), &setting); err != nil {
-		return nil, err
+		return nil
 	}
-	return &setting, nil
+	return &setting
 }
 
 // WebsiteSetting represents the website setting.
@@ -169,16 +169,19 @@ func (s *Store) InitSystemSetting(ctx context.Context, profile *config.Config) e
 	settings[config.WebsiteSettingType.String()] = SystemSetting{
 		Name:        config.WebsiteSettingType.String(),
 		Value:       profile.SystemSettings[config.WebsiteSettingType.String()],
+		Type:        config.WebsiteSettingType.String(),
 		Description: "Website setting",
 	}
 	settings[config.EmailSettingType.String()] = SystemSetting{
 		Name:        config.EmailSettingType.String(),
 		Value:       profile.SystemSettings[config.EmailSettingType.String()],
+		Type:        config.EmailSettingType.String(),
 		Description: "Email setting",
 	}
 	settings[config.StorageSettingType.String()] = SystemSetting{
 		Name:        config.StorageSettingType.String(),
 		Value:       profile.SystemSettings[config.StorageSettingType.String()],
+		Type:        config.StorageSettingType.String(),
 		Description: "Storage setting",
 	}
 
@@ -190,6 +193,7 @@ func (s *Store) InitSystemSetting(ctx context.Context, profile *config.Config) e
 				Name:        k,
 				Value:       setting,
 				Description: "Identity provider setting",
+				Type:        config.IdpSettingType.String(),
 			}
 		}
 	}
@@ -250,22 +254,29 @@ func (s *Store) InsertSystemSetting(ctx context.Context, setting *SystemSetting)
 }
 
 // ListSystemSetting list the system setting.
-func (s *Store) ListSystemSetting(ctx context.Context) (map[config.SystemSettingType]any, error) {
-	settings := make(map[config.SystemSettingType]any)
-	s.db.Table("system_setting").Find(&settings)
+//
+// It will return the system setting as a map, the key is the system setting name, and the value is the system setting.
+func (s *Store) ListSystemSetting(ctx context.Context) (map[string]SystemSetting, error) {
+	var settingList []SystemSetting
+	if err := s.db.Table("system_setting").Find(&settingList).Error; err != nil {
+		return nil, err
+	}
 
-	for k, setting := range settings {
+	settings := make(map[string]SystemSetting)
+	for _, setting := range settingList {
+		// Populate the map with the setting name as the key
+		settings[setting.Name] = setting
 		// Store the system setting in the cache
-		s.Set(ctx, k.String(), setting, 0)
+		s.Set(ctx, setting.Name, setting, 0)
 	}
 
 	return settings, nil
 }
 
 // GetSystemSetting get the system setting by name.
-func (s *Store) GetSystemSetting(ctx context.Context, settingType config.SystemSettingType) (*SystemSetting, error) {
+func (s *Store) GetSystemSetting(ctx context.Context, settingName string) (*SystemSetting, error) {
 	// Get the system setting from the cache
-	settingStr, err := s.Get(ctx, settingType.String())
+	settingStr, err := s.Get(ctx, settingName)
 	if err != nil {
 		return nil, err
 	}
@@ -281,8 +292,8 @@ func (s *Store) GetSystemSetting(ctx context.Context, settingType config.SystemS
 
 	// If the system setting does not exist in the cache, get it from the database
 	var setting SystemSetting
-	s.db.Table("system_setting").Where("name = ?", settingType.String()).First(&setting)
-	if err := s.Set(ctx, settingType.String(), setting, 0); err != nil {
+	s.db.Table("system_setting").Where("name = ?", settingName).First(&setting)
+	if err := s.Set(ctx, settingName, setting, 0); err != nil {
 		return nil, err
 	}
 

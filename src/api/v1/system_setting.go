@@ -17,7 +17,7 @@ func (s *APIV1Service) SystemSetting(c echo.Context) error {
 		log.Error("The setting type is empty")
 		return echo.NewHTTPError(http.StatusBadRequest, response.REQUIRED_PARAMS)
 	}
-	systemSetting, err := s.SysSettingService.GetSysSetting(ctx, config.TypeFromString(settingType))
+	systemSetting, err := s.SysSettingService.GetSysSetting(ctx, settingType)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get the system setting")
 	}
@@ -45,4 +45,16 @@ func (s *APIV1Service) UpsetSystemSetting(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
 	}
 	return c.JSON(http.StatusOK, response.Success(nil))
+}
+
+func (s *APIV1Service) ListIDP(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	idps, err := s.SysSettingService.ListIDPName(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to list the identity provider")
+	}
+	return c.JSON(http.StatusOK, response.Success(map[string]interface{}{
+		"idps": idps,
+	}))
 }

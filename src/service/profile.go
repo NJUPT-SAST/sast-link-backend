@@ -197,15 +197,15 @@ func (s *ProfileService) UploadAvatar(avatar *multipart.FileHeader, uid string, 
 		return "", err
 	}
 
-	systemSetting, err := s.Store.GetSystemSetting(ctx, config.StorageSettingType)
+	systemSetting, err := s.Store.GetSystemSetting(ctx, config.StorageSettingType.String())
 	if err != nil {
 		log.Errorf("Get system setting error: %s", err.Error())
 		return "", err
 	}
-	storageSetting, err := systemSetting.GetStorageSetting()
-	if err != nil {
+	storageSetting := systemSetting.GetStorageSetting()
+	if storageSetting == nil {
 		log.Errorf("Get storage setting error: %s", err.Error())
-		return "", err
+		return "", errors.New("Get storage setting error")
 	}
 
 	client := cos.NewClient(storageSetting)
@@ -262,15 +262,14 @@ func (s *ProfileService) SentMsgToBot(ctx context.Context, checkRes *store.Check
 		return nil
 	}
 
-	systemSetting, err := s.Store.GetSystemSetting(ctx, config.WebsiteSettingType)
+	systemSetting, err := s.Store.GetSystemSetting(ctx, config.WebsiteSettingType.String())
 	if err != nil {
 		log.Errorf("Get system setting error: %s", err.Error())
 		return errors.Wrap(err, "failed to get system setting")
 	}
-	webSetting, err := systemSetting.GetWebsiteSetting()
-	if err != nil {
-		log.Errorf("Get website setting error: %s", err.Error())
-		return errors.Wrap(err, "failed to get website setting")
+	webSetting := systemSetting.GetWebsiteSetting()
+	if webSetting == nil {
+		return errors.New("Get website setting error")
 	}
 
 	// Set request
@@ -302,10 +301,10 @@ func (s *ProfileService) DealWithFrozenImage(ctx context.Context, checkRes *stor
 		log.Errorf("Get system setting error: %s", err.Error())
 		return errors.Wrap(err, "failed to get system setting")
 	}
-	storageSetting, err := systemSetting[config.StorageSettingType].(*store.SystemSetting).GetStorageSetting()
-	if err != nil {
-		log.Errorf("Get storage setting error: %s", err.Error())
-		return errors.Wrap(err, "failed to get storage setting")
+	orStoragesetting := systemSetting[config.StorageSettingType.String()]
+	storageSetting := orStoragesetting.GetStorageSetting()
+	if storageSetting == nil {
+		return errors.New("Get storage setting error")
 	}
 
 	client := cos.NewClient(storageSetting)
@@ -321,10 +320,10 @@ func (s *ProfileService) DealWithFrozenImage(ctx context.Context, checkRes *stor
 		return errors.Wrap(err, "failed to delete file")
 	}
 
-	siteSetting, err := systemSetting[config.WebsiteSettingType].(*store.SystemSetting).GetWebsiteSetting()
-	if err != nil {
-		log.Errorf("Get website setting error: %s", err.Error())
-		return errors.Wrap(err, "failed to get website setting")
+	orSiteSetting := systemSetting[config.WebsiteSettingType.String()]
+	siteSetting := orSiteSetting.GetWebsiteSetting()
+	if siteSetting == nil {
+		return errors.New("Get website setting error")
 	}
 	avatarURL := siteSetting.AvatarErrorURLImage
 	parseUint, _ := strconv.Atoi(userId)
