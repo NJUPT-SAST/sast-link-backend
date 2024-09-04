@@ -124,7 +124,7 @@ func (s *APIV1Service) LoginWithSSO(c echo.Context) error {
 		frontendURL := webSetting.FrontendURL
 
 		// User email need to user input in frontend
-		targetURL := fmt.Sprintf("%s/bindEmailWithSSO?client_type=%s&idp_user_id=%s", frontendURL, idpName, userInfo.IdentifierID)
+		targetURL := fmt.Sprintf("%s/bindEmailWithSSO?idp_type=%s&idp_user_id=%s", frontendURL, idpName, userInfo.IdentifierID)
 
 		// Redirect to frontend
 		return c.Redirect(http.StatusTemporaryRedirect, targetURL)
