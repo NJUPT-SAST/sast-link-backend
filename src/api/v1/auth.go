@@ -33,7 +33,7 @@ func (s *APIV1Service) Login(c echo.Context) error {
 	}
 	ticket := cookie.Value
 	// Get username from ticket
-	username, err := util.IdentityFromToken(ticket, request.LOGIN_TICKET_SUB, s.Config.Secret)
+	username, err := util.IdentityFromToken(ticket, request.LOGIN_TICKET_SUB)
 	if err != nil {
 		log.Errorf("Get username from ticket fail: %s", err.Error())
 		return response.Error(c, response.TICKET_INVALID)
@@ -51,7 +51,7 @@ func (s *APIV1Service) Login(c echo.Context) error {
 	}
 
 	// Set Token with expire time and return
-	token, err := util.GenerateTokenWithExp(ctx, request.LoginJWTSubKey(uid), s.Config.Secret, request.LOGIN_ACCESS_TOKEN_EXP)
+	token, err := util.GenerateTokenWithExp(ctx, request.LoginJWTSubKey(uid), request.LOGIN_ACCESS_TOKEN_EXP)
 	if err != nil {
 		return response.Error(c, response.INTENAL_ERROR)
 	}
@@ -99,18 +99,27 @@ func (s *APIV1Service) LoginWithSSO(c echo.Context) error {
 		return response.Error(c, fmt.Sprintf("identity provider type %s not supported", identityProvider.Type))
 	}
 
-	// Get user from our database
 	user, err := s.Store.OauthInfoByUID(idpName, userInfo.IdentifierID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, response.INTENAL_ERROR)
+		return response.Error(c, response.INTENAL_ERROR)
 	}
-	studentID := request.GetUsername(c.Request())
-	// TODO: Get user info from the sso identity provider.
+	// NOTE: Get user info from the sso identity provider.
+	/* Here we have 4 cases:
+		1. user didn't bind SSO, nor registered before.
+	       then we save the user SSO info to redis,
+	       and return to frontend bind email page
+	       (that page will request a 'email' and 'valification_code',
+	       request two api: `VerifyEmail` and `SendEmail`)
+		2. user registered before, didn't bind SSO
+		   same with above, also check in `BindEmailWithSSO`
+		3. user registered and bound SSO before
+		   this can be checked by query 2 times in this api:
+		   one for oauth_info, then for user info by uid from oath_info.
+		   This way return login token directly
+	*/
 	if user == nil {
-		// User not found, Need to redirect to front end to bind email
-		// s.UpsetOauthInfo(studentID, store.LARK_CLIENT_TYPE, userInfo.IdentifierID, datatypes.JSON(oauthLarkUserInfo))
 		// Store the sso user info in redis for binding email
-		s.Store.Set(ctx, fmt.Sprintf("BIND-EMAIL-%s-%s", idpName, userInfo.IdentifierID), studentID, store.BIND_EMAIL_EXP)
+		s.Store.Set(ctx, fmt.Sprintf("BIND-EMAIL-%s-%s", idpName, userInfo.IdentifierID), userInfo.IdentifierID, store.BIND_EMAIL_EXP)
 		systemSetting, err := s.Store.GetSystemSetting(ctx, config.WebsiteSettingType.String())
 		if err != nil {
 			log.Errorf("Get website setting fail: %s", err.Error())
@@ -121,16 +130,20 @@ func (s *APIV1Service) LoginWithSSO(c echo.Context) error {
 		if webSetting == nil {
 			return response.Error(c, response.INTENAL_ERROR)
 		}
-		frontendURL := webSetting.FrontendURL
 
-		// User email need to user input in frontend
-		targetURL := fmt.Sprintf("%s/bindEmailWithSSO?idp_type=%s&idp_user_id=%s", frontendURL, idpName, userInfo.IdentifierID)
+		response.SetCookieWithExpire(c, "idp", idpName, request.LOGIN_ACCESS_TOKEN_EXP)
+		response.SetCookieWithExpire(c, "idp_user_id", userInfo.IdentifierID, request.LOGIN_ACCESS_TOKEN_EXP)
 
-		// Redirect to frontend
-		return c.Redirect(http.StatusTemporaryRedirect, targetURL)
+		return c.JSON(http.StatusOK, nil)
+	} else { // bound SSO before
+		uid := user.UserID
+		token, err := util.GenerateTokenWithExp(c.Request().Context(), store.LoginJWTSubKey(uid), store.LOGIN_TOKEN_EXP)
+		if err != nil {
+			return response.Error(c, response.INTENAL_ERROR)
+		}
+		s.Store.Set(c.Request().Context(), store.LoginTokenKey(uid), token, store.LOGIN_TOKEN_EXP)
+		return c.JSON(http.StatusOK, map[string]string{store.LOGIN_TOKEN_SUB: token})
 	}
-
-	return c.JSON(http.StatusOK, response.Success(nil))
 }
 
 // BindEmailWithSSO bind email with SSO
@@ -140,20 +153,41 @@ func (s *APIV1Service) LoginWithSSO(c echo.Context) error {
 func (s *APIV1Service) BindEmailWithSSO(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	clientType := c.QueryParam("client_type")
-	idpUserID := c.QueryParam("idp_user_id")
-	// Get email from form not query
-	email := c.FormValue("email")
-	redisKey := fmt.Sprintf("BIND-EMAIL-%s-%s", clientType, idpUserID)
+	clientTypeCookie, err1 := c.Cookie("idp")
+	idpUserIDCookie, err2 := c.Cookie("idp_user_id")
+	ticketCookie, err3 := c.Cookie(request.OAUTH_CHECK_EMAIL_SUB)
 
-	// Before bind email, check if the email is valid
-	if !validator.ValidateEmail(email) {
+	email := c.FormValue("email")
+
+	if err1 != nil || err2 != nil || err3 != nil || email == "" || idpUserIDCookie.Value == "" || clientTypeCookie.Value == "" {
+		return response.Error(c, response.REQUIRED_PARAMS)
+	}
+
+	ticket := ticketCookie.Value
+	clientType := clientTypeCookie.Value
+	idpUserID := idpUserIDCookie.Value
+
+	currentPhase, err := s.Store.Get(ctx, ticket)
+	if err != nil {
+		return response.Error(c, response.INTENAL_ERROR)
+	}
+	if currentPhase != request.VERIFY_STATUS["VERIFY_CAPTCHA"] {
+		return response.Error(c, "phase error, please verify email first!")
+	}
+
+	ticketEmail, err := util.IdentityFromToken(ticket, request.OAUTH_CHECK_EMAIL_SUB)
+	if err != nil {
+		return response.Error(c, response.INTENAL_ERROR)
+	}
+
+	if !validator.ValidateEmail(email) || email != ticketEmail {
 		return response.Error(c, response.EMAIL_INVALID)
 	}
 
+	redisKey := fmt.Sprintf("BIND-EMAIL-%s-%s", clientType, idpUserID)
 	idpUserInfo, err := s.Store.Get(ctx, redisKey)
 	if err != nil || idpUserInfo == "" {
-		return response.Error(c, "bind email fail")
+		return response.Error(c, "bind email redis key not exist")
 	}
 
 	studentID := util.GetStudentIDFromEmail(email)
@@ -161,13 +195,13 @@ func (s *APIV1Service) BindEmailWithSSO(c echo.Context) error {
 		return response.Error(c, response.EMAIL_INVALID)
 	}
 
-	// User not found, Need to register to bind the sso id
 	user, err := s.Store.UserByField(ctx, "uid", studentID)
 	if err != nil {
-		return response.Error(c, response.USER_NOT_FOUND)
+		return response.Error(c, response.INTENAL_ERROR)
 	}
+	// user not registered
+	// we generate a new account, and bind it to user email
 	if user == nil {
-		// TODO: Create user and profile,
 		password, err := util.GenerateRandomString(20)
 		if err != nil {
 			return response.Error(c, response.INTENAL_ERROR)
@@ -175,18 +209,21 @@ func (s *APIV1Service) BindEmailWithSSO(c echo.Context) error {
 		if err := s.UserService.CreateUserAndProfile(email, password); err != nil {
 			return response.Error(c, "create user fail")
 		}
+		// Bind email with SSO
+		s.UpsetOauthInfo(studentID, clientType, idpUserID, datatypes.JSON(idpUserInfo))
+	} else {
+		// user registered but not bound before
+		// we bind his/her SSO info to his/her email
+		s.UpsetOauthInfo(studentID, clientType, idpUserID, datatypes.JSON(idpUserInfo))
 	}
-
-	// Bind email with SSO
-	s.UpsetOauthInfo(studentID, clientType, idpUserID, datatypes.JSON(idpUserInfo))
 
 	// Delete the redis key
 	go s.Store.Delete(ctx, redisKey)
 
 	// Set Token with expire time and return
-	token, err := util.GenerateTokenWithExp(ctx, request.LoginJWTSubKey(studentID), s.Config.Secret, request.LOGIN_ACCESS_TOKEN_EXP)
+	token, err := util.GenerateTokenWithExp(ctx, request.LoginJWTSubKey(studentID), request.LOGIN_ACCESS_TOKEN_EXP)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
+		return response.Error(c, response.INTENAL_ERROR)
 	}
 	s.Store.Set(ctx, request.LoginTokenKey(studentID), token, request.LOGIN_ACCESS_TOKEN_EXP)
 	response.SetCookieWithExpire(c, request.AccessTokenCookieName, token, request.LOGIN_ACCESS_TOKEN_EXP)
@@ -226,7 +263,7 @@ func (s *APIV1Service) Register(c echo.Context) error {
 		return response.Error(c, response.TICKET_NOT_FOUND)
 	}
 
-	studentID, err := util.IdentityFromToken(ticket, request.REGIST_TICKET_SUB, s.Config.Secret)
+	studentID, err := util.IdentityFromToken(ticket, request.REGIST_TICKET_SUB)
 	if err != nil {
 		return response.Error(c, response.INTENAL_ERROR)
 	}
@@ -255,11 +292,14 @@ func (s *APIV1Service) CheckVerifyCode(c echo.Context) error {
 	} else if cookie, err := c.Cookie(request.RESETPWD_TICKET_SUB); err == nil {
 		ticket = cookie.Value
 		flag = request.RESETPWD_TICKET_SUB
+	} else if cookie, err := c.Cookie(request.OAUTH_CHECK_EMAIL_SUB); err == nil {
+		ticket = cookie.Value
+		flag = request.OAUTH_CHECK_EMAIL_SUB
 	} else {
 		return response.Error(c, response.TICKET_NOT_FOUND)
 	}
 
-	studentID, err := util.IdentityFromToken(ticket, flag, s.Config.Secret)
+	studentID, err := util.IdentityFromToken(ticket, flag)
 	if err != nil {
 		return response.Error(c, response.INTENAL_ERROR)
 	}
@@ -320,6 +360,28 @@ func (s *APIV1Service) Verify(c echo.Context) error {
 	return c.JSON(http.StatusOK, response.Success(map[string]string{tKey: ticket}))
 }
 
+// VerifyEmail Verify if this email is valid,
+// then set oauth check email ticket in cookie.
+//
+// mainly used for BindEmailWithSSO.
+func (s *APIV1Service) VerifyEmail(c echo.Context) error {
+	email := c.QueryParam("email")
+	if !validator.ValidateEmail(email) {
+		return response.Error(c, response.EMAIL_INVALID)
+	}
+
+	ticket, err := util.GenerateTokenWithExp(c.Request().Context(), request.BindSSOSubKey(util.GetStudentIDFromEmail(email)), request.LOGIN_TICKET_EXP)
+	if err != nil {
+		log.Errorf("Verify email fail: %s", err.Error())
+		return response.Error(c, "verify email fail")
+	}
+
+	s.Store.Set(c.Request().Context(), ticket, request.VERIFY_STATUS["VERIFY_ACCOUNT"], request.VERIFY_CODE_EXP)
+	response.SetCookieWithExpire(c, request.OAUTH_CHECK_EMAIL_SUB, ticket, request.LOGIN_TICKET_EXP)
+
+	return c.JSON(http.StatusOK, response.Success(nil))
+}
+
 func (s *APIV1Service) Logout(c echo.Context) error {
 	ctx := c.Request().Context()
 	accessToken := request.GetAccessToken(c.Request())
@@ -351,11 +413,15 @@ func (s *APIV1Service) SendEmail(c echo.Context) error {
 	} else if cookie, err := c.Cookie(request.RESETPWD_TICKET_SUB); err == nil {
 		ticket = cookie.Value
 		flag = request.RESETPWD_TICKET_SUB
+	} else if cookie, err := c.Cookie(request.OAUTH_CHECK_EMAIL_SUB); err == nil {
+		ticket = cookie.Value
+		flag = request.OAUTH_CHECK_EMAIL_SUB
 	} else {
 		return response.Error(c, response.TICKET_NOT_FOUND)
 	}
+	log.Debugf("SendEmail::[ticket: %s] [flag: %s]", ticket, flag)
 
-	studentID, err := util.IdentityFromToken(ticket, flag, s.Config.Secret)
+	studentID, err := util.IdentityFromToken(ticket, flag)
 	// 错误处理机制写玉玉了
 	// 我开始乱写了啊啊啊啊
 	if err != nil {
@@ -364,28 +430,34 @@ func (s *APIV1Service) SendEmail(c echo.Context) error {
 	}
 
 	// Verify if the user email correct
-	if !validator.ValidateEmail(studentID) {
+	log.Debugf("SendEmail::[studentID: %s]", studentID)
+	if !validator.ValidateStudentID(studentID) {
+		log.Errorf("student not valid : %s", studentID)
 		return echo.NewHTTPError(http.StatusBadRequest, response.EMAIL_INVALID)
 	}
 
 	var title string
 	if flag == request.REGIST_TICKET_SUB {
 		title = "确认电子邮件注册SAST-Link账户（无需回复）"
+	} else if flag == request.OAUTH_CHECK_EMAIL_SUB {
+		title = "确认电子邮件绑定SSO账号（无需回复）"
 	} else {
 		title = "确认电子邮件重置SAST-Link账户密码（无需回复）"
 	}
 	status, err := s.Store.Get(ctx, ticket)
 	if err != nil || status == "" {
+		log.Errorf("should not in current phase: %v", err)
 		return response.Error(c, response.INTENAL_ERROR)
 	}
 
-	if err := s.UserService.SendEmail(ctx, studentID, status, title); err != nil {
+	email := util.UserNameToEmail(studentID)
+	if err := s.UserService.SendEmail(ctx, email, status, title); err != nil {
 		log.Errorf("Send email fail: %s", err.Error())
 		return response.Error(c, err)
 	}
 
 	// Update the status of the ticket
 	s.Store.Set(ctx, ticket, request.VERIFY_STATUS["SEND_EMAIL"], request.REGISTER_TICKET_EXP)
-	log.Debugf("User [%s] send email success", studentID)
+	log.Debugf("send email to [%s] successfully", email)
 	return c.JSON(http.StatusOK, response.Success(nil))
 }

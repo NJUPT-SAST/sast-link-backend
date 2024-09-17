@@ -13,20 +13,18 @@ const (
 	// This is not login token expire time, this is login ticket expire time
 	LOGIN_TICKET_EXP = time.Minute * 5
 	// This is login token expire time
-	LOGIN_ACCESS_TOKEN_EXP    = time.Hour * 24 * 7
-	OAUTH_USER_INFO_EXP = time.Minute * 5
+	LOGIN_ACCESS_TOKEN_EXP = time.Hour * 24 * 7
+	OAUTH_USER_INFO_EXP    = time.Minute * 5
 
-	LARK_CLIENT_TYPE = "lark"
+	LARK_CLIENT_TYPE   = "lark"
 	GITHUB_CLIENT_TYPE = "github"
 
-
 	// JWT/Redis-key/cookie
-	LOGIN_TOKEN_SUB     = "login-token"
-	LOGIN_TICKET_SUB    = "login-ticket"
-	REGIST_TICKET_SUB   = "register-ticket"
-	RESETPWD_TICKET_SUB = "reset-password-ticket"
-	OAUTH_LARK_SUB      = "oauth-lark-token"
-	OAUTH_GITHUB_SUB    = "oauth-github-token"
+	LOGIN_TOKEN_SUB       = "login-token"
+	LOGIN_TICKET_SUB      = "login-ticket"
+	REGIST_TICKET_SUB     = "register-ticket"
+	RESETPWD_TICKET_SUB   = "reset-password-ticket"
+	OAUTH_CHECK_EMAIL_SUB = "oauth-check-email-ticket"
 
 	AccessTokenCookieName = "sast-link-access-token"
 )
@@ -80,6 +78,11 @@ func LoginTicketJWTSubKey(username string) string {
 func LoginJWTSubKey(username string) string {
 	return fmt.Sprintf("%s-%s", username, AccessTokenCookieName)
 }
+
+func BindSSOSubKey(username string) string {
+	return fmt.Sprintf("%s-%s", username, OAUTH_CHECK_EMAIL_SUB)
+}
+
 
 func VerifyCodeKey(username string) string {
 	return "VerifyCode:" + username

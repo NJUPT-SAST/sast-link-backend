@@ -3,9 +3,9 @@ package v1
 import (
 	"net/http"
 
+	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
-	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/labstack/echo/v4"
 )
 
@@ -47,7 +47,7 @@ func (s *APIV1Service) UpsetSystemSetting(c echo.Context) error {
 	return c.JSON(http.StatusOK, response.Success(nil))
 }
 
-func (s *APIV1Service) ListIDP(c echo.Context) error {
+func (s *APIV1Service) ListIDPName(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	idps, err := s.SysSettingService.ListIDPName(ctx)
@@ -57,4 +57,15 @@ func (s *APIV1Service) ListIDP(c echo.Context) error {
 	return c.JSON(http.StatusOK, response.Success(map[string]interface{}{
 		"idps": idps,
 	}))
+}
+
+func (s *APIV1Service) IDPInfo(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	idp := c.QueryParam("idp")
+	idpInfo, err := s.SysSettingService.IDPInfo(ctx, idp)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get idpInfo")
+	}
+	return c.JSON(http.StatusOK, response.Success(idpInfo))
 }

@@ -172,6 +172,10 @@ func SendEmail(sender, secret, recipient, content, title string) error {
 	return nil
 }
 
+func UserNameToEmail(username string) string {
+	return username + "@njupt.edu.cn"
+}
+
 // ShaHashing use sha512 to hash input.
 func ShaHashing(in string) string {
 	sha512Hash := sha512.Sum512([]byte(in))

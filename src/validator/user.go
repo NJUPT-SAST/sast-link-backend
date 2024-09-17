@@ -10,6 +10,15 @@ func ValidatePassword(password string) bool {
 	return passReg.MatchString(password)
 }
 
+// ValidateStudentID validates the NJUPT email
+//
+// Return true if the studentID is valid
+func ValidateStudentID(studentID string) bool {
+	// "^[BPFQbpfq](1[7-9]|2[0-9])([0-3])\\d{5}$" Matches the email format of NJUPT
+	suidReg := regexp.MustCompile(`^[BPFQbpfq](1[7-9]|2[0-9])([0-3])\d{5}$`)
+	return suidReg.MatchString(studentID)
+}
+
 // ValidateEmail validates the NJUPT email
 //
 // Return true if the email is valid

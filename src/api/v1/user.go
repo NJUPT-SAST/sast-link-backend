@@ -81,7 +81,7 @@ func (s *APIV1Service) ResetPassword(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, response.TICKET_NOT_FOUND)
 	}
 
-	studentID, err := util.IdentityFromToken(ticket, request.RESETPWD_TICKET_SUB, s.Config.Secret)
+	studentID, err := util.IdentityFromToken(ticket, request.RESETPWD_TICKET_SUB)
 	if err != nil || studentID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, response.REQUIRED_PARAMS)
 	}

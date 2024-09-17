@@ -77,7 +77,7 @@ func (s *UserService) processRegistration(ctx context.Context, username string) 
 		return "", errors.New("User already exists")
 	}
 
-	ticket, err := util.GenerateTokenWithExp(ctx, request.RegisterJWTSubKey(username), s.Config.Secret, request.REGISTER_TICKET_EXP)
+	ticket, err := util.GenerateTokenWithExp(ctx, request.RegisterJWTSubKey(username), request.REGISTER_TICKET_EXP)
 	if err != nil {
 		return "", errors.Wrap(err, "generate token failed")
 	}
@@ -96,7 +96,7 @@ func (s *UserService) processLogin(ctx context.Context, username string) (string
 		return "", err
 	}
 
-	ticket, err := util.GenerateTokenWithExp(ctx, request.LoginTicketJWTSubKey(*user.Uid), s.Config.Secret, request.LOGIN_TICKET_EXP)
+	ticket, err := util.GenerateTokenWithExp(ctx, request.LoginTicketJWTSubKey(*user.Uid), request.LOGIN_TICKET_EXP)
 	if err != nil {
 		return "", err
 	}
@@ -114,7 +114,7 @@ func (s *UserService) processPasswordReset(ctx context.Context, username string)
 		return "", err
 	}
 
-	ticket, err := util.GenerateTokenWithExp(ctx, request.ResetPwdJWTSubKey(username), s.Config.Secret, request.RESETPWD_TICKET_EXP)
+	ticket, err := util.GenerateTokenWithExp(ctx, request.ResetPwdJWTSubKey(username), request.RESETPWD_TICKET_EXP)
 	if err != nil {
 		return "", err
 	}
@@ -203,21 +203,21 @@ func (s *UserService) UserInfo(ctx context.Context, studentID string) (*store.Us
 	return s.Store.UserInfo(studentID)
 }
 
-func (s *UserService) SendEmail(ctx context.Context, username, status, title string) error {
+func (s *UserService) SendEmail(ctx context.Context, email, status, title string) error {
 	// Determine if the ticket is correct
 	if status != request.VERIFY_STATUS["VERIFY_ACCOUNT"] {
 		return errors.New("Ticket is not correct")
 	}
 
 	code := store.GenerateVerifyCode()
-	s.Store.Set(ctx, request.VerifyCodeKey(username), code, request.VERIFY_CODE_EXP)
+	s.Store.Set(ctx, request.VerifyCodeKey(email), code, request.VERIFY_CODE_EXP)
 	content := store.InsertCode(code)
-	if err := s.Store.SendEmail(ctx, username, content, title); err != nil {
+	if err := s.Store.SendEmail(ctx, email, content, title); err != nil {
 		log.Errorf("Send email failed: %s", err.Error())
 		return errors.Wrap(err, "Send email failed")
 	}
 
-	log.Debugf("Send Email to [%s] with code [%s]\n", username, code)
+	log.Debugf("Send Email to [%s] with code [%s]\n", email, code)
 	return nil
 }
 

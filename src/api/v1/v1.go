@@ -51,12 +51,13 @@ func (s *APIV1Service) RegistryRoutes(ctx context.Context, echoServer *echo.Echo
 	// FIXME: 3 request per minute for a user and not all users
 	// v1.GET("/sendEmail", s.SendEmail, middleware_link.RequestRateLimiter(3, 1))
 	v1.GET("/sendEmail", s.SendEmail)
-	v1.GET("/listIDP", s.ListIDP)
+	v1.GET("/listIDP", s.ListIDPName)
+	v1.GET("/idpInfo", s.IDPInfo)
 	userGroup := v1.Group("/user")
 	{
 		userGroup.POST("/register", s.Register)
 		userGroup.POST("/login", s.Login)
-		userGroup.POST("/loginWithSSO", s.LoginWithSSO)
+		userGroup.GET("/loginWithSSO", s.LoginWithSSO)
 		userGroup.POST("/logout", s.Logout)
 		userGroup.GET("/info", s.UserInfo)
 		userGroup.POST("/changePassword", s.ChangePassword)
@@ -66,6 +67,7 @@ func (s *APIV1Service) RegistryRoutes(ctx context.Context, echoServer *echo.Echo
 	verifyGroup := v1.Group("/verify")
 	{
 		verifyGroup.GET("/account", s.Verify)
+		verifyGroup.GET("/verifyEmail", s.VerifyEmail)
 		verifyGroup.POST("/verifyCode", s.CheckVerifyCode)
 	}
 

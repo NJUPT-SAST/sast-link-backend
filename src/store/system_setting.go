@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
@@ -292,7 +293,13 @@ func (s *Store) GetSystemSetting(ctx context.Context, settingName string) (*Syst
 
 	// If the system setting does not exist in the cache, get it from the database
 	var setting SystemSetting
-	s.db.Table("system_setting").Where("name = ?", settingName).First(&setting)
+	err = s.db.Table("system_setting").Where("name = ?", settingName).First(&setting).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New(fmt.Sprintf("system setting with [name=%s] not found", settingName))
+		}
+		return nil, err
+	}
 	if err := s.Set(ctx, settingName, setting, 0); err != nil {
 		return nil, err
 	}

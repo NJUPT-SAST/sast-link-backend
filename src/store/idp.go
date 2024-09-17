@@ -33,7 +33,12 @@ func (s *Store) GetIdentityProviderByName(ctx context.Context, name string) (*oa
 	var idpSetting *SystemSetting
 	idpCache, err := s.Get(ctx, name)
 	if err == nil && idpCache != "" {
-		json.Unmarshal([]byte(idpCache), &idpSetting)
+		if err := json.Unmarshal([]byte(idpCache), &idpSetting); err != nil {
+			return nil, err
+		}
+		if idpSetting.GetIdpSetting() == nil {
+			return idpSetting.GetIdpSetting(), errors.Errorf("idp setting with name: [%s] not exits", name)
+		}
 		return idpSetting.GetIdpSetting(), nil
 	}
 

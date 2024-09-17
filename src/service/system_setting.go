@@ -47,3 +47,16 @@ func (s *SysSettingService) ListIDPName(ctx context.Context) ([]string, error) {
 
 	return names, nil
 }
+
+func (s *SysSettingService) IDPInfo(ctx context.Context, idp string) (map[string]interface{}, error) {
+	idpInfo, err := s.Store.GetIdentityProviderByName(ctx, idp)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"auth_url":  idpInfo.GetOauth2Setting().AuthUrl,
+		"client_id": idpInfo.GetOauth2Setting().ClientID,
+		"scopes":    idpInfo.GetOauth2Setting().Scopes,
+	}, nil
+}

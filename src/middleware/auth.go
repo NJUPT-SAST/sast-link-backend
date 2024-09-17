@@ -34,7 +34,10 @@ func (m *AuthInterceptor) AuthenticationInterceptor(next echo.HandlerFunc) echo.
 				log.Fields{"method": r.Method, "uri": r.RequestURI, "client_ip": c.RealIP(), "user_agent": r.UserAgent()})
 		}()
 
-		if isUnauthorizeAllowed(r.RequestURI) {
+		if r.URL == nil {
+			return response.Error(c, response.INTENAL_ERROR)
+		}
+		if isUnauthorizeAllowed(r.URL.Path) {
 			return next(c)
 		}
 		clientIP := c.RealIP()
@@ -96,7 +99,7 @@ func (m *AuthInterceptor) authenticate(ctx context.Context, accessToken string) 
 	}
 
 	// Validate the login access token
-	userID, err := util.IdentityFromToken(accessToken, request.AccessTokenCookieName, m.secret)
+	userID, err := util.IdentityFromToken(accessToken, request.AccessTokenCookieName)
 	if err != nil {
 		return "", errors.Wrap(err, "invalid or expired access token")
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/spf13/viper"
 
 	"github.com/pkg/errors"
 )
@@ -20,7 +21,8 @@ const (
 
 // GenerateToken
 // token expireTime : not set, do this with redis
-func GenerateToken(username, jwtSigningKey string) (string, error) {
+func GenerateToken(username string) (string, error) {
+	jwtSigningKey := []byte(viper.GetString("jwt.secret"))
 	claims := jwt.RegisteredClaims{
 		// expires at 3 hours
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 3)),
@@ -38,8 +40,8 @@ func GenerateToken(username, jwtSigningKey string) (string, error) {
 
 // GenerateToken with expireTime
 // identifier is something like `username-loginTicket` or `oauthIdentity-oauthLarkToken`
-func GenerateTokenWithExp(ctx context.Context, identifier, jwtSigningKey string, expireTime time.Duration) (string, error) {
-	signingKey := []byte(jwtSigningKey)
+func GenerateTokenWithExp(ctx context.Context, identifier string, expireTime time.Duration) (string, error) {
+	signingKey := []byte(viper.GetString("jwt.secret"))
 	gen := NewJWTAccessGenerate("", signingKey, jwt.SigningMethodHS256)
 	access, _, err := gen.Token(ctx, identifier, expireTime, false)
 	return access, err
@@ -93,7 +95,8 @@ func TokenAudience(token, jwtSigningKey string) (audience []string, err error) {
 // IdentityFromToken return identity(now "username"/"union_id")
 //
 // flag: verify token type
-func IdentityFromToken(token, flag, jwtSigningKey string) (string, error) {
+func IdentityFromToken(token, flag string) (string, error) {
+	jwtSigningKey := viper.GetString("jwt.secret")
 	audience, err := TokenAudience(token, jwtSigningKey)
 	if err != nil {
 		return "", err

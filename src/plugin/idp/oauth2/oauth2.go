@@ -235,6 +235,7 @@ func (s *OAuth2Setting) FromJSON(jsonStr string) error {
 
 // ExchangeToken returns the exchanged OAuth2 token using the given authorization code.
 func ExchangeToken(ctx context.Context, oauth2Setting *OAuth2Setting, redirectURL, code string) (string, error) {
+	log.Debugf("ExchangeToken::[redirectURL: %s] [code: %s]", redirectURL, code)
 	conf := &oauth2.Config{
 		ClientID:     oauth2Setting.ClientID,
 		ClientSecret: oauth2Setting.ClientSecret,
@@ -248,11 +249,13 @@ func ExchangeToken(ctx context.Context, oauth2Setting *OAuth2Setting, redirectUR
 	}
 
 	token, err := conf.Exchange(ctx, code)
+	log.Debug("ExchangeToken::", err)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to exchange access token")
 	}
 
 	accessToken, ok := token.Extra("access_token").(string)
+	log.Debugf("ExchangeToken::[accessToken: %s]", accessToken)
 	if !ok {
 		return "", errors.New(`missing "access_token" from authorization response`)
 	}
@@ -262,25 +265,31 @@ func ExchangeToken(ctx context.Context, oauth2Setting *OAuth2Setting, redirectUR
 
 func UserInfo(ctx context.Context, oauth2Setting *OAuth2Setting, token string) (*IdentityProviderUserInfo, error) {
 	client := &http.Client{}
+	log.Debug("UserInfo::userInfoUrl: ", oauth2Setting.UserInfoUrl)
 	req, err := http.NewRequest(http.MethodGet, oauth2Setting.UserInfoUrl, nil)
 	if err != nil {
+		log.Debug("UserInfo::", err)
 		return nil, errors.Wrap(err, "failed to new http request")
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Debug("UserInfo::", err)
 		return nil, errors.Wrap(err, "failed to get user information")
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		log.Debug("UserInfo::", err)
 		return nil, errors.Wrap(err, "failed to read response body")
 	}
 	defer resp.Body.Close()
 
 	var claims map[string]any
 	err = json.Unmarshal(body, &claims)
+	log.Debug("UserInfo::body", string(body))
 	if err != nil {
+		log.Debug("UserInfo::", err)
 		return nil, errors.Wrap(err, "failed to unmarshal response body")
 	}
 

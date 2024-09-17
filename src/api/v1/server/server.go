@@ -53,7 +53,7 @@ func NewServer(ctx context.Context, profile *config.Config, store *store.Store) 
 
 func (s *Server) Start() error {
 	go func() {
-		if err := s.echoServer.Start(fmt.Sprintf("%s:%d", "0.0.0.0", s.Profile.Port)); err != nil {
+		if err := s.echoServer.Start(fmt.Sprintf("%s:%d", s.Profile.Addr, s.Profile.Port)); err != nil {
 			if err != http.ErrServerClosed {
 				fmt.Printf("failed to start echo server: %v\n", err)
 			}
