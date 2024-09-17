@@ -43,7 +43,7 @@ type IdentityProviderUserInfo struct {
 //
 // It container the identity provider setting information, such as the identity provider type, client id, client secret, etc.
 type IdentityProviderSetting struct {
-	Name string               `json:"name"`
+	Name string               `json:"name"` // Name is used to identify the identity provider, **need to be unique**.
 	Type IdentityProviderType `json:"type"` // e.g. OAuth2, OIDC, etc. (Now only support OAuth2)
 
 	// Types that are valid to be assigned to Config:

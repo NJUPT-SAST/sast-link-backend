@@ -34,6 +34,7 @@ func NewAPIV1Service(store *store.Store, config *config.Config, oauthServer *OAu
 		UserService:       *service.NewUserService(base),
 		ProfileService:    *service.NewProfileService(base),
 		SysSettingService: *service.NewSysSettingService(base),
+		OauthService:      *service.NewOauthService(base),
 
 		Store:       store,
 		Config:      config,
@@ -78,6 +79,7 @@ func (s *APIV1Service) RegistryRoutes(ctx context.Context, echoServer *echo.Echo
 		oauth.POST("/token", s.AccessToken)
 		oauth.POST("/refresh", s.RefreshToken)
 		oauth.POST("/createClient", s.CreateClient)
+		oauth.POST("/addCallback", s.AddRedirectURI)
 		oauth.GET("/userinfo", s.OauthUserInfo)
 	}
 	profileGroup := v1.Group("/profile")

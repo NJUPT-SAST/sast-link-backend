@@ -2,8 +2,10 @@ package v1
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
@@ -48,9 +50,23 @@ func NewOAuthServer(ctx context.Context, config *config.Config, dbStore store.St
 func (s *OAuthServer) SetHandler() {
 	s.Srv.SetClientInfoHandler(s.clientInfoHandler)
 	s.Srv.SetUserAuthorizationHandler(userAuthorizeHandler)
-	s.Srv.SetInternalErrorHandler(InternalErrorHandler)
-	s.Srv.SetResponseErrorHandler(ResponseErrorHandler)
-	s.Srv.SetResponseTokenHandler(ResponseTokenHandler)
+
+	// according to spec, servers should respond status 400 in error case:
+	// RFC 6749 https://www.rfc-editor.org/rfc/rfc6749#section-5.2
+	// TODO: set error response status code to 400
+	// s.Srv.SetInternalErrorHandler(InternalErrorHandler)
+	// s.Srv.SetResponseErrorHandler(ResponseErrorHandler)
+
+	// RFC 6749 provides a example of successful response:
+	// RFC 6749 https://www.rfc-editor.org/rfc/rfc6749#section-5.1
+	// s.Srv.SetResponseTokenHandler(ResponseTokenHandler)
+
+	s.Srv.SetPreRedirectErrorHandler(PreRedirectErrorHandler)
+}
+
+func PreRedirectErrorHandler(w http.ResponseWriter, req *server.AuthorizeRequest, err error) error {
+	log.Errorf("Oauth2 Server ::: PreRedirectErrorHandler:[%s]", err.Error())
+	return err
 }
 
 func InternalErrorHandler(err error) (re *errors.Response) {
@@ -97,7 +113,7 @@ func ResponseTokenHandler(w http.ResponseWriter, data map[string]interface{}, he
 		log.Errorf("Oauth2 ::: ResponseTokenHandler:error:[%s]", err)
 		return json.NewEncoder(w).Encode(response.Failed(err))
 	} else {
-		return json.NewEncoder(w).Encode(response.Success(map[string]string{"access_token": data["access_token"].(string)}))
+		return json.NewEncoder(w).Encode((map[string]string{"access_token": data["access_token"].(string)}))
 	}
 }
 
@@ -110,7 +126,6 @@ func (s *APIV1Service) CreateClient(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, response.REQUIRED_PARAMS)
 	}
 
-	// token := c.GetHeader("TOKEN")
 	studentID := request.GetUsername(c.Request())
 	if studentID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, response.REQUIRED_PARAMS)
@@ -137,13 +152,31 @@ func (s *APIV1Service) CreateClient(c echo.Context) error {
 	}))
 }
 
+func (s *APIV1Service) AddRedirectURI(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	stuID := request.GetUsername(c.Request())
+
+	clientID := c.FormValue("client_id")
+	redirectURI := c.FormValue("redirect_uri")
+	if clientID == "" || redirectURI == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, response.REQUIRED_PARAMS)
+	}
+
+	if err := s.OAuthServer.ClientStore.AddRedirectURI(ctx, stuID, clientID, redirectURI); err != nil {
+		log.Errorf("Failed to add redirect uri: %s", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
+	}
+
+	return c.JSON(http.StatusOK, response.Success(nil))
+}
+
 // OauthUserInfo response user info
 func (s *APIV1Service) OauthUserInfo(c echo.Context) error {
 	ctx := c.Request().Context()
-	if request.GetIsAuthenticated(c.Request()) == false {
-		return c.JSON(http.StatusUnauthorized, response.Failed(response.UNAUTHORIZED))
-	}
-	accessToken := request.GetAccessToken(c.Request())
+	authorization := c.Request().Header.Get("Authorization")
+	// Remove "Bearer " prefix
+	accessToken := strings.TrimPrefix(authorization, "Bearer ")
 	if accessToken == "" {
 		return c.JSON(http.StatusUnauthorized, response.Failed(response.UNAUTHORIZED))
 	}
@@ -160,10 +193,13 @@ func (s *APIV1Service) OauthUserInfo(c echo.Context) error {
 		log.Errorf("Failed to get user info: %s", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
 	}
+	if user == nil {
+		return c.JSON(http.StatusUnauthorized, response.Failed(response.UNAUTHORIZED))
+	}
 
-	profileInfo, serErr := s.ProfileService.GetProfileInfo(*user.Uid)
-	if serErr != nil {
-		log.Errorf("Failed to get profile info: %s", serErr)
+	profileInfo, err := s.ProfileService.GetProfileInfo(*user.Uid)
+	if err != nil {
+		log.Errorf("Failed to get profile info: %s", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
 	}
 
@@ -191,71 +227,66 @@ func (s *APIV1Service) Authorize(c echo.Context) error {
 	r := c.Request()
 	w := c.Response().Writer
 	_ = r.ParseForm()
+
 	// Redirect user to login page if user not login or
 	// get code directly if user has logged in
-	if s.OAuthServer.Srv.HandleAuthorizeRequest(w, r) != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
-	}
-
-	return c.JSON(http.StatusOK, response.Success(nil))
+	return s.OAuthServer.Srv.HandleAuthorizeRequest(w, r)
 }
 
 // AccessToken returns access token
 func (s *APIV1Service) AccessToken(c echo.Context) error {
 	w := c.Response().Writer
 	r := c.Request()
-	if s.OAuthServer.Srv.HandleTokenRequest(w, r) != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
-	}
 
-	return c.JSON(http.StatusOK, response.Success(nil))
+	return s.OAuthServer.Srv.HandleTokenRequest(w, r)
 }
 
 // RefreshToken returns new access token
 func (s *APIV1Service) RefreshToken(c echo.Context) error {
 	w := c.Response().Writer
 	r := c.Request()
-	err := s.OAuthServer.Srv.HandleTokenRequest(w, r)
-	if err == nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, response.INTENAL_ERROR)
-	}
-
-	return c.JSON(http.StatusOK, response.Success(nil))
+	return s.OAuthServer.Srv.HandleTokenRequest(w, r)
 }
 
+// clientInfoHandler returns client id and client secret
 func (s *OAuthServer) clientInfoHandler(r *http.Request) (clientID, clientSecret string, err error) {
-	_ = r.ParseMultipartForm(0)
-	_ = r.ParseForm()
 	if r.Form.Get("grant_type") == "refresh_token" {
 		ti, err := s.Srv.Manager.LoadRefreshToken(r.Context(), r.Form.Get("refresh_token"))
+		// Here errors pacakge is from go-oauth2
 		if err != nil {
-			return "", "", response.RESHRESH_TOKEN_INVALID
+			return "", "", errors.New("refresh token not found")
 		}
 		clientID = ti.GetClientID()
 		if clientID == "" {
-			return "", "", response.CLIENT_ID_INVALID
+			return "", "", errors.New("client id not found")
 		}
 		cli, err := s.Srv.Manager.GetClient(r.Context(), clientID)
 		if err != nil {
-			return "", "", response.CLIENT_ERROR
+			return "", "", errors.New("client not found")
 		}
 		clientSecret = cli.GetSecret()
 		if clientSecret == "" {
-			return "", "", response.CLIENT_SECRET_INVALID
+			return "", "", errors.New("client secret not found")
 		}
 		return clientID, clientSecret, nil
 	}
-	clientID = r.Form.Get("client_id")
-	if clientID == "" {
-		return "", "", response.CLIENT_ID_INVALID
+	clientID, clientSecret, ok := parseBasicAuth(r.Header.Get("Authorization"))
+	if !ok {
+		return "", "", errors.New("client id or client secret not found")
 	}
-	clientSecret = r.Form.Get("client_secret")
+
+	log.Debugf("Oauth2 Server ::: client_id:[%s]", clientID)
+
+	if clientID == "" {
+		return "", "", errors.New("client id not found")
+	}
 	if clientSecret == "" {
-		return "", "", response.CLIENT_SECRET_INVALID
+		return "", "", errors.New("client secret not found")
 	}
 	return clientID, clientSecret, nil
 }
 
+// userAuthorizeHandler get user id from request
 func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string, err error) {
 	if !request.GetIsAuthenticated(r) {
 		return "", response.UNAUTHORIZED
@@ -267,4 +298,29 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 	}
 
 	return stuID, nil
+}
+
+// See 2 of the HTTP Authentication RFC 2617: https://www.rfc-editor.org/rfc/rfc2617
+func parseBasicAuth(authHeader string) (username, password string, ok bool) {
+	// Remove "Basic " prefix
+	const prefix = "Basic "
+	if !strings.HasPrefix(authHeader, prefix) {
+		return "", "", false
+	}
+	encodedCredentials := strings.TrimPrefix(authHeader, prefix)
+
+	// Base64 decode
+	decoded, err := base64.StdEncoding.DecodeString(encodedCredentials)
+	if err != nil {
+		return "", "", false
+	}
+
+	// Split username and password
+	credentials := string(decoded)
+	parts := strings.SplitN(credentials, ":", 2)
+	if len(parts) != 2 {
+		return "", "", false
+	}
+
+	return parts[0], parts[1], true
 }

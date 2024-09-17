@@ -43,6 +43,8 @@ func NewServer(ctx context.Context, profile *config.Config, store *store.Store) 
 		fmt.Printf("failed to create oauth server: %v\n", err)
 		return nil, err
 	}
+	// Initialize oauth server custom handler.
+	oauthServer.SetHandler()
 
 	apiV1Service := v1.NewAPIV1Service(store, profile, oauthServer)
 	// Adding routes must beforer echo server start.

@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/go-oauth2/oauth2/v4/errors"
 )
 
@@ -12,6 +13,7 @@ func (s *Store) ValidateURIHandler(baseURI string, redirectURIs string) (err err
 	if err != nil {
 		return err
 	}
+	log.Debugf("BaseURI: %s, RedirectURIs: %s", baseURI, redirectURIs)
 
 	// Since the oauth2 package only supports one redirectURI, we need to split the string and check each one
 	uriList := strings.Split(redirectURIs, ",")
@@ -21,6 +23,8 @@ func (s *Store) ValidateURIHandler(baseURI string, redirectURIs string) (err err
 			return err
 		}
 
+		log.Debugf("Base Host: %s, Redirect Host: %s", base.Host, redirect.Host)
+		// Check if the redirectURI is a subset of the baseURI
 		if strings.HasSuffix(redirect.Host, base.Host) {
 			return nil
 		}

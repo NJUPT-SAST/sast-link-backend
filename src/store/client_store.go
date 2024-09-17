@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/go-oauth2/oauth2/v4"
 	"github.com/go-oauth2/oauth2/v4/models"
+	"github.com/pkg/errors"
 )
 
 // ClientStore PostgreSQL client store
@@ -24,7 +26,7 @@ type ClientStoreItem struct {
 }
 
 // NewClientStore creates PostgreSQL store instance
-func NewClientStore(dbStore Store) (*ClientStore) {
+func NewClientStore(dbStore Store) *ClientStore {
 	store := &ClientStore{
 		dbStore:   dbStore,
 		tableName: "oauth2_clients",
@@ -60,7 +62,7 @@ func (s *ClientStore) GetByID(ctx context.Context, id string) (oauth2.ClientInfo
 	}
 
 	var item ClientStoreItem
-	if err := s.dbStore.db.Table(s.tableName).WithContext(ctx).First(&item).Where("id = ?", id).Error; err != nil {
+	if err := s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("id = ?", id).First(&item).Error; err != nil {
 		return nil, err
 	}
 
@@ -80,4 +82,40 @@ func (s *ClientStore) Create(ctx context.Context, info oauth2.ClientInfo) error 
 		Domain: info.GetDomain(),
 		Data:   data,
 	}).Error
+}
+
+func (s *ClientStore) AddRedirectURI(ctx context.Context, stuID, id, uri string) error {
+	if id == "" || uri == "" {
+		return nil
+	}
+
+	var item ClientStoreItem
+	if err := s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("id = ?", id).First(&item).Error; err != nil {
+		return err
+	}
+
+	dbMap := make(map[string]interface{})
+	if err := json.Unmarshal(item.Data, &dbMap); err != nil {
+		return err
+	}
+
+	dbURI := item.Domain
+	dbStuID := dbMap["UserID"].(string)
+
+	if dbStuID != stuID {
+		return errors.New("user id not match")
+	}
+
+	uris := strings.Split(dbURI, ",")
+	if len(uris) > 0 {
+		for _, u := range uris {
+			if u == uri {
+				return nil
+			}
+		}
+	}
+
+	uris = append(uris, uri)
+
+	return s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("id = ?", id).Update("domain", strings.Join(uris, ",")).Error
 }

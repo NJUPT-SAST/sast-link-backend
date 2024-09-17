@@ -7,13 +7,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"time"
 
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/clientcredentials"
 )
 
 const (
@@ -22,13 +20,14 @@ const (
 
 var (
 	config = oauth2.Config{
-		ClientID:     "222222",
-		ClientSecret: "1",
+		ClientID:     "c48730a3-7032-4b30-a1a4-49cbc603e418",
+		ClientSecret: "5xnwQR4RdYv9zlk0o9buDxtw7Q8f9J2m",
 		Scopes:       []string{"all"},
 		RedirectURL:  "http://localhost:9094/oauth2",
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  authServerURL + "/oauth2/auth",
-			TokenURL: "http://localhost:8080/api/v1" + "/oauth2/token",
+			AuthURL:   authServerURL + "/auth",
+			TokenURL:  "http://localhost:8080/api/v1" + "/oauth2/token",
+			AuthStyle: oauth2.AuthStyleInHeader,
 		},
 	}
 	globalToken *oauth2.Token // Non-concurrent security
@@ -48,55 +47,40 @@ func GenerateVerifier() string {
 }
 
 func main() {
+	// This is the URL that the user's browser hits to start the OAuth flow
+	// This is represented by the "Login with Sastlink" button on the client, in the frontend will generate the URL, in this
+	// example we are generating the URL in the backend for simplicity
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		u := config.AuthCodeURL("xyz",
-			oauth2.SetAuthURLParam("code_challenge", genCodeChallengeS256("sast_forever")),
+		u := config.AuthCodeURL("random_string",
+			oauth2.SetAuthURLParam("code_challenge", genCodeChallengeS256("random_string")),
 			oauth2.SetAuthURLParam("code_challenge_method", "S256"))
-		fmt.Println("URL:" + u)
 		http.Redirect(w, r, u, http.StatusFound)
 	})
 
-	http.HandleFunc("/api/auth/callback/sastlink", func(w http.ResponseWriter, r *http.Request) {
-
-		r.ParseForm()
-		println(r.URL.RawQuery)
-		// state := r.Form.Get("state")
-		// if state != "xyz" {
-		// 	http.Error(w, "State invalid", http.StatusBadRequest)
-		// 	return
-		// }
-		code := r.Form.Get("code")
-		if code == "" {
-			http.Error(w, "Code not found", http.StatusBadRequest)
-			return
-		}
-		fmt.Println("Code:" + code)
-	})
-
+	// This is the URL that the client requests to Exchange the code for a token,
+	// it should be called by the frontend, in this example we are calling it in the backend for simplicity
 	http.HandleFunc("/oauth2", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
-		println(r.URL.RawQuery)
-		// state := r.Form.Get("state")
-		// if state != "xyz" {
-		// 	http.Error(w, "State invalid", http.StatusBadRequest)
-		// 	return
-		// }
+		state := r.Form.Get("state")
+		if state != "random_string" {
+			http.Error(w, "State invalid", http.StatusBadRequest)
+			return
+		}
 		code := r.Form.Get("code")
 		if code == "" {
 			http.Error(w, "Code not found", http.StatusBadRequest)
 			return
 		}
-		fmt.Println("Code:" + code)
-		// token, err := config.Exchange(r.Context(), code, oauth2.SetAuthURLParam("code_verifier", "sast_forever"))
-		//if err != nil {
-		//	http.Error(w, err.Error(), http.StatusInternalServerError)
-		//	return
-		//}
-		//globalToken = token
+		token, err := config.Exchange(r.Context(), code, oauth2.SetAuthURLParam("code_verifier", "random_string"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		globalToken = token
 
-		//e := json.NewEncoder(w)
-		//e.SetIndent("", "  ")
-		//e.Encode(token)
+		e := json.NewEncoder(w)
+		e.SetIndent("", "  ")
+		e.Encode(token)
 	})
 
 	http.HandleFunc("/refresh", func(w http.ResponseWriter, r *http.Request) {
@@ -120,51 +104,25 @@ func main() {
 		e.Encode(token)
 	})
 
-	http.HandleFunc("/try", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/userInfo", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("globalToken: ", globalToken)
 		if globalToken == nil {
 			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
-
-		resp, err := http.Get(fmt.Sprintf("%s/test?access_token=%s", authServerURL, globalToken.AccessToken))
+	
+		client := config.Client(context.Background(), globalToken)
+		resp, err := client.Get("http://localhost:8080/api/v1/oauth2/userinfo")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		defer resp.Body.Close()
-
-		io.Copy(w, resp.Body)
-	})
-
-	http.HandleFunc("/pwd", func(w http.ResponseWriter, r *http.Request) {
-		token, err := config.PasswordCredentialsToken(context.Background(), "test", "test")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		globalToken = token
+		var result map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&result)
 		e := json.NewEncoder(w)
 		e.SetIndent("", "  ")
-		e.Encode(token)
-	})
-
-	http.HandleFunc("/client", func(w http.ResponseWriter, r *http.Request) {
-		cfg := clientcredentials.Config{
-			ClientID:     config.ClientID,
-			ClientSecret: config.ClientSecret,
-			TokenURL:     config.Endpoint.TokenURL,
-		}
-
-		token, err := cfg.Token(context.Background())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		e := json.NewEncoder(w)
-		e.SetIndent("", "  ")
-		e.Encode(token)
+		e.Encode(result)
 	})
 
 	log.Println("Client is running at 9094 port.Please open http://localhost:9094")
