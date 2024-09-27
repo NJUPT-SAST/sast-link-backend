@@ -230,3 +230,12 @@ func MapToJSONStringInterface(m map[string]interface{}) (string, error) {
 	}
 	return string(jsonBytes), nil
 }
+
+// maskSecret masks the middle part of the secret, showing only the first and last 4 characters.
+// If the secret is shorter than 8 characters, it replaces the whole secret with "*******".
+func MaskSecret(secret string) string {
+	if len(secret) > 8 {
+		return secret[:4] + "*******" + secret[len(secret)-4:]
+	}
+	return "*******"
+}

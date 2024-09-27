@@ -8,6 +8,8 @@ import (
 	"github.com/go-oauth2/oauth2/v4/errors"
 )
 
+// ValidateURIHandler validates the redirectURI used by the manager.
+// mg.SetValidateURIHandler(dbStore.ValidateURIHandler)
 func (s *Store) ValidateURIHandler(baseURI string, redirectURIs string) (err error) {
 	base, err := url.Parse(baseURI)
 	if err != nil {

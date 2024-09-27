@@ -137,12 +137,20 @@ func (s *APIV1Service) CreateClient(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, response.REQUIRED_PARAMS)
 	}
 
+	clientName := c.FormValue("client_name")
+	if clientName == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, response.REQUIRED_PARAMS)
+	}
+
+	// clientDesc is optional
+	clientDesc := c.FormValue("client_desc")
+
 	if s.OAuthServer.ClientStore.Create(ctx, &models.Client{
 		ID:     clientID,
 		Secret: secret,
 		Domain: redirectURI,
 		UserID: studentID,
-	}) != nil {
+	}, clientName, clientDesc) != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, response.REQUIRED_PARAMS)
 	}
 
