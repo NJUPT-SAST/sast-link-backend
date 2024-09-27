@@ -93,6 +93,7 @@ var (
 	LOGIN_FAILED       = LocalError{ErrCode: 1005, ErrMsg: "login failed, please check your username and password"}
 	// Unauthorized http status code is 401
 	UNAUTHORIZED = LocalError{ErrCode: 401, ErrMsg: "unauthorized"}
+	FORBIDDEN    = LocalError{ErrCode: 403, ErrMsg: "forbidden"}
 	// Request error
 	REQUIRED_PARAMS = LocalError{ErrCode: 2001, ErrMsg: "required params"}
 	// User error
@@ -108,6 +109,7 @@ var (
 	CLIENT_ID_INVALID      = LocalError{ErrCode: 6002, ErrMsg: "client id invalid"}
 	CLIENT_SECRET_INVALID  = LocalError{ErrCode: 6004, ErrMsg: "client secret invalid"}
 	CLIENT_ERROR           = LocalError{ErrCode: 6003, ErrMsg: "client error"}
+	CLIENT_NOT_FOUND       = LocalError{ErrCode: 6004, ErrMsg: "client not found"}
 	CODE_INVALID           = LocalError{ErrCode: 6002, ErrMsg: "code invalid"}
 	// Profile error
 	PROFILE_INFO_ERROR = LocalError{ErrCode: 7001, ErrMsg: "profile error"}

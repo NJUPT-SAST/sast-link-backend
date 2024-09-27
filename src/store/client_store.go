@@ -157,11 +157,15 @@ func (s *ClientStore) GetClient(ctx context.Context, find FindClientRequest) (*C
 	return &client, nil
 }
 
-func (s *ClientStore) UpdateClient(ctx context.Context, id string, name, desc string) error {
-	return s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("id = ?", id).Updates(map[string]interface{}{
+func (s *ClientStore) UpdateClient(ctx context.Context, id, uid, name, desc string) error {
+	return s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("id = ?", id).Where("user_id = ?", uid).Updates(map[string]interface{}{
 		"name": name,
 		"desc": desc,
 	}).Error
+}
+
+func (s *ClientStore) DeleteClient(ctx context.Context, id, uid string) error {
+	return s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("id = ?", id).Where("user_id = ?", uid).Delete(&ClientStoreItem{}).Error
 }
 
 // Create creates and stores the new client information
