@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"strings"
 
+	"gorm.io/gorm"
+
 	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/plugin/idp/oauth2"
-	"gorm.io/gorm"
 )
 
 // SystemSetting represents the system setting.
@@ -23,7 +24,7 @@ type SystemSetting struct {
 	Description string `json:"description"`
 }
 
-// Check value is empty or not
+// Check value is empty or not.
 func (s *SystemSetting) IsEmpty() bool {
 	return s.Value == `{}`
 }
@@ -268,7 +269,7 @@ func (s *Store) ListSystemSetting(ctx context.Context) (map[string]SystemSetting
 		// Populate the map with the setting name as the key
 		settings[setting.Name] = setting
 		// Store the system setting in the cache
-		s.Set(ctx, setting.Name, setting, 0)
+		_ = s.Set(ctx, setting.Name, setting, 0)
 	}
 
 	return settings, nil
@@ -296,7 +297,7 @@ func (s *Store) GetSystemSetting(ctx context.Context, settingName string) (*Syst
 	err = s.db.Table("system_setting").Where("name = ?", settingName).First(&setting).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New(fmt.Sprintf("system setting with [name=%s] not found", settingName))
+			return nil, fmt.Errorf("system setting with [name=%s] not found", settingName)
 		}
 		return nil, err
 	}

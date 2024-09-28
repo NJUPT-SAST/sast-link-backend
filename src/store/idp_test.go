@@ -8,7 +8,9 @@ import (
 )
 
 func TestListIdentityProviders(t *testing.T) {
-	config.SetupConfig()
+	if config.SetupConfig() != nil {
+		t.Fatal("config.SetupConfig() failed")
+	}
 	instanceConfig := config.NewConfig()
 	store, _ := NewStore(context.Background(), instanceConfig)
 
@@ -17,12 +19,12 @@ func TestListIdentityProviders(t *testing.T) {
 		t.Error(err)
 	}
 	for _, idp := range idps {
-        t.Log(idp.Name)
-        if idp.GetOauth2Setting() == nil {
-            t.Error("GetOauth2Setting() is nil")
-            continue
-        }
-        t.Log(idp.GetOauth2Setting().AuthUrl)
-        t.Log(idp.GetOauth2Setting().TokenUrl)
-    }
+		t.Log(idp.Name)
+		if idp.GetOauth2Setting() == nil {
+			t.Error("GetOauth2Setting() is nil")
+			continue
+		}
+		t.Log(idp.GetOauth2Setting().AuthURL)
+		t.Log(idp.GetOauth2Setting().TokenURL)
+	}
 }

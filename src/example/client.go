@@ -60,7 +60,7 @@ func main() {
 	// This is the URL that the client requests to Exchange the code for a token,
 	// it should be called by the frontend, in this example we are calling it in the backend for simplicity
 	http.HandleFunc("/oauth2", func(w http.ResponseWriter, r *http.Request) {
-		r.ParseForm()
+		_ = r.ParseForm()
 		state := r.Form.Get("state")
 		if state != "random_string" {
 			http.Error(w, "State invalid", http.StatusBadRequest)
@@ -80,7 +80,7 @@ func main() {
 
 		e := json.NewEncoder(w)
 		e.SetIndent("", "  ")
-		e.Encode(token)
+		_ = e.Encode(token)
 	})
 
 	http.HandleFunc("/refresh", func(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +101,7 @@ func main() {
 		globalToken = token
 		e := json.NewEncoder(w)
 		e.SetIndent("", "  ")
-		e.Encode(token)
+		_ = e.Encode(token)
 	})
 
 	http.HandleFunc("/userInfo", func(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +110,7 @@ func main() {
 			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
-	
+
 		client := config.Client(context.Background(), globalToken)
 		resp, err := client.Get("http://localhost:8080/api/v1/oauth2/userinfo")
 		if err != nil {
@@ -119,10 +119,10 @@ func main() {
 		}
 		defer resp.Body.Close()
 		var result map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&result)
+		_ = json.NewDecoder(resp.Body).Decode(&result)
 		e := json.NewEncoder(w)
 		e.SetIndent("", "  ")
-		e.Encode(result)
+		_ = e.Encode(result)
 	})
 
 	log.Println("Client is running at 9094 port.Please open http://localhost:9094")

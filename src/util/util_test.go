@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestGenerateCode(t *testing.T) {
+func TestGenerateCode(_ *testing.T) {
 	for i := 0; i < 10; i++ {
 		code := GenerateCode()
 		fmt.Println(code)
@@ -33,12 +33,11 @@ func TestGenerateRandomString(t *testing.T) {
 	fmt.Println(randomString)
 }
 
-func TestSentMsgToBot(t *testing.T) {
-	var message string
-	message = `{"msg_type":"text","content":{"text":"测试"}}`
+func TestSentMsgToBot(_ *testing.T) {
+	message := `{"msg_type":"text","content":{"text":"测试"}}`
 	print(message)
 	// convert msg to json
-	//resJSON, _ := json.Marshal(message)
+	// resJSON, _ := json.Marshal(message)
 	resJSON := []byte(`{
         "msg_type": "post",
         "content": {
@@ -77,6 +76,9 @@ func TestSentMsgToBot(t *testing.T) {
 
 	// do request
 	client := &http.Client{}
-	resp, _ := client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+	}
 	defer resp.Body.Close()
 }

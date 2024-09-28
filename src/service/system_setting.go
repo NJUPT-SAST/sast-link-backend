@@ -55,7 +55,7 @@ func (s *SysSettingService) IDPInfo(ctx context.Context, idp string) (map[string
 	}
 
 	return map[string]interface{}{
-		"auth_url":  idpInfo.GetOauth2Setting().AuthUrl,
+		"auth_url":  idpInfo.GetOauth2Setting().AuthURL,
 		"client_id": idpInfo.GetOauth2Setting().ClientID,
 		"scopes":    idpInfo.GetOauth2Setting().Scopes,
 	}, nil

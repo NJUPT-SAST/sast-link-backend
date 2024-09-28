@@ -3,7 +3,9 @@ package config
 import "testing"
 
 func TestLoadSystemSetting(t *testing.T) {
-	SetupConfig()
+	if SetupConfig() != nil {
+		t.Fatalf("SetupConfig() failed")
+	}
 	instanceConfig := NewConfig()
 	instanceConfig.LoadSystemSettings()
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 )
 
-// TokenStore store oauth2 token information
+// TokenStore store oauth2 token information.
 type TokenStore struct {
 	dbStore   Store
 	tableName string
@@ -23,7 +23,7 @@ type TokenStore struct {
 	ticker     *time.Ticker
 }
 
-// TokenStoreItem data item
+// TokenStoreItem data item.
 type TokenStoreItem struct {
 	ID        int64     `gorm:"id"`
 	CreatedAt time.Time `gorm:"created_at"`
@@ -34,7 +34,7 @@ type TokenStoreItem struct {
 	Data      []byte    `gorm:"data"`
 }
 
-// NewTokenStore create token store instance
+// NewTokenStore create token store instance.
 func NewTokenStore(dbStore Store, options ...TokenStoreOption) *TokenStore {
 	store := &TokenStore{
 		dbStore:    dbStore,
@@ -54,7 +54,7 @@ func NewTokenStore(dbStore Store, options ...TokenStoreOption) *TokenStore {
 	return store
 }
 
-// Close closes the store
+// Close closes the store.
 func (s *TokenStore) Close() error {
 	if !s.gcDisabled {
 		s.ticker.Stop()
@@ -68,7 +68,8 @@ func (s *TokenStore) gc() {
 	}
 }
 
-// TODO: other tables should be created, so we need to create a new function to create tables
+//nolint
+// TODO: other tables should be created, so we need to create a new function to create tables.
 func (s *TokenStore) initTable() error {
 	return s.dbStore.Exec(context.Background(), fmt.Sprintf(`
 CREATE TABLE IF NOT EXISTS %[1]s (
@@ -96,7 +97,7 @@ func (s *TokenStore) clean() {
 	}
 }
 
-// Create creates and stores the new token information
+// Create creates and stores the new token information.
 func (s *TokenStore) Create(ctx context.Context, info oauth2.TokenInfo) error {
 	buf, err := json.Marshal(info)
 	if err != nil {
@@ -113,27 +114,27 @@ func (s *TokenStore) Create(ctx context.Context, info oauth2.TokenInfo) error {
 		item.ExpiresAt = info.GetCodeCreateAt().Add(info.GetCodeExpiresIn())
 
 		// Cache the code
-		s.dbStore.Set(ctx, code, buf, info.GetCodeExpiresIn())
+		_ = s.dbStore.Set(ctx, code, buf, info.GetCodeExpiresIn())
 	} else {
 		item.Access = info.GetAccess()
 		item.ExpiresAt = info.GetAccessCreateAt().Add(info.GetAccessExpiresIn())
 
-		s.dbStore.Set(ctx, info.GetAccess(), buf, info.GetAccessExpiresIn())
+		_ = s.dbStore.Set(ctx, info.GetAccess(), buf, info.GetAccessExpiresIn())
 
 		if refresh := info.GetRefresh(); refresh != "" {
 			item.Refresh = info.GetRefresh()
 			item.ExpiresAt = info.GetRefreshCreateAt().Add(info.GetRefreshExpiresIn())
 
-			s.dbStore.Set(ctx, refresh, buf, info.GetRefreshExpiresIn())
+			_ = s.dbStore.Set(ctx, refresh, buf, info.GetRefreshExpiresIn())
 		}
 	}
 
 	return s.dbStore.db.Table(s.tableName).WithContext(ctx).Create(item).Error
 }
 
-// RemoveByCode deletes the authorization code
+// RemoveByCode deletes the authorization code.
 func (s *TokenStore) RemoveByCode(ctx context.Context, code string) error {
-	s.dbStore.Delete(ctx, code)
+	_ = s.dbStore.Delete(ctx, code)
 	err := s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("code = ?", code).Delete(&TokenStoreItem{}).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil
@@ -141,9 +142,9 @@ func (s *TokenStore) RemoveByCode(ctx context.Context, code string) error {
 	return err
 }
 
-// RemoveByAccess uses the access token to delete the token information
+// RemoveByAccess uses the access token to delete the token information.
 func (s *TokenStore) RemoveByAccess(ctx context.Context, access string) error {
-	s.dbStore.Delete(ctx, access)
+	_ = s.dbStore.Delete(ctx, access)
 	err := s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("access = ?", access).Delete(&TokenStoreItem{}).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil
@@ -151,9 +152,9 @@ func (s *TokenStore) RemoveByAccess(ctx context.Context, access string) error {
 	return err
 }
 
-// RemoveByRefresh uses the refresh token to delete the token information
+// RemoveByRefresh uses the refresh token to delete the token information.
 func (s *TokenStore) RemoveByRefresh(ctx context.Context, refresh string) error {
-	s.dbStore.Delete(ctx, refresh)
+	_ = s.dbStore.Delete(ctx, refresh)
 	err := s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("refresh = ?", refresh).Delete(&TokenStoreItem{}).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil
@@ -161,13 +162,13 @@ func (s *TokenStore) RemoveByRefresh(ctx context.Context, refresh string) error 
 	return err
 }
 
-func (s *TokenStore) toTokenInfo(data []byte) (oauth2.TokenInfo, error) {
+func (*TokenStore) toTokenInfo(data []byte) (oauth2.TokenInfo, error) {
 	var tm models.Token
 	err := json.Unmarshal(data, &tm)
 	return &tm, err
 }
 
-// GetByCode uses the authorization code for token information data
+// GetByCode uses the authorization code for token information data.
 func (s *TokenStore) GetByCode(ctx context.Context, code string) (oauth2.TokenInfo, error) {
 	if code == "" {
 		return nil, nil
@@ -185,7 +186,7 @@ func (s *TokenStore) GetByCode(ctx context.Context, code string) (oauth2.TokenIn
 	return s.toTokenInfo(item.Data)
 }
 
-// GetByAccess uses the access token for token information data
+// GetByAccess uses the access token for token information data.
 func (s *TokenStore) GetByAccess(ctx context.Context, access string) (oauth2.TokenInfo, error) {
 	if access == "" {
 		return nil, nil
@@ -203,7 +204,7 @@ func (s *TokenStore) GetByAccess(ctx context.Context, access string) (oauth2.Tok
 	return s.toTokenInfo(item.Data)
 }
 
-// GetByRefresh uses the refresh token for token information data
+// GetByRefresh uses the refresh token for token information data.
 func (s *TokenStore) GetByRefresh(ctx context.Context, refresh string) (oauth2.TokenInfo, error) {
 	if refresh == "" {
 		return nil, nil
@@ -221,17 +222,17 @@ func (s *TokenStore) GetByRefresh(ctx context.Context, refresh string) (oauth2.T
 	return s.toTokenInfo(item.Data)
 }
 
-// TokenStoreOption is the configuration options type for token store
+// TokenStoreOption is the configuration options type for token store.
 type TokenStoreOption func(s *TokenStore)
 
-// WithTokenStoreGCInterval returns option that sets token store garbage collection interval
+// WithTokenStoreGCInterval returns option that sets token store garbage collection interval.
 func WithTokenStoreGCInterval(gcInterval time.Duration) TokenStoreOption {
 	return func(s *TokenStore) {
 		s.gcInterval = gcInterval
 	}
 }
 
-// WithTokenStoreGCDisabled returns option that disables token store garbage collection
+// WithTokenStoreGCDisabled returns option that disables token store garbage collection.
 func WithTokenStoreGCDisabled() TokenStoreOption {
 	return func(s *TokenStore) {
 		s.gcDisabled = true

@@ -4,13 +4,14 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/go-oauth2/oauth2/v4/errors"
+
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 )
 
 // ValidateURIHandler validates the redirectURI used by the manager.
-// mg.SetValidateURIHandler(dbStore.ValidateURIHandler)
-func (s *Store) ValidateURIHandler(baseURI string, redirectURIs string) (err error) {
+// mg.SetValidateURIHandler(dbStore.ValidateURIHandler).
+func (*Store) ValidateURIHandler(baseURI string, redirectURIs string) (err error) {
 	base, err := url.Parse(baseURI)
 	if err != nil {
 		return err

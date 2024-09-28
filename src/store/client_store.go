@@ -47,7 +47,7 @@ type FindClientRequest struct {
 	UserID string `json:"user_id"`
 }
 
-// NewClientStore creates PostgreSQL store instance
+// NewClientStore creates PostgreSQL store instance.
 func NewClientStore(dbStore Store) *ClientStore {
 	store := &ClientStore{
 		dbStore:   dbStore,
@@ -57,10 +57,13 @@ func NewClientStore(dbStore Store) *ClientStore {
 	return store
 }
 
-// TODO: All tables should be created in the same place
+//nolint
+// TODO: All tables should be created in the same place.
 func (s *ClientStore) initTable() error {
 	// Create table if not exists
-	s.dbStore.db.Migrator().CreateTable(&ClientStoreItem{})
+	if err := s.dbStore.db.Migrator().CreateTable(&ClientStoreItem{}); err != nil {
+		return err
+	}
 	return s.dbStore.Exec(context.Background(), fmt.Sprintf(`
 CREATE TABLE IF NOT EXISTS %[1]s (
   id      TEXT  NOT NULL,
@@ -75,7 +78,7 @@ CREATE TABLE IF NOT EXISTS %[1]s (
 `, s.tableName))
 }
 
-func (s *ClientStore) toClientInfo(data []byte) (oauth2.ClientInfo, error) {
+func (*ClientStore) toClientInfo(data []byte) (oauth2.ClientInfo, error) {
 	var cm models.Client
 	err := json.Unmarshal(data, &cm)
 	return &cm, err
@@ -98,7 +101,7 @@ func (s *ClientStore) GetByID(ctx context.Context, id string) (oauth2.ClientInfo
 	return s.toClientInfo(item.Data)
 }
 
-// ListClient retrieves and returns client information by user id
+// ListClient retrieves and returns client information by user id.
 func (s *ClientStore) ListClient(ctx context.Context, find FindClientRequest) ([]ClientStoreItem, error) {
 	// Initialize the result slice
 	result := make([]ClientStoreItem, 0)
@@ -129,7 +132,7 @@ func (s *ClientStore) ListClient(ctx context.Context, find FindClientRequest) ([
 	return result, nil
 }
 
-// GetClient retrieves client, but it will return all client information
+// GetClient retrieves client, but it will return all client information.
 func (s *ClientStore) GetClient(ctx context.Context, find FindClientRequest) (*ClientStoreItem, error) {
 	if find.ID == "" {
 		return nil, errors.New("invalid request: ID must be provided")
@@ -153,7 +156,7 @@ func (s *ClientStore) GetClient(ctx context.Context, find FindClientRequest) (*C
 
 	client := list[0]
 	// cache the client info(30 days)
-	s.dbStore.Set(ctx, client.ID, client, 30*24*60*60)
+	_ = s.dbStore.Set(ctx, client.ID, client, 30*24*60*60)
 	return &client, nil
 }
 
@@ -168,7 +171,7 @@ func (s *ClientStore) DeleteClient(ctx context.Context, id, uid string) error {
 	return s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("id = ?", id).Where("user_id = ?", uid).Delete(&ClientStoreItem{}).Error
 }
 
-// Create creates and stores the new client information
+// Create creates and stores the new client information.
 func (s *ClientStore) Create(ctx context.Context, info oauth2.ClientInfo, name, desc string) error {
 	data, err := json.Marshal(info)
 	if err != nil {
@@ -186,7 +189,7 @@ func (s *ClientStore) Create(ctx context.Context, info oauth2.ClientInfo, name, 
 	}).Error
 }
 
-// AddRedirectURI adds redirect uri to client information
+// AddRedirectURI adds redirect uri to client information.
 func (s *ClientStore) AddRedirectURI(ctx context.Context, stuID, id, uri string) error {
 	if id == "" || uri == "" {
 		return nil
@@ -203,7 +206,10 @@ func (s *ClientStore) AddRedirectURI(ctx context.Context, stuID, id, uri string)
 	}
 
 	dbURI := item.Domain
-	dbStuID := dbMap["UserID"].(string)
+	dbStuID, ok := dbMap["UserID"].(string)
+	if !ok {
+		return errors.New("user id not found")
+	}
 
 	if dbStuID != stuID {
 		return errors.New("user id not match")

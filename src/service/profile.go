@@ -89,8 +89,8 @@ const picSensitiveMsg = `{
 
 func (s *ProfileService) ChangeProfile(profile *store.Profile, uid string) error {
 	// Check org_id
-	if profile.OrgId > 26 || profile.OrgId < -1 {
-		log.Errorf("Orgenization id invalid: %d", profile.OrgId)
+	if profile.OrgID > 26 || profile.OrgID < -1 {
+		log.Errorf("Orgenization id invalid: %d", profile.OrgID)
 		return errors.New("Orgenization id invalid")
 	}
 
@@ -100,7 +100,7 @@ func (s *ProfileService) ChangeProfile(profile *store.Profile, uid string) error
 	}
 
 	// Verify if profile exist by uid(student ID)
-	resProfile, err := s.Store.SelectProfileByUid(uid)
+	resProfile, err := s.Store.SelectProfileByUID(uid)
 	if err != nil {
 		log.Errorf("CheckProfile error: %s", err.Error())
 		return err
@@ -120,7 +120,7 @@ func (s *ProfileService) ChangeProfile(profile *store.Profile, uid string) error
 
 func (s *ProfileService) GetProfileInfo(uid string) (*store.Profile, error) {
 	// Verify if profile exist by uid(student ID)
-	resProfile, err := s.Store.SelectProfileByUid(uid)
+	resProfile, err := s.Store.SelectProfileByUID(uid)
 	if err != nil {
 		log.Errorf("CheckProfile error: %s", err.Error())
 		return nil, err
@@ -150,27 +150,27 @@ func (s *ProfileService) GetProfileInfo(uid string) (*store.Profile, error) {
 	return resProfile, nil
 }
 
-func (s *ProfileService) GetProfileOrg(OrgId int) (string, string, error) {
+func (s *ProfileService) GetProfileOrg(orgID int) (string, string, error) {
 	// Check org_id
-	if OrgId > 26 {
-		log.Errorf("OrgId illegal: %d", OrgId)
+	if orgID > 26 {
+		log.Errorf("OrgId illegal: %d", orgID)
 		return "", "", errors.New("Orgenization id is invalid")
-	} else if OrgId == -1 || OrgId == 0 {
+	} else if orgID == -1 || orgID == 0 {
 		return "", "", nil
-	} else {
-		// Get dep and org
-		if dep, org, err := s.Store.GetDepAndOrgByOrgId(OrgId); err != nil {
-			log.Errorf("GetDepAndOrgByOrgId error: %s", err.Error())
-			return "", "", err
-		} else {
-			return dep, org, nil
-		}
 	}
+
+	// Get dep and org
+	dep, org, err := s.Store.GetDepAndOrgByOrgID(orgID)
+	if err != nil {
+		log.Errorf("GetDepAndOrgByOrgID error: %s", err.Error())
+		return "", "", err
+	}
+	return dep, org, nil
 }
 
-func (s *ProfileService) UploadAvatar(avatar *multipart.FileHeader, uid string, ctx context.Context) (string, error) {
+func (s *ProfileService) UploadAvatar(ctx context.Context, avatar *multipart.FileHeader, uid string) (string, error) {
 	// Construct fileName
-	userInfo, userInfoErr := s.Store.UserInfo(uid)
+	userInfo, userInfoErr := s.Store.UserInfo(ctx, uid)
 	if userInfoErr != nil {
 		log.Errorf("User not exist: %s", userInfoErr.Error())
 		return "", userInfoErr
@@ -204,7 +204,7 @@ func (s *ProfileService) UploadAvatar(avatar *multipart.FileHeader, uid string, 
 	}
 	storageSetting := systemSetting.GetStorageSetting()
 	if storageSetting == nil {
-		log.Errorf("Get storage setting error: %s", err.Error())
+		log.Errorf("Get storage setting error")
 		return "", errors.New("Get storage setting error")
 	}
 
@@ -213,14 +213,23 @@ func (s *ProfileService) UploadAvatar(avatar *multipart.FileHeader, uid string, 
 	avatarURL, err := client.UploadObject(ctx, uploadKey, bytes.NewReader(webpBytes))
 	if err != nil {
 		log.Errorf("Upload file %s fail: %s", uploadKey, err.Error())
-		client.DeleteObject(ctx, uploadKey)
+		// If upload file fail, delete file in cos
+		if err := client.DeleteObject(ctx, uploadKey); err != nil {
+			// If delete file in cos fail, log error and return
+			log.Errorf("Delete file %s fail: %s", uploadKey, err.Error())
+			return "", errors.Wrap(err, "failed to delete file when upload fail")
+		}
+
 		return "", err
 	}
 
 	// Write to database, file url refer:tencent cos bucket file
 	if err := s.Store.UpdateAvatar(avatarURL, userInfo.ID); err != nil {
 		// If update avatar to database fail, delete file in cos
-		client.DeleteObject(ctx, uploadKey)
+		if err := client.DeleteObject(ctx, uploadKey); err != nil {
+			log.Errorf("Delete file %s fail: %s", uploadKey, err.Error())
+			return "", errors.Wrap(err, "failed to delete file when update avatar fail")
+		}
 
 		log.Errorf("Update avatar to database fail: %s, %s", avatarURL, err.Error())
 		return "", err
@@ -237,14 +246,14 @@ func checkHideLegal(hide []string) error {
 		"badge",
 	}
 
-	//matching declared Filed, and if hide > declared Filed, match fail
+	// matching declared Filed, and if hide > declared Filed, match fail
 	for i := range hide {
 		matched, err := regexp.MatchString(hideFiledPattern[0]+"|"+hideFiledPattern[1]+"|"+hideFiledPattern[2], hide[i])
 
 		if err != nil {
 			log.Errorf("Hide field match fail: %s", err.Error())
 			return errors.Wrap(err, "failed to match hide field")
-		} else if matched == false || i > len(hideFiledPattern) {
+		} else if !matched || i > len(hideFiledPattern) {
 			log.Errorf("Hide field invalid")
 			return errors.New("Hide field invalid")
 		}
@@ -255,9 +264,9 @@ func checkHideLegal(hide []string) error {
 func (s *ProfileService) SentMsgToBot(ctx context.Context, checkRes *store.CheckRes) error {
 	var message []byte
 	if checkRes.Code != 0 {
-		message = []byte(fmt.Sprintf(reviewFailMsg, checkRes.Data.Url, checkRes.Message))
+		message = []byte(fmt.Sprintf(reviewFailMsg, checkRes.Data.URL, checkRes.Message))
 	} else if checkRes.Data.Result == 2 {
-		message = []byte(fmt.Sprintf(picSensitiveMsg, checkRes.Data.Url))
+		message = []byte(fmt.Sprintf(picSensitiveMsg, checkRes.Data.URL))
 	} else {
 		return nil
 	}
@@ -275,6 +284,10 @@ func (s *ProfileService) SentMsgToBot(ctx context.Context, checkRes *store.Check
 	// Set request
 	url := webSetting.ImageReviewWebhook
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(message))
+	if err != nil {
+		log.Errorf("Sent msg to feishu bot fail: %s", err.Error())
+		return errors.Wrap(err, "failed to send message to feishu bot")
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	// Do request
@@ -290,11 +303,11 @@ func (s *ProfileService) SentMsgToBot(ctx context.Context, checkRes *store.Check
 
 func (s *ProfileService) DealWithFrozenImage(ctx context.Context, checkRes *store.CheckRes) error {
 	compileRegex := regexp.MustCompile("[0-9]+")
-	matchArr := compileRegex.FindAllString(checkRes.Data.Url, -1)
+	matchArr := compileRegex.FindAllString(checkRes.Data.URL, -1)
 	if matchArr == nil {
 		return errors.New("Failed to match image url")
 	}
-	userId := matchArr[1]
+	userID := matchArr[1]
 
 	systemSetting, err := s.Store.ListSystemSetting(ctx)
 	if err != nil {
@@ -309,8 +322,8 @@ func (s *ProfileService) DealWithFrozenImage(ctx context.Context, checkRes *stor
 
 	client := cos.NewClient(storageSetting)
 	// Mv image
-	source := "avatar/" + userId + ".jpg"
-	dest := "ban/" + userId + ".jpg"
+	source := "avatar/" + userID + ".jpg"
+	dest := "ban/" + userID + ".jpg"
 	if err := client.MoveObject(ctx, source, dest); err != nil {
 		log.Errorf("Move file %s to %s failed: %s", source, dest, err)
 		return errors.Wrap(err, "failed to move file to ban")
@@ -326,7 +339,7 @@ func (s *ProfileService) DealWithFrozenImage(ctx context.Context, checkRes *stor
 		return errors.New("Get website setting error")
 	}
 	avatarURL := siteSetting.AvatarErrorURLImage
-	parseUint, _ := strconv.Atoi(userId)
+	parseUint, _ := strconv.Atoi(userID)
 	if err := s.Store.UpdateAvatar(avatarURL, uint(parseUint)); err != nil {
 		log.Errorf("Update avatar failed: %s", err)
 		return errors.Wrap(err, "failed to update avatar")

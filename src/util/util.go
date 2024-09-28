@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	larkSmtpServer = "smtp.feishu.cn:465"
+	larkSMTPServer = "smtp.feishu.cn:465"
 )
 
 func OutputHTML(w http.ResponseWriter, req *http.Request, filename string) {
@@ -39,7 +39,7 @@ func OutputHTML(w http.ResponseWriter, req *http.Request, filename string) {
 	http.ServeContent(w, req, file.Name(), fi.ModTime(), file)
 }
 
-// Generate UUID
+// Generate UUID.
 func GenerateUUID() string {
 	uuid := uuid.New()
 	return uuid.String()
@@ -47,7 +47,7 @@ func GenerateUUID() string {
 
 var letters = []rune("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
-// GenerateRandomString return a random string with length n
+// GenerateRandomString return a random string with length n.
 func GenerateRandomString(n int) (string, error) {
 	var sb strings.Builder
 	sb.Grow(n)
@@ -66,10 +66,10 @@ func GenerateRandomString(n int) (string, error) {
 	return sb.String(), nil
 }
 
-// GenerateCode generate a random code
+// GenerateCode generate a random code.
 func GenerateCode() string {
 	seed := time.Now().UnixNano() + int64(mr.Intn(4478))
-	//rand.NewSource()
+	// rand.NewSource()
 	rand := mr.New(mr.NewSource(seed))
 	// 除去容易混淆的字符
 	chars := "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
@@ -85,7 +85,7 @@ func GenerateCode() string {
 	return codeStr
 }
 
-// sendEmail send email to user
+// sendEmail send email to user.
 func SendEmail(sender, secret, recipient, content, title string) error {
 	// https://gist.github.com/chrisgillis/10888032
 	from := mail.Address{
@@ -113,7 +113,7 @@ func SendEmail(sender, secret, recipient, content, title string) error {
 	message += header + "\r\n" + body
 
 	// Connect to the SMTP server
-	servername := larkSmtpServer
+	servername := larkSMTPServer
 
 	host, _, _ := net.SplitHostPort(servername)
 
@@ -168,8 +168,7 @@ func SendEmail(sender, secret, recipient, content, title string) error {
 		return err
 	}
 
-	c.Quit()
-	return nil
+	return c.Quit()
 }
 
 func UserNameToEmail(username string) string {

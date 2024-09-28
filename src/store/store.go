@@ -7,17 +7,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NJUPT-SAST/sast-link-backend/config"
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
+
+	"github.com/NJUPT-SAST/sast-link-backend/config"
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 )
 
 const (
-	REDIS_KEY_PREFIX = "sast-link:"
+	RedisKeyPrefix = "sast-link:"
 )
 
 // Store provides database access to all raw objects.
@@ -62,7 +63,7 @@ func NewPostgresDB(profile *config.Config) (*gorm.DB, error) {
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		log.Panicf("Failed to connect database: %s", err)
+		log.Errorf("Failed to connect database: %s", err)
 		return nil, err
 	}
 	log.Infof("Connected to database: %s:%d", profile.PostgresHost, profile.PostgresPort)
@@ -83,7 +84,7 @@ func NewRedisDB(ctx context.Context, profile *config.Config) (*redis.Client, err
 
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil || rdb == nil {
-		log.Panicf("Failed to connect redis: %s", err)
+		log.Errorf("Failed to connect redis: %s", err)
 		return nil, err
 	}
 	log.Infof("Connected to redis: %s", addr)
@@ -120,7 +121,7 @@ func (s *Store) Close() error {
 //
 // If the value is a struct, it need to implement encoding.BinaryMarshaler.
 func (s *Store) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
-	key = REDIS_KEY_PREFIX + key
+	key = RedisKeyPrefix + key
 	err := s.rdb.Set(ctx, key, value, expiration).Err()
 	if err != nil {
 		return err
@@ -132,7 +133,7 @@ func (s *Store) Set(ctx context.Context, key string, value interface{}, expirati
 //
 // If the key does not exist, Get returns "".
 func (s *Store) Get(ctx context.Context, key string) (string, error) {
-	key = REDIS_KEY_PREFIX + key
+	key = RedisKeyPrefix + key
 	val, err := s.rdb.Get(ctx, key).Result()
 	if err != nil {
 		// Return nil if the key does not exist
@@ -146,7 +147,7 @@ func (s *Store) Get(ctx context.Context, key string) (string, error) {
 
 // Delete deletes a key.
 func (s *Store) Delete(ctx context.Context, key string) error {
-	key = REDIS_KEY_PREFIX + key
+	key = RedisKeyPrefix + key
 	err := s.rdb.Del(ctx, key).Err()
 	if err != nil {
 		return err
@@ -156,7 +157,7 @@ func (s *Store) Delete(ctx context.Context, key string) error {
 
 // Exec executes a query without returning any rows.
 func (s *Store) Exec(ctx context.Context, query string, args ...interface{}) error {
-	tx := s.db.Exec(query, args...)
+	tx := s.db.WithContext(ctx).Exec(query, args...)
 	if tx.Error != nil {
 		return tx.Error
 	}
@@ -164,7 +165,7 @@ func (s *Store) Exec(ctx context.Context, query string, args ...interface{}) err
 }
 
 func (s *Store) SelectOne(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
-	tx := s.db.Raw(query, args...).First(dest)
+	tx := s.db.WithContext(ctx).Raw(query, args...).First(dest)
 	if tx.Error != nil {
 		return tx.Error
 	}

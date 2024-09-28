@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/NJUPT-SAST/sast-link-backend/api/v1"
-	"github.com/NJUPT-SAST/sast-link-backend/config"
-	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+
+	apiv1 "github.com/NJUPT-SAST/sast-link-backend/api/v1"
+	"github.com/NJUPT-SAST/sast-link-backend/config"
+	"github.com/NJUPT-SAST/sast-link-backend/store"
 )
 
 type Server struct {
@@ -38,7 +39,7 @@ func NewServer(ctx context.Context, profile *config.Config, store *store.Store) 
 		return c.String(200, "OK")
 	})
 
-	oauthServer, err := v1.NewOAuthServer(ctx, profile, *store)
+	oauthServer, err := apiv1.NewOAuthServer(ctx, *store)
 	if err != nil {
 		fmt.Printf("failed to create oauth server: %v\n", err)
 		return nil, err
@@ -46,7 +47,7 @@ func NewServer(ctx context.Context, profile *config.Config, store *store.Store) 
 	// Initialize oauth server custom handler.
 	oauthServer.SetHandler()
 
-	apiV1Service := v1.NewAPIV1Service(store, profile, oauthServer)
+	apiV1Service := apiv1.NewAPIV1Service(store, profile, oauthServer)
 	// Adding routes must beforer echo server start.
 	apiV1Service.RegistryRoutes(ctx, echoServer)
 

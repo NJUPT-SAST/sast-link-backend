@@ -1,7 +1,5 @@
 package util
 
-// util
-//the basic configuration of JWT
 import (
 	"context"
 	"encoding/base64"
@@ -20,7 +18,7 @@ const (
 )
 
 // GenerateToken
-// token expireTime : not set, do this with redis
+// token expireTime : not set, do this with redis.
 func GenerateToken(username string) (string, error) {
 	jwtSigningKey := []byte(viper.GetString("jwt.secret"))
 	claims := jwt.RegisteredClaims{
@@ -39,7 +37,7 @@ func GenerateToken(username string) (string, error) {
 }
 
 // GenerateToken with expireTime
-// identifier is something like `username-loginTicket` or `oauthIdentity-oauthLarkToken`
+// identifier is something like `username-loginTicket` or `oauthIdentity-oauthLarkToken`.
 func GenerateTokenWithExp(ctx context.Context, identifier string, expireTime time.Duration) (string, error) {
 	signingKey := []byte(viper.GetString("jwt.secret"))
 	gen := NewJWTAccessGenerate("", signingKey, jwt.SigningMethodHS256)
@@ -47,7 +45,7 @@ func GenerateTokenWithExp(ctx context.Context, identifier string, expireTime tim
 	return access, err
 }
 
-// ParseToken parse the token
+// ParseToken parse the token.
 func ParseToken(token, jwtSigningKey string) (*JWTAccessClaims, error) {
 	tokenClaims, err := jwt.ParseWithClaims(token, &JWTAccessClaims{}, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -61,9 +59,8 @@ func ParseToken(token, jwtSigningKey string) (*JWTAccessClaims, error) {
 
 	if claims, ok := tokenClaims.Claims.(*JWTAccessClaims); ok && tokenClaims.Valid {
 		return claims, nil
-	} else {
-		return nil, errors.New("token claims invalid")
 	}
+	return nil, errors.New("token claims invalid")
 }
 
 func RefreshToken(token, jwtSigningKey string) (string, error) {
@@ -79,7 +76,7 @@ func RefreshToken(token, jwtSigningKey string) (string, error) {
 	return token, err
 }
 
-// TokenAudience get `Audience` field(information about user/oauth...) from claims
+// TokenAudience get `Audience` field(information about user/oauth...) from claims.
 func TokenAudience(token, jwtSigningKey string) (audience []string, err error) {
 	claims, err := ParseToken(token, jwtSigningKey)
 	if err != nil {
@@ -136,12 +133,12 @@ func GetUsername(token, flag, jwtSigningKey string) (string, error) {
 	return strings.ToLower(uid), err
 }
 
-// JWTAccessClaims jwt claims
+// JWTAccessClaims jwt claims.
 type JWTAccessClaims struct {
 	jwt.RegisteredClaims
 }
 
-// JWTAccessGenerate generate the jwt access token
+// JWTAccessGenerate generate the jwt access token.
 type JWTAccessGenerate struct {
 	SignedKeyID  string
 	SignedKey    []byte
@@ -155,7 +152,7 @@ func (a *JWTAccessClaims) Valid() error {
 	return nil
 }
 
-// NewJWTAccessGenerate create to generate the jwt access token instance
+// NewJWTAccessGenerate create to generate the jwt access token instance.
 func NewJWTAccessGenerate(kid string, key []byte, method jwt.SigningMethod) *JWTAccessGenerate {
 	return &JWTAccessGenerate{
 		SignedKeyID:  kid,
@@ -164,8 +161,8 @@ func NewJWTAccessGenerate(kid string, key []byte, method jwt.SigningMethod) *JWT
 	}
 }
 
-// Token based on the UUID generate the jwt access token
-func (a *JWTAccessGenerate) Token(ctx context.Context, username string, expireTime time.Duration, isGenRenfresh bool) (string, string, error) {
+// Token based on the UUID generate the jwt access token.
+func (a *JWTAccessGenerate) Token(_ context.Context, username string, expireTime time.Duration, isGenRenfresh bool) (string, string, error) {
 	claims := &JWTAccessClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expireTime)),

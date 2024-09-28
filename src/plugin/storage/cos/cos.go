@@ -48,7 +48,7 @@ func NewClient(config *store.StorageSetting) *Client {
 	}
 }
 
-// UploadObject upload object to COS, return the object URL
+// UploadObject upload object to COS, return the object URL.
 func (c *Client) UploadObject(ctx context.Context, key string, file io.Reader) (string, error) {
 	_, err := c.Client.Object.Put(ctx, key, file, nil)
 	if err != nil {
@@ -73,7 +73,7 @@ func (c *Client) DeleteObject(ctx context.Context, key string) error {
 	return nil
 }
 
-// MoveObject copy object from srcKey to destKey and delete srcKey
+// MoveObject copy object from srcKey to destKey and delete srcKey.
 func (c *Client) MoveObject(ctx context.Context, srcKey, destKey string) error {
 	_, _, err := c.Client.Object.Copy(ctx, destKey, c.GetObjectURL(srcKey), nil)
 	if err != nil {

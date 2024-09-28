@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/viper"
+
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/NJUPT-SAST/sast-link-backend/version"
-	"github.com/spf13/viper"
 )
 
 // Config is the configuration to start main server.
@@ -46,11 +47,11 @@ type Config struct {
 	SystemSettings map[string]string // key is system setting type, value is setting value which is json string
 }
 
-func (p *Config) IsDev() bool {
-	return p.Mode != "prod"
+func (c *Config) IsDev() bool {
+	return c.Mode != "prod"
 }
 
-// NewConfig create a new Config instance
+// NewConfig create a new Config instance.
 func NewConfig() *Config {
 	instanceConfig := &Config{
 		ConfigFile:   viper.GetString("config_file"),
@@ -74,7 +75,7 @@ func NewConfig() *Config {
 	return instanceConfig
 }
 
-func SetupConfig() {
+func SetupConfig() error {
 	// Load the specified config file if provided
 	if configFile := viper.GetString("config_file"); configFile != "" {
 		viper.SetConfigFile(configFile)
@@ -106,12 +107,13 @@ func SetupConfig() {
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			fmt.Printf("Failed to read config file: %s\n", err)
-			os.Exit(1)
-		} else {
-			fmt.Printf("Config file not found: %s\n", err)
-			os.Exit(1)
+			return err
 		}
+
+		fmt.Printf("Config file not found: %s\n", err)
+		return err
 	}
+	return nil
 }
 
 // SystemSettingType represents the system setting type.
@@ -176,7 +178,11 @@ func (c *Config) LoadSystemSettings() {
 	}
 
 	for _, v := range idpSettings {
-		idpSetting := v.(map[string]interface{})
+		idpSetting, ok := v.(map[string]interface{})
+		if !ok {
+			fmt.Printf("IDP setting is not map[string]interface{}\n")
+			continue
+		}
 		if jsonString, err := util.MapToJSONStringInterface(idpSetting); err == nil {
 			// All idp settings are stored format like "idp-xxx"
 			if idpSetting["name"] == nil {

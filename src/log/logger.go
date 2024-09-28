@@ -19,10 +19,10 @@ var (
 	Log = logrus.New()
 )
 
-// Fields wraps logrus.Fields, which is a map[string]interface{}
+// Fields wraps logrus.Fields, which is a map[string]interface{}.
 type Fields logrus.Fields
 
-// CustomFormatter is a custom log formatter
+// CustomFormatter is a custom log formatter.
 type CustomFormatter struct {
 	ForceQuote       bool
 	DisableQuote     bool
@@ -46,8 +46,7 @@ func (f *CustomFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	}
 
 	// Handle timestamp
-	var timestamp string
-	timestamp = entry.Time.Format(f.TimestampFormat)
+	timestamp := entry.Time.Format(f.TimestampFormat)
 
 	// Handle message quoting
 	var message string
@@ -113,7 +112,7 @@ func SetLevel(level logrus.Level) {
 
 // Debug logs a message at level Debug on the standard logger.
 // Usage:
-// log.Debug("info")
+// log.Debug("info").
 func Debug(args ...interface{}) {
 	if Log.Level >= logrus.DebugLevel {
 		entry := Log.WithFields(logrus.Fields{})
@@ -123,7 +122,7 @@ func Debug(args ...interface{}) {
 }
 
 // Usage:
-// log.Debugf("info %s", "format")
+// log.Debugf("info %s", "format").
 func Debugf(format string, args ...interface{}) {
 	if Log.Level >= logrus.DebugLevel {
 		entry := Log.WithFields(logrus.Fields{})
@@ -134,7 +133,7 @@ func Debugf(format string, args ...interface{}) {
 
 // Debug logs a message with fields at level Debug on the standard logger.
 // Usage:
-// log.DebugWithFields("info", log.Fields{"key": "value"})
+// log.DebugWithFields("info", log.Fields{"key": "value"}).
 func DebugWithFields(l interface{}, f Fields) {
 	if Log.Level >= logrus.DebugLevel {
 		entry := Log.WithFields(logrus.Fields(f))
@@ -312,7 +311,7 @@ func logLevelSwitcher(level string) logrus.Level {
 //
 // use io.NopCloser to copy request body, so req.Body can be read again
 //
-// !: need to use this **before** manually read from body using `io.ReadAll(req.Body)`
+// !: need to use this **before** manually read from body using `io.ReadAll(req.Body)`.
 func LogReq(req *http.Request) {
 	// Get request usually have no body
 	reqBody := []byte{}
@@ -355,7 +354,7 @@ func LogReq(req *http.Request) {
 //
 // use io.NopCloser to copy response body, so req.Body can be read again
 //
-// !: need to use this **before** manually read from body using `io.ReadAll(res.Body)`
+// !: need to use this **before** manually read from body using `io.ReadAll(res.Body)`.
 func LogRes(res *http.Response) {
 	resBody, err := io.ReadAll(res.Body)
 	if err != nil {

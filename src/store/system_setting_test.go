@@ -8,7 +8,9 @@ import (
 )
 
 func TestListSystemSetting(t *testing.T) {
-	config.SetupConfig()
+	if config.SetupConfig() != nil {
+		t.Fatal("config setup failed")
+	}
 	instanceConfig := config.NewConfig()
 	store, _ := NewStore(context.Background(), instanceConfig)
 	settings, err := store.ListSystemSetting(context.Background())

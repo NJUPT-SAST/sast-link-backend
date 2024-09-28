@@ -24,8 +24,8 @@ const (
 
 	IDPTypeUnknown IdentityProviderType = "Unknown"
 
-	OAUTH2_GITHUB = "github"
-	OAUTH2_LARK   = "lark"
+	OAuth2Github = "github"
+	OAuth2Lark   = "lark"
 )
 
 // IdentityProviderUserInfo represents the identity provider user info.
@@ -58,7 +58,7 @@ func (s *IdentityProviderSetting) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	// Unmarshal common fields
+	// Unmarshal common fields.
 	if name, ok := raw["name"].(string); ok {
 		s.Name = name
 	}
@@ -114,8 +114,8 @@ func NewIdentityProvider(name string, idpType IdentityProviderType, config *isid
 	for v, field := range map[string]string{
 		oauth2Config.ClientID:                   "clientId",
 		oauth2Config.ClientSecret:               "clientSecret",
-		oauth2Config.TokenUrl:                   "tokenUrl",
-		oauth2Config.UserInfoUrl:                "userInfoUrl",
+		oauth2Config.TokenURL:                   "tokenUrl",
+		oauth2Config.UserInfoURL:                "userInfoUrl",
 		oauth2Config.FieldMapping["identifier"]: "fieldMapping.identifier",
 	} {
 		if v == "" {
@@ -157,8 +157,8 @@ func NewOauth2IdentityProvider(idpSetting *IdentityProviderSetting) (*Oauth2Iden
 	for v, field := range map[string]string{
 		config.ClientID:                   "clientId",
 		config.ClientSecret:               "clientSecret",
-		config.TokenUrl:                   "tokenUrl",
-		config.UserInfoUrl:                "userInfoUrl",
+		config.TokenURL:                   "tokenUrl",
+		config.UserInfoURL:                "userInfoUrl",
 		config.FieldMapping["identifier"]: "fieldMapping.identifier",
 	} {
 		if v == "" {
@@ -169,7 +169,7 @@ func NewOauth2IdentityProvider(idpSetting *IdentityProviderSetting) (*Oauth2Iden
 	var exchangeTokenFunc func(ctx context.Context, oauth2Setting *OAuth2Setting, redirectURL, code string) (string, error)
 	var userInfoFunc func(ctx context.Context, oauth2Setting *OAuth2Setting, token string) (*IdentityProviderUserInfo, error)
 	switch {
-	case idpSetting.Name == OAUTH2_LARK:
+	case idpSetting.Name == OAuth2Lark:
 		exchangeTokenFunc = LarkExchangeToken
 		userInfoFunc = LarkUserInfo
 	default:
@@ -189,7 +189,7 @@ func (o *Oauth2IdentityProvider) GetConfig() *OAuth2Setting {
 }
 
 // isIdentityProviderConfig is an interface that all identity provider config types must implement.
-func (o *Oauth2IdentityProvider) isIdentityProviderConfig() {}
+func (*Oauth2IdentityProvider) isIdentityProviderConfig() {}
 
 // ExchangeToken returns the exchanged OAuth2 token using the given authorization code.
 func (o *Oauth2IdentityProvider) ExchangeToken(ctx context.Context, oauth2Setting *OAuth2Setting, redirectURL, code string) (string, error) {
@@ -207,9 +207,9 @@ func (o *Oauth2IdentityProvider) UserInfo(ctx context.Context, oauth2Setting *OA
 type OAuth2Setting struct {
 	ClientID     string   `json:"client_id"`
 	ClientSecret string   `json:"client_secret"`
-	AuthUrl      string   `json:"auth_url"`
-	TokenUrl     string   `json:"token_url"`
-	UserInfoUrl  string   `json:"user_info_url"`
+	AuthURL      string   `json:"auth_url"`
+	TokenURL     string   `json:"token_url"`
+	UserInfoURL  string   `json:"user_info_url"`
 	Scopes       []string `json:"scopes"`
 	// FieldMapping is the mapping between the identity provider user info and the system user info.
 	// eg. {"id": "identifier", "name": "display_name", "email": "email"}, the key is the field name in the identity provider user info,
@@ -217,7 +217,7 @@ type OAuth2Setting struct {
 	FieldMapping map[string]string `json:"field_mapping"`
 }
 
-func (c *OAuth2Setting) isIdentityProviderConfig() {}
+func (*OAuth2Setting) isIdentityProviderConfig() {}
 
 // ToJSON converts the OAuth2Setting to JSON string.
 func (s *OAuth2Setting) ToJSON() (string, error) {
@@ -233,6 +233,7 @@ func (s *OAuth2Setting) FromJSON(jsonStr string) error {
 	return json.Unmarshal([]byte(jsonStr), s)
 }
 
+// FIXME: redirectURL is used to exchange token? maybe need to be removed.
 // ExchangeToken returns the exchanged OAuth2 token using the given authorization code.
 func ExchangeToken(ctx context.Context, oauth2Setting *OAuth2Setting, redirectURL, code string) (string, error) {
 	log.Debugf("ExchangeToken::[redirectURL: %s] [code: %s]", redirectURL, code)
@@ -242,8 +243,8 @@ func ExchangeToken(ctx context.Context, oauth2Setting *OAuth2Setting, redirectUR
 		RedirectURL:  redirectURL,
 		Scopes:       oauth2Setting.Scopes,
 		Endpoint: oauth2.Endpoint{
-			AuthURL:   oauth2Setting.AuthUrl,
-			TokenURL:  oauth2Setting.TokenUrl,
+			AuthURL:   oauth2Setting.AuthURL,
+			TokenURL:  oauth2Setting.TokenURL,
 			AuthStyle: oauth2.AuthStyleInParams,
 		},
 	}
@@ -263,10 +264,10 @@ func ExchangeToken(ctx context.Context, oauth2Setting *OAuth2Setting, redirectUR
 	return accessToken, nil
 }
 
-func UserInfo(ctx context.Context, oauth2Setting *OAuth2Setting, token string) (*IdentityProviderUserInfo, error) {
+func UserInfo(_ context.Context, oauth2Setting *OAuth2Setting, token string) (*IdentityProviderUserInfo, error) {
 	client := &http.Client{}
-	log.Debug("UserInfo::userInfoUrl: ", oauth2Setting.UserInfoUrl)
-	req, err := http.NewRequest(http.MethodGet, oauth2Setting.UserInfoUrl, nil)
+	log.Debug("UserInfo::userInfoUrl: ", oauth2Setting.UserInfoURL)
+	req, err := http.NewRequest(http.MethodGet, oauth2Setting.UserInfoURL, nil)
 	if err != nil {
 		log.Debug("UserInfo::", err)
 		return nil, errors.Wrap(err, "failed to new http request")
@@ -297,7 +298,9 @@ func UserInfo(ctx context.Context, oauth2Setting *OAuth2Setting, token string) (
 	return userInfo, nil
 }
 
-func LarkExchangeToken(ctx context.Context, oauth2Setting *OAuth2Setting, redirectURL, code string) (string, error) {
+// FIXME: redirectURL is used to exchange token? maybe need to be removed.
+//nolint
+func LarkExchangeToken(_ context.Context, oauth2Setting *OAuth2Setting, redirectURL, code string) (string, error) {
 	appAccessToken, err := larkAppAccessToken(oauth2Setting)
 	if err != nil || appAccessToken == "" {
 		return "", err
@@ -312,7 +315,7 @@ func LarkExchangeToken(ctx context.Context, oauth2Setting *OAuth2Setting, redire
 		"Authorization": fmt.Sprintf("Bearer %s", appAccessToken),
 		"Content-Type":  "application/json; charset=utf-8",
 	}
-	res, err := util.PostWithHeader(oauth2Setting.TokenUrl, header, data)
+	res, err := util.PostWithHeader(oauth2Setting.TokenURL, header, data)
 	if err != nil {
 		log.Errorf("util.PostWithHeader ::: %s", err.Error())
 		return "", err
@@ -337,11 +340,11 @@ func LarkExchangeToken(ctx context.Context, oauth2Setting *OAuth2Setting, redire
 	return userAccessToken, nil
 }
 
-func LarkUserInfo(ctx context.Context, oauth2Setting *OAuth2Setting, accessToken string) (*IdentityProviderUserInfo, error) {
+func LarkUserInfo(_ context.Context, oauth2Setting *OAuth2Setting, accessToken string) (*IdentityProviderUserInfo, error) {
 	header := map[string]string{
 		"Authorization": fmt.Sprintf("Bearer %s", accessToken),
 	}
-	res, err := util.GetWithHeader(oauth2Setting.UserInfoUrl, header)
+	res, err := util.GetWithHeader(oauth2Setting.UserInfoURL, header)
 	if err != nil {
 		log.Errorf("util.GetWithHeader ::: %s", err.Error())
 		return nil, errors.Wrap(err, "failed to get user information")
@@ -368,29 +371,29 @@ func LarkUserInfo(ctx context.Context, oauth2Setting *OAuth2Setting, accessToken
 	return userInfo, nil
 }
 
-// larkAppAccessToken returns the app_access_token from lark
+// larkAppAccessToken returns the app_access_token from lark.
 func larkAppAccessToken(oauth2Setting *OAuth2Setting) (string, error) {
-	appId := oauth2Setting.ClientID
+	appID := oauth2Setting.ClientID
 	appSecret := oauth2Setting.ClientSecret
 
 	params := url.Values{}
-	params.Add("app_id", appId)
+	params.Add("app_id", appID)
 	params.Add("app_secret", appSecret)
 
 	appAccessTokenURL := "https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal"
 
-	res, error := http.PostForm(appAccessTokenURL, params)
-	if error != nil {
-		log.Errorf("http.PostForm ::: %s", error.Error())
-		return "", error
+	res, err := http.PostForm(appAccessTokenURL, params)
+	if err != nil {
+		log.Errorf("http.PostForm ::: %s", err.Error())
+		return "", err
 	}
 	// log.LogRes(res)
 
-	body, error := io.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	defer res.Body.Close()
-	if error != nil {
-		log.Errorf("io.ReadAll ::: %s", error.Error())
-		return "", error
+	if err != nil {
+		log.Errorf("io.ReadAll ::: %s", err.Error())
+		return "", err
 	}
 
 	if code := gjson.Get(string(body), "code").Int(); code != 0 {

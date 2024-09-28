@@ -8,17 +8,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NJUPT-SAST/sast-link-backend/config"
-	"github.com/NJUPT-SAST/sast-link-backend/http/request"
-	"github.com/NJUPT-SAST/sast-link-backend/http/response"
-	"github.com/NJUPT-SAST/sast-link-backend/log"
-	"github.com/NJUPT-SAST/sast-link-backend/store"
-	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/go-oauth2/oauth2/v4/errors"
 	"github.com/go-oauth2/oauth2/v4/manage"
 	"github.com/go-oauth2/oauth2/v4/models"
 	"github.com/go-oauth2/oauth2/v4/server"
 	"github.com/labstack/echo/v4"
+
+	"github.com/NJUPT-SAST/sast-link-backend/http/request"
+	"github.com/NJUPT-SAST/sast-link-backend/http/response"
+	"github.com/NJUPT-SAST/sast-link-backend/log"
+	"github.com/NJUPT-SAST/sast-link-backend/store"
+	"github.com/NJUPT-SAST/sast-link-backend/util"
 )
 
 type OAuthServer struct {
@@ -27,7 +27,7 @@ type OAuthServer struct {
 	ClientStore *store.ClientStore
 }
 
-func NewOAuthServer(ctx context.Context, config *config.Config, dbStore store.Store) (*OAuthServer, error) {
+func NewOAuthServer(_ context.Context, dbStore store.Store) (*OAuthServer, error) {
 	tokenStore := store.NewTokenStore(dbStore, store.WithTokenStoreGCInterval(5*time.Minute))
 	clientStore := store.NewClientStore(dbStore)
 
@@ -64,6 +64,7 @@ func (s *OAuthServer) SetHandler() {
 	s.Srv.SetPreRedirectErrorHandler(PreRedirectErrorHandler)
 }
 
+// nolint
 func PreRedirectErrorHandler(w http.ResponseWriter, req *server.AuthorizeRequest, err error) error {
 	log.Errorf("Oauth2 Server ::: PreRedirectErrorHandler:[%s]", err.Error())
 	return err
@@ -71,11 +72,11 @@ func PreRedirectErrorHandler(w http.ResponseWriter, req *server.AuthorizeRequest
 
 func InternalErrorHandler(err error) (re *errors.Response) {
 	log.Errorf("Oauth2 Server ::: InternalErrorHandler:[%s]", err.Error())
-	error := errors.NewResponse(err, http.StatusInternalServerError)
-	error.ErrorCode = 500
-	error.StatusCode = http.StatusInternalServerError
-	error.Description = err.Error()
-	return error
+	reErr := errors.NewResponse(err, http.StatusInternalServerError)
+	reErr.ErrorCode = 500
+	reErr.StatusCode = http.StatusInternalServerError
+	reErr.Description = err.Error()
+	return reErr
 }
 
 func ResponseErrorHandler(re *errors.Response) {
@@ -97,27 +98,41 @@ func ResponseTokenHandler(w http.ResponseWriter, data map[string]interface{}, he
 	}
 
 	w.WriteHeader(status)
+
+	// If there is an error, return error message
 	if data["error"] != nil {
 		var errMsg string
 		var errCode int
-		if data["error_description"] != nil {
-			errMsg = data["error_description"].(string)
+
+		if desc, ok := data["error_description"].(string); ok {
+			errMsg = desc
 		}
-		if data["error_code"] != nil {
-			errCode = data["error_code"].(int)
+
+		if code, ok := data["error_code"].(int); ok {
+			errCode = code
 		}
+
 		err := response.LocalError{
 			ErrCode: errCode,
 			ErrMsg:  errMsg,
 		}
 		log.Errorf("Oauth2 ::: ResponseTokenHandler:error:[%s]", err)
 		return json.NewEncoder(w).Encode(response.Failed(err))
-	} else {
-		return json.NewEncoder(w).Encode((map[string]string{"access_token": data["access_token"].(string)}))
 	}
+
+	if token, ok := data["access_token"].(string); ok {
+		return json.NewEncoder(w).Encode(map[string]string{"access_token": token})
+	}
+
+	err := response.LocalError{
+		ErrCode: 400,
+		ErrMsg:  "access_token not found",
+	}
+
+	return json.NewEncoder(w).Encode(response.Failed(err))
 }
 
-// OauthUserInfo response user info
+// OauthUserInfo response user info.
 func (s *APIV1Service) OauthUserInfo(c echo.Context) error {
 	ctx := c.Request().Context()
 	authorization := c.Request().Header.Get("Authorization")
@@ -134,41 +149,41 @@ func (s *APIV1Service) OauthUserInfo(c echo.Context) error {
 	// TODO: scope check
 	ti.GetScope()
 
-	user, err := s.OauthService.OauthUserInfo(ti.GetUserID())
+	user, err := s.OauthService.OauthUserInfo(ctx, ti.GetUserID())
 	if err != nil {
 		log.Errorf("Failed to get user info: %s", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.INTENAL_ERROR))
+		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
 	if user == nil {
 		return c.JSON(http.StatusUnauthorized, response.Failed(response.UNAUTHORIZED))
 	}
 
-	profileInfo, err := s.ProfileService.GetProfileInfo(*user.Uid)
+	profileInfo, err := s.ProfileService.GetProfileInfo(*user.UID)
 	if err != nil {
 		log.Errorf("Failed to get profile info: %s", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.INTENAL_ERROR))
+		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
 
-	if dep, org, err := s.ProfileService.GetProfileOrg(profileInfo.OrgId); err != nil {
+	dep, org, err := s.ProfileService.GetProfileOrg(profileInfo.OrgID)
+	if err != nil {
 		log.Errorf("Failed to get profile org: %s", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.INTENAL_ERROR))
-	} else {
-		return c.JSON(http.StatusOK, response.Success(map[string]interface{}{
-			"nickname": profileInfo.Nickname,
-			"userId":   user.Uid,
-			"dep":      dep,
-			"org":      org,
-			"email":    profileInfo.Email,
-			"avatar":   profileInfo.Avatar,
-			"bio":      profileInfo.Bio,
-			"link":     profileInfo.Link,
-			"badge":    profileInfo.Badge,
-			"hide":     profileInfo.Hide,
-		}))
+		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
+	return c.JSON(http.StatusOK, response.Success(map[string]interface{}{
+		"nickname": profileInfo.Nickname,
+		"userId":   user.UID,
+		"dep":      dep,
+		"org":      org,
+		"email":    profileInfo.Email,
+		"avatar":   profileInfo.Avatar,
+		"bio":      profileInfo.Bio,
+		"link":     profileInfo.Link,
+		"badge":    profileInfo.Badge,
+		"hide":     profileInfo.Hide,
+	}))
 }
 
-// Authorize will redirect user to login page if user not login
+// Authorize will redirect user to login page if user not login.
 func (s *APIV1Service) Authorize(c echo.Context) error {
 	r := c.Request()
 	w := c.Response().Writer
@@ -179,7 +194,7 @@ func (s *APIV1Service) Authorize(c echo.Context) error {
 	return s.OAuthServer.Srv.HandleAuthorizeRequest(w, r)
 }
 
-// AccessToken returns access token
+// AccessToken returns access token.
 func (s *APIV1Service) AccessToken(c echo.Context) error {
 	w := c.Response().Writer
 	r := c.Request()
@@ -187,36 +202,36 @@ func (s *APIV1Service) AccessToken(c echo.Context) error {
 	return s.OAuthServer.Srv.HandleTokenRequest(w, r)
 }
 
-// RefreshToken returns new access token
+// RefreshToken returns new access token.
 func (s *APIV1Service) RefreshToken(c echo.Context) error {
 	w := c.Response().Writer
 	r := c.Request()
 	return s.OAuthServer.Srv.HandleTokenRequest(w, r)
 }
 
-// CreateClient creates a new client
+// CreateClient creates a new client.
 func (s *APIV1Service) CreateClient(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	redirectURI := c.FormValue("redirect_uri")
 	if redirectURI == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.REQUIRED_PARAMS))
+		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.RequiredParams))
 	}
 
 	uid := request.GetUserID(c.Request())
 	if uid == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.REQUIRED_PARAMS))
+		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.RequiredParams))
 	}
 
 	clientID := util.GenerateUUID()
 	secret, err := util.GenerateRandomString(32)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.REQUIRED_PARAMS))
+		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.RequiredParams))
 	}
 
 	clientName := c.FormValue("client_name")
 	if clientName == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.REQUIRED_PARAMS))
+		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.RequiredParams))
 	}
 
 	// clientDesc is optional
@@ -228,7 +243,7 @@ func (s *APIV1Service) CreateClient(c echo.Context) error {
 		Domain: redirectURI,
 		UserID: uid,
 	}, clientName, clientDesc) != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.REQUIRED_PARAMS))
+		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.RequiredParams))
 	}
 
 	return c.JSON(http.StatusOK, response.Success(map[string]string{
@@ -237,7 +252,7 @@ func (s *APIV1Service) CreateClient(c echo.Context) error {
 	}))
 }
 
-// AddRedirectURI add redirect uri to client
+// AddRedirectURI add redirect uri to client.
 func (s *APIV1Service) AddRedirectURI(c echo.Context) error {
 	ctx := c.Request().Context()
 
@@ -246,18 +261,18 @@ func (s *APIV1Service) AddRedirectURI(c echo.Context) error {
 	clientID := c.FormValue("client_id")
 	redirectURI := c.FormValue("redirect_uri")
 	if clientID == "" || redirectURI == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.REQUIRED_PARAMS))
+		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.RequiredParams))
 	}
 
 	if err := s.OAuthServer.ClientStore.AddRedirectURI(ctx, stuID, clientID, redirectURI); err != nil {
 		log.Errorf("Failed to add redirect uri: %s", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.INTENAL_ERROR))
+		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
 
 	return c.JSON(http.StatusOK, response.Success(nil))
 }
 
-// ListClient returns cilent list
+// ListClient returns cilent list.
 func (s *APIV1Service) ListClient(c echo.Context) error {
 	ctx := c.Request().Context()
 
@@ -269,13 +284,13 @@ func (s *APIV1Service) ListClient(c echo.Context) error {
 	list, err := s.OAuthServer.ClientStore.ListClient(ctx, find)
 	if err != nil {
 		log.Errorf("Failed to list client: %s", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.INTENAL_ERROR))
+		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
 
 	return c.JSON(http.StatusOK, response.Success(list))
 }
 
-// UpdateClient updates client info
+// UpdateClient updates client info.
 func (s *APIV1Service) UpdateClient(c echo.Context) error {
 	ctx := c.Request().Context()
 
@@ -284,41 +299,41 @@ func (s *APIV1Service) UpdateClient(c echo.Context) error {
 	clientDesc := c.FormValue("client_desc")
 
 	if clientID == "" || clientName == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.REQUIRED_PARAMS))
+		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.RequiredParams))
 	}
 
 	uid := request.GetUserID(c.Request())
 
 	if err := s.OAuthServer.ClientStore.UpdateClient(ctx, clientID, uid, clientName, clientDesc); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.INTENAL_ERROR))
+		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
 
 	return c.JSON(http.StatusOK, response.Success(nil))
 }
 
-// DelClient deletes client
+// DelClient deletes client.
 func (s *APIV1Service) DelClient(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	clientID := c.FormValue("client_id")
 	if clientID == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.REQUIRED_PARAMS))
+		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.RequiredParams))
 	}
 
 	uid := request.GetUserID(c.Request())
 
 	if err := s.OAuthServer.ClientStore.DeleteClient(ctx, clientID, uid); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.INTENAL_ERROR))
+		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
 
 	return c.JSON(http.StatusOK, response.Success(nil))
 }
 
-// clientInfoHandler returns client id and client secret
+// clientInfoHandler returns client id and client secret.
 func (s *OAuthServer) clientInfoHandler(r *http.Request) (clientID, clientSecret string, err error) {
 	if r.Form.Get("grant_type") == "refresh_token" {
 		ti, err := s.Srv.Manager.LoadRefreshToken(r.Context(), r.Form.Get("refresh_token"))
-		// Here errors pacakge is from go-oauth2
+		// Here errors package is from go-oauth2
 		if err != nil {
 			return "", "", errors.New("refresh token not found")
 		}
@@ -352,7 +367,8 @@ func (s *OAuthServer) clientInfoHandler(r *http.Request) (clientID, clientSecret
 	return clientID, clientSecret, nil
 }
 
-// userAuthorizeHandler get user id from request
+// nolint
+// userAuthorizeHandler get user id from request.
 func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string, err error) {
 	if !request.GetIsAuthenticated(r) {
 		return "", response.UNAUTHORIZED
@@ -360,7 +376,7 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 
 	stuID := request.GetUsername(r)
 	if stuID == "" {
-		return "", response.USER_NOT_FOUND
+		return "", response.UserNotFound
 	}
 
 	return stuID, nil

@@ -6,13 +6,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/labstack/echo/v4"
+	"github.com/pkg/errors"
+
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
-	"github.com/labstack/echo/v4"
-	"github.com/pkg/errors"
 )
 
 type AuthInterceptor struct {
@@ -27,6 +28,7 @@ func NewAuthInterceptor(store *store.Store, secret string) *AuthInterceptor {
 func (m *AuthInterceptor) AuthenticationInterceptor(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		r, _ := c.Request(), c.Response().Writer
+		ctx := r.Context()
 
 		log.Debugf("Request URI: %s", r.RequestURI)
 		defer func() {
@@ -35,7 +37,7 @@ func (m *AuthInterceptor) AuthenticationInterceptor(next echo.HandlerFunc) echo.
 		}()
 
 		if r.URL == nil {
-			return response.Error(c, response.INTENAL_ERROR)
+			return response.Error(c, response.InternalError)
 		}
 		if isUnauthorizeAllowed(r.URL.Path) {
 			return next(c)
@@ -49,7 +51,7 @@ func (m *AuthInterceptor) AuthenticationInterceptor(next echo.HandlerFunc) echo.
 				log.Fields{"client_ip": clientIP, "user_agent": r.UserAgent(), "error": err.Error()})
 			return response.Error(c, response.UNAUTHORIZED)
 		}
-		user, err := m.store.UserInfo(username)
+		user, err := m.store.UserInfo(ctx, username)
 		if err != nil {
 			log.ErrorWithFields("Failed to get user",
 				log.Fields{"client_ip": clientIP, "user_agent": r.UserAgent(), "username": username, "error": err.Error()})
@@ -74,14 +76,11 @@ func (m *AuthInterceptor) AuthenticationInterceptor(next echo.HandlerFunc) echo.
 		// m.store.SetLastLogin(user.ID)
 		// m.store.SetAPIKeyUsedTimeStamp(user.ID, accesstoken)
 
-		// Set user context
-		ctx := r.Context()
-
 		// c.Set()
 		// Must use string to store in context
 		ctx = context.WithValue(ctx, request.UserIDContextKey, strconv.Itoa(int(user.ID)))
 		// Here we use the student ID as the username
-		ctx = context.WithValue(ctx, request.UserNameContextKey, *user.Uid) // c.Set(string(request.UserNameContextKey), *user.Uid)
+		ctx = context.WithValue(ctx, request.UserNameContextKey, *user.UID) // c.Set(string(request.UserNameContextKey), *user.Uid)
 		ctx = context.WithValue(ctx, request.IsAuthenticatedContextKey, true)
 		// Set the access token in the context for oauth server use
 		ctx = context.WithValue(ctx, request.AccessTokenContextKey, accesstoken)
@@ -103,7 +102,7 @@ func (m *AuthInterceptor) authenticate(ctx context.Context, accessToken string) 
 	if err != nil {
 		return "", errors.Wrap(err, "invalid or expired access token")
 	}
-	user, err := m.store.UserInfo(userID)
+	user, err := m.store.UserInfo(ctx, userID)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get user")
 	}
@@ -121,9 +120,9 @@ func (m *AuthInterceptor) authenticate(ctx context.Context, accessToken string) 
 	}
 
 	log.DebugWithFields("User authenticated",
-		log.Fields{"username": *user.Uid})
+		log.Fields{"username": *user.UID})
 
-	return *user.Uid, nil
+	return *user.UID, nil
 }
 
 // getAccessToken will get the access token from the request, it will first check the Authorization header,
@@ -149,7 +148,7 @@ func getAccessToken(r *http.Request) string {
 	return accessToken
 }
 
-func validateAccessToken(accessTokenString string, userAccessTokens []*store.UserSetting_AccessToken) bool {
+func validateAccessToken(accessTokenString string, userAccessTokens []*store.UserSettingAccessToken) bool {
 	for _, userAccessToken := range userAccessTokens {
 		if accessTokenString == userAccessToken.AccessToken {
 			return true

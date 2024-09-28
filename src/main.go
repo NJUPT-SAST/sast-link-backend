@@ -8,13 +8,15 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+
 	"github.com/NJUPT-SAST/sast-link-backend/api/v1/server"
 	"github.com/NJUPT-SAST/sast-link-backend/config"
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
-	"github.com/NJUPT-SAST/sast-link-backend/log"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 const (
@@ -85,7 +87,9 @@ func run(_ *cobra.Command, _ []string) {
 func init() {
 	setupDefaults()
 	setupCommandLine()
-	config.SetupConfig()
+	if config.SetupConfig() != nil {
+		os.Exit(1)
+	}
 	log.SetupLogger()
 }
 
@@ -133,22 +137,28 @@ func setupCommandLine() {
 }
 
 func bindFlagsToViper() {
-	viper.BindPFlag("config_file", rootCmd.PersistentFlags().Lookup("config_file"))
-	viper.BindPFlag("mode", rootCmd.PersistentFlags().Lookup("mode"))
-	viper.BindPFlag("addr", rootCmd.PersistentFlags().Lookup("addr"))
-	viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
-	viper.BindPFlag("postgres.host", rootCmd.PersistentFlags().Lookup("postgres.host"))
-	viper.BindPFlag("postgres.port", rootCmd.PersistentFlags().Lookup("postgres.port"))
-	viper.BindPFlag("postgres.user", rootCmd.PersistentFlags().Lookup("postgres.user"))
-	viper.BindPFlag("postgres.password", rootCmd.PersistentFlags().Lookup("postgres.password"))
-	viper.BindPFlag("postgres.db", rootCmd.PersistentFlags().Lookup("postgres.db"))
-	viper.BindPFlag("redis.host", rootCmd.PersistentFlags().Lookup("redis.host"))
-	viper.BindPFlag("redis.port", rootCmd.PersistentFlags().Lookup("redis.port"))
-	viper.BindPFlag("redis.db", rootCmd.PersistentFlags().Lookup("redis.db"))
-	viper.BindPFlag("redis.password", rootCmd.PersistentFlags().Lookup("redis.password"))
-	viper.BindPFlag("secret", rootCmd.PersistentFlags().Lookup("secret"))
-	viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log.level"))
-	viper.BindPFlag("log.file", rootCmd.PersistentFlags().Lookup("log.file"))
+	bindFlag("config_file", rootCmd.PersistentFlags().Lookup("config_file"))
+	bindFlag("mode", rootCmd.PersistentFlags().Lookup("mode"))
+	bindFlag("addr", rootCmd.PersistentFlags().Lookup("addr"))
+	bindFlag("port", rootCmd.PersistentFlags().Lookup("port"))
+	bindFlag("postgres.host", rootCmd.PersistentFlags().Lookup("postgres.host"))
+	bindFlag("postgres.port", rootCmd.PersistentFlags().Lookup("postgres.port"))
+	bindFlag("postgres.user", rootCmd.PersistentFlags().Lookup("postgres.user"))
+	bindFlag("postgres.password", rootCmd.PersistentFlags().Lookup("postgres.password"))
+	bindFlag("postgres.db", rootCmd.PersistentFlags().Lookup("postgres.db"))
+	bindFlag("redis.host", rootCmd.PersistentFlags().Lookup("redis.host"))
+	bindFlag("redis.port", rootCmd.PersistentFlags().Lookup("redis.port"))
+	bindFlag("redis.db", rootCmd.PersistentFlags().Lookup("redis.db"))
+	bindFlag("redis.password", rootCmd.PersistentFlags().Lookup("redis.password"))
+	bindFlag("secret", rootCmd.PersistentFlags().Lookup("secret"))
+	bindFlag("log.level", rootCmd.PersistentFlags().Lookup("log.level"))
+	bindFlag("log.file", rootCmd.PersistentFlags().Lookup("log.file"))
+}
+
+func bindFlag(key string, flag *pflag.Flag) {
+	if err := viper.BindPFlag(key, flag); err != nil {
+		fmt.Printf("Failed to bind flag '%s': %s\n", key, err)
+	}
 }
 
 func printGreeting(config *config.Config) {

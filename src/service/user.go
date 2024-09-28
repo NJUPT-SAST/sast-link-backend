@@ -5,13 +5,13 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/NJUPT-SAST/sast-link-backend/validator"
-	"github.com/pkg/errors"
-	_ "github.com/redis/go-redis/v9"
 )
 
 type UserService struct {
@@ -42,11 +42,11 @@ func (s *UserService) CreateUserAndProfile(email, password string) error {
 	if err := s.Store.CreateUserAndProfile(&store.User{
 		Email:    &email,
 		Password: &pwdEncrypt,
-		Uid:      &uid,
+		UID:      &uid,
 	}, &store.Profile{
 		Nickname: &uid,
 		Email:    &email,
-		OrgId:    -1,
+		OrgID:    -1,
 	}); err != nil {
 		return errors.Wrap(err, "Create user and profile failed")
 	}
@@ -54,7 +54,7 @@ func (s *UserService) CreateUserAndProfile(email, password string) error {
 	return nil
 }
 
-// VerifyAccount handles account verification based on the operation flag
+// VerifyAccount handles account verification based on the operation flag.
 func (s *UserService) VerifyAccount(ctx context.Context, username string, flag int) (string, error) {
 	switch flag {
 	case 0: // Register
@@ -71,72 +71,72 @@ func (s *UserService) VerifyAccount(ctx context.Context, username string, flag i
 	}
 }
 
-// processRegistration handles the account registration verification
+// processRegistration handles the account registration verification.
 func (s *UserService) processRegistration(ctx context.Context, username string) (string, error) {
 	if user, err := s.VerifyAccountRegister(ctx, username); err != nil || user != nil {
 		return "", errors.New("User already exists")
 	}
 
-	ticket, err := util.GenerateTokenWithExp(ctx, request.RegisterJWTSubKey(username), request.REGISTER_TICKET_EXP)
+	ticket, err := util.GenerateTokenWithExp(ctx, request.RegisterJWTSubKey(username), request.RegisterTicketExp)
 	if err != nil {
 		return "", errors.Wrap(err, "generate token failed")
 	}
 
-	if err := s.Store.Set(ctx, ticket, request.VERIFY_STATUS["VERIFY_ACCOUNT"], request.REGISTER_TICKET_EXP); err != nil {
+	if err := s.Store.Set(ctx, ticket, request.VerifyStatus["VERIFY_ACCOUNT"], request.RegisterTicketExp); err != nil {
 		return "", err
 	}
 
 	return ticket, nil
 }
 
-// processLogin handles the account login verification
+// processLogin handles the account login verification.
 func (s *UserService) processLogin(ctx context.Context, username string) (string, error) {
 	user, err := s.VerifyAccountLogin(ctx, username)
 	if err != nil || user == nil {
 		return "", err
 	}
 
-	ticket, err := util.GenerateTokenWithExp(ctx, request.LoginTicketJWTSubKey(*user.Uid), request.LOGIN_TICKET_EXP)
+	ticket, err := util.GenerateTokenWithExp(ctx, request.LoginTicketJWTSubKey(*user.UID), request.LoginTicketExp)
 	if err != nil {
 		return "", err
 	}
 
-	if err := s.Store.Set(ctx, request.LoginTicketKey(*user.Uid), ticket, request.LOGIN_TICKET_EXP); err != nil {
+	if err := s.Store.Set(ctx, request.LoginTicketKey(*user.UID), ticket, request.LoginTicketExp); err != nil {
 		return "", err
 	}
 
 	return ticket, nil
 }
 
-// processPasswordReset handles the account password reset verification
+// processPasswordReset handles the account password reset verification.
 func (s *UserService) processPasswordReset(ctx context.Context, username string) (string, error) {
 	if user, err := s.VerifyAccountResetPWD(ctx, username); err != nil || user == nil {
 		return "", err
 	}
 
-	ticket, err := util.GenerateTokenWithExp(ctx, request.ResetPwdJWTSubKey(username), request.RESETPWD_TICKET_EXP)
+	ticket, err := util.GenerateTokenWithExp(ctx, request.ResetPwdJWTSubKey(username), request.ResetPwdTicketExp)
 	if err != nil {
 		return "", err
 	}
 
-	if err := s.Store.Set(ctx, ticket, request.VERIFY_STATUS["VERIFY_ACCOUNT"], request.RESETPWD_TICKET_EXP); err != nil {
+	if err := s.Store.Set(ctx, ticket, request.VerifyStatus["VERIFY_ACCOUNT"], request.ResetPwdTicketExp); err != nil {
 		return "", err
 	}
 
 	return ticket, nil
 }
 
-// VerifyAccountResetPWD verifies if the user's email is valid for password reset
+// VerifyAccountResetPWD verifies if the user's email is valid for password reset.
 func (s *UserService) VerifyAccountResetPWD(ctx context.Context, username string) (*store.User, error) {
 	return s.verifyUserByEmail(ctx, username)
 }
 
-// VerifyAccountRegister verifies if the user's email is valid for registration
+// VerifyAccountRegister verifies if the user's email is valid for registration.
 func (s *UserService) VerifyAccountRegister(ctx context.Context, username string) (*store.User, error) {
 	return s.verifyUserByEmail(ctx, username)
 }
 
-// VerifyAccountLogin verifies if the user's email or UID is valid for login
+// VerifyAccountLogin verifies if the user's email or UID is valid for login.
 func (s *UserService) VerifyAccountLogin(ctx context.Context, username string) (*store.User, error) {
 	if strings.Contains(username, "@") {
 		return s.verifyUserByEmail(ctx, username)
@@ -144,7 +144,7 @@ func (s *UserService) VerifyAccountLogin(ctx context.Context, username string) (
 	return s.Store.UserByField(ctx, "uid", username)
 }
 
-// verifyUserByEmail verifies if the user's email is valid
+// verifyUserByEmail verifies if the user's email is valid.
 func (s *UserService) verifyUserByEmail(ctx context.Context, email string) (*store.User, error) {
 	if !validator.ValidateEmail(email) {
 		return nil, errors.New("Invalid email address")
@@ -174,14 +174,14 @@ func (s *UserService) ModifyPassword(ctx context.Context, username, oldPassword,
 	if uid == "" {
 		return errors.New("Password is incorrect")
 	}
-	if err := s.Store.ChangePassword(uid, newPassword); err != nil {
+	if err := s.Store.ChangePassword(ctx, uid, newPassword); err != nil {
 		log.Errorf("Change password failed: %s", err.Error())
 		return errors.Wrap(err, "Change password failed")
 	}
 	return nil
 }
 
-func (s *UserService) ResetPassword(username, newPassword string) error {
+func (s *UserService) ResetPassword(ctx context.Context, username, newPassword string) error {
 	// Check password form
 	if !validator.ValidatePassword(newPassword) {
 		return errors.New("Password is invalid")
@@ -191,26 +191,26 @@ func (s *UserService) ResetPassword(username, newPassword string) error {
 	uid := split.Split(username, 2)[0]
 	uid = strings.ToLower(uid)
 
-	cErr := s.Store.ChangePassword(uid, newPassword)
+	cErr := s.Store.ChangePassword(ctx, uid, newPassword)
 	if cErr != nil {
 		return cErr
 	}
 	return nil
 }
 
-// UserInfo returns the user information of the current user
+// UserInfo returns the user information of the current user.
 func (s *UserService) UserInfo(ctx context.Context, studentID string) (*store.User, error) {
-	return s.Store.UserInfo(studentID)
+	return s.Store.UserInfo(ctx, studentID)
 }
 
 func (s *UserService) SendEmail(ctx context.Context, email, status, title string) error {
 	// Determine if the ticket is correct
-	if status != request.VERIFY_STATUS["VERIFY_ACCOUNT"] {
+	if status != request.VerifyStatus["VERIFY_ACCOUNT"] {
 		return errors.New("Ticket is not correct")
 	}
 
 	code := store.GenerateVerifyCode()
-	s.Store.Set(ctx, request.VerifyCodeKey(email), code, request.VERIFY_CODE_EXP)
+	_ = s.Store.Set(ctx, request.VerifyCodeKey(email), code, request.VerifyCodeExp)
 	content := store.InsertCode(code)
 	if err := s.Store.SendEmail(ctx, email, content, title); err != nil {
 		log.Errorf("Send email failed: %s", err.Error())
@@ -221,8 +221,8 @@ func (s *UserService) SendEmail(ctx context.Context, email, status, title string
 	return nil
 }
 
-func (s *UserService) CheckVerifyCode(ctx context.Context, status, code, flag, username string) error {
-	if status != request.VERIFY_STATUS["SEND_EMAIL"] {
+func (s *UserService) CheckVerifyCode(ctx context.Context, status, code, username string) error {
+	if status != request.VerifyStatus["SEND_EMAIL"] {
 		return errors.New("Ticket is not correct")
 	}
 
@@ -243,16 +243,16 @@ func (s *UserService) CheckVerifyCode(ctx context.Context, status, code, flag, u
 	return nil
 }
 
-// DeleteUserAccessToken deletes the access token of the user
+// DeleteUserAccessToken deletes the access token of the user.
 func (s *UserService) DeleteUserAccessToken(ctx context.Context, studentID, accessToken string) error {
 	// Delete token from redis
-	go s.Store.Delete(ctx, request.LoginTokenKey(studentID))
+	_ = s.Store.Delete(ctx, request.LoginTokenKey(studentID))
 
 	userAccessTokens, err := s.Store.GetUserAccessTokens(ctx, studentID)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get user access tokens")
 	}
-	updateAccessTokens := make([]*store.UserSetting_AccessToken, 0)
+	updateAccessTokens := make([]*store.UserSettingAccessToken, 0)
 	for _, token := range userAccessTokens {
 		if token.AccessToken != accessToken {
 			updateAccessTokens = append(updateAccessTokens, token)
@@ -261,7 +261,7 @@ func (s *UserService) DeleteUserAccessToken(ctx context.Context, studentID, acce
 	updateUserSetting := store.AccessTokensUserSetting{AccessTokens: updateAccessTokens}
 	if err := s.Store.UpsetUserSetting(ctx, &store.UserSetting{
 		UserID: studentID,
-		Key:    store.USER_SETTING_ACCESS_TOKENS,
+		Key:    store.UserSettingAccessTokens,
 		Value:  updateUserSetting.String(),
 	}); err != nil {
 		return errors.Wrap(err, "Failed to upset user setting")

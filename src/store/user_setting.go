@@ -4,33 +4,34 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/pkg/errors"
+
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 )
 
 type UserSettingKey int32
 
 const (
-	USER_SETTING_KEY_UNSPECIFIED = iota
+	UserSettingKeyUnspecified = iota
 	// Access tokens for the user.
-	USER_SETTING_ACCESS_TOKENS
+	UserSettingAccessTokens
 )
 
 // Enum value maps for UserSettingKey.
 var (
-	UserSettingKey_name = map[int32]string{
-		USER_SETTING_KEY_UNSPECIFIED: "USER_SETTING_KEY_UNSPECIFIED",
-		USER_SETTING_ACCESS_TOKENS:   "USER_SETTING_ACCESS_TOKENS",
+	UserSettingKeyName = map[int32]string{
+		UserSettingKeyUnspecified: "USER_SETTING_KEY_UNSPECIFIED",
+		UserSettingAccessTokens:   "USER_SETTING_ACCESS_TOKENS",
 	}
-	UserSettingKey_value = map[string]int32{
-		"USER_SETTING_KEY_UNSPECIFIED": USER_SETTING_KEY_UNSPECIFIED,
-		"USER_SETTING_ACCESS_TOKENS":   USER_SETTING_ACCESS_TOKENS,
+	UserSettingKeyValue = map[string]int32{
+		"USER_SETTING_KEY_UNSPECIFIED": UserSettingKeyUnspecified,
+		"USER_SETTING_ACCESS_TOKENS":   UserSettingAccessTokens,
 	}
 )
 
 func (e UserSettingKey) String() string {
 	switch e {
-	case USER_SETTING_ACCESS_TOKENS:
+	case UserSettingAccessTokens:
 		return "USER_SETTING_ACCESS_TOKENS"
 	default:
 		return "USER_SETTING_KEY_UNSPECIFIED"
@@ -49,10 +50,10 @@ type UserSetting struct {
 // GetAccessTokens returns the access tokens for the user setting.
 //
 // AccessToeknsUserSetting is a wrapper for the access tokens. It container a slice of UserSetting_AccessToken.
-func (x *UserSetting) GetAccessTokens() *AccessTokensUserSetting {
+func (s *UserSetting) GetAccessTokens() *AccessTokensUserSetting {
 	var accessTokens AccessTokensUserSetting
-	if x != nil {
-		err := json.Unmarshal([]byte(x.Value), &accessTokens)
+	if s != nil {
+		err := json.Unmarshal([]byte(s.Value), &accessTokens)
 		if err != nil {
 			return nil
 		}
@@ -81,8 +82,8 @@ type FindUserSetting struct {
 	Key    UserSettingKey
 }
 
-// UserSetting_AccessToken represents an access token for the user.
-type UserSetting_AccessToken struct {
+// UserSettingAccessToken represents an access token for the user.
+type UserSettingAccessToken struct {
 	// The access token is a JWT token.
 	// Including expiration time, issuer, etc.
 	AccessToken string `json:"access_token,omitempty"`
@@ -94,7 +95,7 @@ type UserSetting_AccessToken struct {
 	LastUsedTs int64 `json:"last_used_ts,omitempty"`
 }
 
-func (a *UserSetting_AccessToken) String() string {
+func (a *UserSettingAccessToken) String() string {
 	if a == nil {
 		return ""
 	}
@@ -106,20 +107,20 @@ func (a *UserSetting_AccessToken) String() string {
 //
 // AccessTokensUserSetting is a wrapper for the access tokens.
 type AccessTokensUserSetting struct {
-	AccessTokens []*UserSetting_AccessToken `json:"access_tokens,omitempty"`
+	AccessTokens []*UserSettingAccessToken `json:"access_tokens,omitempty"`
 }
 
-func (a *AccessTokensUserSetting) String() string {
-	if a == nil {
+func (s *AccessTokensUserSetting) String() string {
+	if s == nil {
 		return ""
 	}
-	b, _ := json.Marshal(a)
+	b, _ := json.Marshal(s)
 	return string(b)
 }
 
-func (x *AccessTokensUserSetting) GetAccessTokens() []*UserSetting_AccessToken {
-	if x != nil {
-		return x.AccessTokens
+func (s *AccessTokensUserSetting) GetAccessTokens() []*UserSettingAccessToken {
+	if s != nil {
+		return s.AccessTokens
 	}
 	return nil
 }
@@ -133,7 +134,7 @@ func (s *Store) ListUserSettings(ctx context.Context, find *FindUserSetting) ([]
 	}
 
 	for _, userSetting := range userSettings {
-		s.Set(ctx, userSetting.UserID, userSetting, 0)
+		_ = s.Set(ctx, userSetting.UserID, userSetting, 0)
 	}
 
 	return userSettings, nil
@@ -169,15 +170,15 @@ func (s *Store) GetUserSetting(ctx context.Context, find *FindUserSetting) (*Use
 	}
 
 	userSetting := list[0]
-	s.Set(ctx, find.UserID, userSetting, 0)
+	_ = s.Set(ctx, find.UserID, userSetting, 0)
 	return userSetting, nil
 }
 
 // GetUserAccessTokens returns the access tokens for the user.
-func (s *Store) GetUserAccessTokens(ctx context.Context, userID string) ([]*UserSetting_AccessToken, error) {
+func (s *Store) GetUserAccessTokens(ctx context.Context, userID string) ([]*UserSettingAccessToken, error) {
 	userSetting, err := s.GetUserSetting(ctx, &FindUserSetting{
 		UserID: userID,
-		Key:    USER_SETTING_ACCESS_TOKENS,
+		Key:    UserSettingAccessTokens,
 	})
 	if err != nil {
 		return nil, err
@@ -191,13 +192,13 @@ func (s *Store) GetUserAccessTokens(ctx context.Context, userID string) ([]*User
 func (s *Store) UpsetAccessTokensUserSetting(ctx context.Context, userID string, accessToken, description string) error {
 	userSetting, err := s.GetUserSetting(ctx, &FindUserSetting{
 		UserID: userID,
-		Key:    USER_SETTING_ACCESS_TOKENS,
+		Key:    UserSettingAccessTokens,
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to get user setting")
 	}
 
-	userAccessToken := &UserSetting_AccessToken{
+	userAccessToken := &UserSettingAccessToken{
 		AccessToken: accessToken,
 		Description: description,
 		CreatedTs:   0,
@@ -207,7 +208,7 @@ func (s *Store) UpsetAccessTokensUserSetting(ctx context.Context, userID string,
 	if userSetting == nil {
 		userSetting = &UserSetting{
 			UserID: userID,
-			Key:    USER_SETTING_ACCESS_TOKENS,
+			Key:    UserSettingAccessTokens,
 			Value:  "",
 		}
 	}

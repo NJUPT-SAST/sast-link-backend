@@ -7,8 +7,9 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/service"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
 
-	middleware_link "github.com/NJUPT-SAST/sast-link-backend/middleware"
 	"github.com/labstack/echo/v4"
+
+	linkmiddleware "github.com/NJUPT-SAST/sast-link-backend/middleware"
 )
 
 // APIV1Service acts as the central service aggregator for version 1 of the API.
@@ -43,10 +44,10 @@ func NewAPIV1Service(store *store.Store, config *config.Config, oauthServer *OAu
 }
 
 // RegistryRoutes register all routes for API v1.
-func (s *APIV1Service) RegistryRoutes(ctx context.Context, echoServer *echo.Echo) error {
+func (s *APIV1Service) RegistryRoutes(_ context.Context, echoServer *echo.Echo) {
 	v1 := echoServer.Group("/api/v1")
 	// AuthInterceptor is a middleware that checks the user's authentication status.
-	echoServer.Use(middleware_link.NewAuthInterceptor(s.Store, s.Config.Secret).AuthenticationInterceptor)
+	echoServer.Use(linkmiddleware.NewAuthInterceptor(s.Store, s.Config.Secret).AuthenticationInterceptor)
 
 	// Set the rate limit to 3 requests per minute
 	// FIXME: 3 request per minute for a user and not all users
@@ -97,5 +98,4 @@ func (s *APIV1Service) RegistryRoutes(ctx context.Context, echoServer *echo.Echo
 		systemSettingGroup.GET("/:settingType", s.SystemSetting)
 		systemSettingGroup.POST("/:settingType", s.UpsetSystemSetting)
 	}
-	return nil
 }

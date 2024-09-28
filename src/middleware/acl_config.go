@@ -31,8 +31,10 @@ func isUnauthorizeAllowed(fullMethodName string) bool {
 	return authenticationAllowlist[fullMethodName]
 }
 
+//nolint
 var allowedPathOnlyForAdmin = map[string]bool{}
 
+//nolint
 // isOnlyForAdminAllowedPath returns true if the method is allowed to be called only by admin.
 func isOnlyForAdminAllowedPath(methodName string) bool {
 	return allowedPathOnlyForAdmin[methodName]

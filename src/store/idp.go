@@ -49,7 +49,7 @@ func (s *Store) GetIdentityProviderByName(ctx context.Context, name string) (*oa
 	return idpSetting.GetIdpSetting(), nil
 }
 
-// ListIdentityProviders returns all identity providers
+// ListIdentityProviders returns all identity providers.
 func (s *Store) ListIdentityProviders(ctx context.Context) ([]oauth2.IdentityProviderSetting, error) {
 	var idps []oauth2.IdentityProviderSetting
 	// FIX: cache cna't update when add new idp
@@ -68,17 +68,17 @@ func (s *Store) ListIdentityProviders(ctx context.Context) ([]oauth2.IdentityPro
 		if setting.Type == config.IdpSettingType.String() {
 			idp := setting.GetIdpSetting()
 			if idp != nil {
-				s.Set(ctx, idp.Name, idp, 0)
+				_ = s.Set(ctx, idp.Name, idp, 0)
 				idps = append(idps, *idp)
 			}
 		}
 	}
 
-	s.Set(ctx, config.IdpSettingType.String(), idps, 0)
+	_ = s.Set(ctx, config.IdpSettingType.String(), idps, 0)
 	return idps, nil
 }
 
-// OAuth2Info struct
+// OAuth2Info struct.
 type OAuth2Info struct {
 	ID      uint           `gorm:"primaryKey"`
 	Client  string         `gorm:"not null"` // Client is equal to the idp name
@@ -97,7 +97,7 @@ func (s *Store) UpdateLarkUserInfo(info OAuth2Info) error {
 
 // OauthInfoByUID find user by specific client id in oauth2_info table
 //
-// return (nil, nil) if user not found
+// return (nil, nil) if user not found.
 func (s *Store) OauthInfoByUID(clientType, oauthUID string) (*OAuth2Info, error) {
 	var client OAuth2Info
 	err := s.db.Table("oauth2_info").
@@ -113,7 +113,7 @@ func (s *Store) OauthInfoByUID(clientType, oauthUID string) (*OAuth2Info, error)
 	return &client, nil
 }
 
-// UpsetOauthInfo insert or update oauth2_info table
+// UpsetOauthInfo insert or update oauth2_info table.
 func (s *Store) UpsetOauthInfo(oauthInfo OAuth2Info) {
 	// return Db.Table("oauth2_info").Save(oauthInfo).Error
 	stmt := `

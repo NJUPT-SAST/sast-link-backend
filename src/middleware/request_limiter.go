@@ -9,7 +9,8 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// Example: RequestRateLimiter(3, time.Minute) represents 3 requests per minute
+//nolint
+// Example: RequestRateLimiter(3, time.Minute) represents 3 requests per minute.
 func RequestRateLimiter(maxRequests int64, period time.Duration) echo.MiddlewareFunc {
 	rate := float64(maxRequests) / float64(period.Seconds())
 	limiter := tollbooth.NewLimiter(rate, nil)

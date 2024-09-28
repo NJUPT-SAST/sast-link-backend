@@ -8,16 +8,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/labstack/echo/v4"
+	"gorm.io/datatypes"
+
 	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/plugin/idp/oauth2"
-	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/NJUPT-SAST/sast-link-backend/validator"
-	"github.com/labstack/echo/v4"
-	"gorm.io/datatypes"
 )
 
 func (s *APIV1Service) Login(c echo.Context) error {
@@ -27,41 +27,41 @@ func (s *APIV1Service) Login(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	// It will return [ErrNoCookie] if the cookie is not found
-	cookie, err := c.Cookie(request.LOGIN_TICKET_SUB)
+	cookie, err := c.Cookie(request.LoginTicketSub)
 	if err != nil {
-		return response.Error(c, response.TICKET_NOT_FOUND)
+		return response.Error(c, response.TicketNotFound)
 	}
 	ticket := cookie.Value
 	// Get username from ticket
-	username, err := util.IdentityFromToken(ticket, request.LOGIN_TICKET_SUB)
+	username, err := util.IdentityFromToken(ticket, request.LoginTicketSub)
 	if err != nil {
 		log.Errorf("Get username from ticket fail: %s", err.Error())
-		return response.Error(c, response.TICKET_INVALID)
+		return response.Error(c, response.TicketInvalid)
 	}
 	password := c.FormValue("password")
 	if password == "" || username == "" {
 		log.Errorf("Login fail, username: %s", username)
-		return response.Error(c, response.REQUIRED_PARAMS)
+		return response.Error(c, response.RequiredParams)
 	}
 
 	uid, err := s.UserService.Login(username, password)
 	if err != nil {
 		log.Errorf("Login fail: %s", err.Error())
-		return response.Error(c, response.LOGIN_FAILED)
+		return response.Error(c, response.LoginFailed)
 	}
 
 	// Set Token with expire time and return
-	token, err := util.GenerateTokenWithExp(ctx, request.LoginJWTSubKey(uid), request.LOGIN_ACCESS_TOKEN_EXP)
+	token, err := util.GenerateTokenWithExp(ctx, request.LoginJWTSubKey(uid), request.LoginAccessTokenExp)
 	if err != nil {
-		return response.Error(c, response.INTENAL_ERROR)
+		return response.Error(c, response.InternalError)
 	}
-	s.Store.Set(ctx, request.LoginTokenKey(uid), token, request.LOGIN_ACCESS_TOKEN_EXP)
-	response.SetCookieWithExpire(c, request.AccessTokenCookieName, token, request.LOGIN_ACCESS_TOKEN_EXP)
+	_ = s.Store.Set(ctx, request.LoginTokenKey(uid), token, request.LoginAccessTokenExp)
+	response.SetCookieWithExpire(c, request.AccessTokenCookieName, token, request.LoginAccessTokenExp)
 
 	// Upset the token to database
 	if err := s.Store.UpsetAccessTokensUserSetting(ctx, uid, token, ""); err != nil {
 		log.Errorf("Failed to upset access token to database: %s", err.Error())
-		return response.Error(c, response.INTENAL_ERROR)
+		return response.Error(c, response.InternalError)
 	}
 
 	return c.JSON(http.StatusOK, response.Success(map[string]string{request.AccessTokenCookieName: token}))
@@ -101,7 +101,7 @@ func (s *APIV1Service) LoginWithSSO(c echo.Context) error {
 
 	user, err := s.Store.OauthInfoByUID(idpName, userInfo.IdentifierID)
 	if err != nil {
-		return response.Error(c, response.INTENAL_ERROR)
+		return response.Error(c, response.InternalError)
 	}
 	// NOTE: Get user info from the sso identity provider.
 	/* Here we have 4 cases:
@@ -119,31 +119,31 @@ func (s *APIV1Service) LoginWithSSO(c echo.Context) error {
 	*/
 	if user == nil {
 		// Store the sso user info in redis for binding email
-		s.Store.Set(ctx, fmt.Sprintf("BIND-EMAIL-%s-%s", idpName, userInfo.IdentifierID), userInfo.IdentifierID, store.BIND_EMAIL_EXP)
+		_ = s.Store.Set(ctx, fmt.Sprintf("BIND-EMAIL-%s-%s", idpName, userInfo.IdentifierID), userInfo.IdentifierID, request.BindEmailExp)
 		systemSetting, err := s.Store.GetSystemSetting(ctx, config.WebsiteSettingType.String())
 		if err != nil {
 			log.Errorf("Get website setting fail: %s", err.Error())
-			return response.Error(c, response.INTENAL_ERROR)
+			return response.Error(c, response.InternalError)
 		}
 
 		webSetting := systemSetting.GetWebsiteSetting()
 		if webSetting == nil {
-			return response.Error(c, response.INTENAL_ERROR)
+			return response.Error(c, response.InternalError)
 		}
 
-		response.SetCookieWithExpire(c, "idp", idpName, request.LOGIN_ACCESS_TOKEN_EXP)
-		response.SetCookieWithExpire(c, "idp_user_id", userInfo.IdentifierID, request.LOGIN_ACCESS_TOKEN_EXP)
+		response.SetCookieWithExpire(c, "idp", idpName, request.LoginAccessTokenExp)
+		response.SetCookieWithExpire(c, "idp_user_id", userInfo.IdentifierID, request.LoginAccessTokenExp)
 
 		return c.JSON(http.StatusOK, nil)
-	} else { // bound SSO before
-		uid := user.UserID
-		token, err := util.GenerateTokenWithExp(c.Request().Context(), store.LoginJWTSubKey(uid), store.LOGIN_TOKEN_EXP)
-		if err != nil {
-			return response.Error(c, response.INTENAL_ERROR)
-		}
-		s.Store.Set(c.Request().Context(), store.LoginTokenKey(uid), token, store.LOGIN_TOKEN_EXP)
-		return c.JSON(http.StatusOK, map[string]string{store.LOGIN_TOKEN_SUB: token})
 	}
+	// bound SSO before
+	uid := user.UserID
+	token, err := util.GenerateTokenWithExp(c.Request().Context(), request.LoginJWTSubKey(uid), request.LoginAccessTokenExp)
+	if err != nil {
+		return response.Error(c, response.InternalError)
+	}
+	_ = s.Store.Set(c.Request().Context(), request.LoginTokenKey(uid), token, request.LoginAccessTokenExp)
+	return c.JSON(http.StatusOK, map[string]string{request.LoginTokenSub: token})
 }
 
 // BindEmailWithSSO bind email with SSO
@@ -155,12 +155,12 @@ func (s *APIV1Service) BindEmailWithSSO(c echo.Context) error {
 
 	clientTypeCookie, err1 := c.Cookie("idp")
 	idpUserIDCookie, err2 := c.Cookie("idp_user_id")
-	ticketCookie, err3 := c.Cookie(request.OAUTH_CHECK_EMAIL_SUB)
+	ticketCookie, err3 := c.Cookie(request.OAuthCheckEmailSub)
 
 	email := c.FormValue("email")
 
 	if err1 != nil || err2 != nil || err3 != nil || email == "" || idpUserIDCookie.Value == "" || clientTypeCookie.Value == "" {
-		return response.Error(c, response.REQUIRED_PARAMS)
+		return response.Error(c, response.RequiredParams)
 	}
 
 	ticket := ticketCookie.Value
@@ -169,19 +169,19 @@ func (s *APIV1Service) BindEmailWithSSO(c echo.Context) error {
 
 	currentPhase, err := s.Store.Get(ctx, ticket)
 	if err != nil {
-		return response.Error(c, response.INTENAL_ERROR)
+		return response.Error(c, response.InternalError)
 	}
-	if currentPhase != request.VERIFY_STATUS["VERIFY_CAPTCHA"] {
+	if currentPhase != request.VerifyStatus["VERIFY_CAPTCHA"] {
 		return response.Error(c, "phase error, please verify email first!")
 	}
 
-	ticketEmail, err := util.IdentityFromToken(ticket, request.OAUTH_CHECK_EMAIL_SUB)
+	ticketEmail, err := util.IdentityFromToken(ticket, request.OAuthCheckEmailSub)
 	if err != nil {
-		return response.Error(c, response.INTENAL_ERROR)
+		return response.Error(c, response.InternalError)
 	}
 
 	if !validator.ValidateEmail(email) || email != ticketEmail {
-		return response.Error(c, response.EMAIL_INVALID)
+		return response.Error(c, response.EmailInvalid)
 	}
 
 	redisKey := fmt.Sprintf("BIND-EMAIL-%s-%s", clientType, idpUserID)
@@ -192,19 +192,19 @@ func (s *APIV1Service) BindEmailWithSSO(c echo.Context) error {
 
 	studentID := util.GetStudentIDFromEmail(email)
 	if studentID == "" {
-		return response.Error(c, response.EMAIL_INVALID)
+		return response.Error(c, response.EmailInvalid)
 	}
 
 	user, err := s.Store.UserByField(ctx, "uid", studentID)
 	if err != nil {
-		return response.Error(c, response.INTENAL_ERROR)
+		return response.Error(c, response.InternalError)
 	}
 	// user not registered
 	// we generate a new account, and bind it to user email
 	if user == nil {
 		password, err := util.GenerateRandomString(20)
 		if err != nil {
-			return response.Error(c, response.INTENAL_ERROR)
+			return response.Error(c, response.InternalError)
 		}
 		if err := s.UserService.CreateUserAndProfile(email, password); err != nil {
 			return response.Error(c, "create user fail")
@@ -218,20 +218,21 @@ func (s *APIV1Service) BindEmailWithSSO(c echo.Context) error {
 	}
 
 	// Delete the redis key
-	go s.Store.Delete(ctx, redisKey)
+	_ = s.Store.Delete(ctx, redisKey)
 
 	// Set Token with expire time and return
-	token, err := util.GenerateTokenWithExp(ctx, request.LoginJWTSubKey(studentID), request.LOGIN_ACCESS_TOKEN_EXP)
+	token, err := util.GenerateTokenWithExp(ctx, request.LoginJWTSubKey(studentID), request.LoginAccessTokenExp)
 	if err != nil {
-		return response.Error(c, response.INTENAL_ERROR)
+		return response.Error(c, response.InternalError)
 	}
-	s.Store.Set(ctx, request.LoginTokenKey(studentID), token, request.LOGIN_ACCESS_TOKEN_EXP)
-	response.SetCookieWithExpire(c, request.AccessTokenCookieName, token, request.LOGIN_ACCESS_TOKEN_EXP)
+	_ = s.Store.Set(ctx, request.LoginTokenKey(studentID), token, request.LoginAccessTokenExp)
+	response.SetCookieWithExpire(c, request.AccessTokenCookieName, token, request.LoginAccessTokenExp)
 
 	return c.JSON(http.StatusOK, response.Success(map[string]string{request.AccessTokenCookieName: token}))
 }
 
-// TODO: Implement this function for login and login with SSO
+//nolint
+// TODO: Implement this function for login and login with SSO.
 func (s *APIV1Service) doLogin(ctx context.Context, username, password string) error {
 	return nil
 }
@@ -241,38 +242,38 @@ func (s *APIV1Service) Register(c echo.Context) error {
 	// Get Body from request
 	password := c.FormValue("password")
 	if password == "" {
-		return response.Error(c, response.REQUIRED_PARAMS)
+		return response.Error(c, response.RequiredParams)
 	}
 
-	cookie, err := c.Cookie(request.REGIST_TICKET_SUB)
+	cookie, err := c.Cookie(request.RegisterTicketSub)
 	if err != nil {
-		return response.Error(c, response.TICKET_NOT_FOUND)
+		return response.Error(c, response.TicketNotFound)
 	}
 	ticket := cookie.Value
 
 	currentPhase, err := s.Store.Get(ctx, ticket)
 	if err != nil {
-		return response.Error(c, response.INTENAL_ERROR)
+		return response.Error(c, response.InternalError)
 	}
 	switch currentPhase {
-	case request.VERIFY_STATUS["VERIFY_ACCOUNT"], request.VERIFY_STATUS["SEND_EMAIL"]:
+	case request.VerifyStatus["VERIFY_ACCOUNT"], request.VerifyStatus["SEND_EMAIL"]:
 		return response.Error(c, "please check your email to verify your account first")
-	case request.VERIFY_STATUS["SUCCESS"]:
-		return response.Error(c, response.USER_EXIST)
+	case request.VerifyStatus["SUCCESS"]:
+		return response.Error(c, response.UserExist)
 	case "":
-		return response.Error(c, response.TICKET_NOT_FOUND)
+		return response.Error(c, response.TicketNotFound)
 	}
 
-	studentID, err := util.IdentityFromToken(ticket, request.REGIST_TICKET_SUB)
+	studentID, err := util.IdentityFromToken(ticket, request.RegisterTicketSub)
 	if err != nil {
-		return response.Error(c, response.INTENAL_ERROR)
+		return response.Error(c, response.InternalError)
 	}
 
 	if err := s.CreateUserAndProfile(studentID, password); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "create user fail")
 	}
 	// set VERIFY_STATUS to 3 if successes
-	s.Store.Set(ctx, ticket, request.VERIFY_STATUS["SUCCESS"], request.REGISTER_TICKET_EXP)
+	_ = s.Store.Set(ctx, ticket, request.VerifyStatus["SUCCESS"], request.RegisterTicketExp)
 	log.Debugf("User [%s] register success", studentID)
 	return c.JSON(http.StatusOK, response.Success(nil))
 }
@@ -281,27 +282,27 @@ func (s *APIV1Service) CheckVerifyCode(c echo.Context) error {
 	ctx := c.Request().Context()
 	code := c.FormValue("verify_code")
 	if code == "" {
-		return response.Error(c, response.REQUIRED_PARAMS)
+		return response.Error(c, response.RequiredParams)
 	}
 
 	// Get TICKET from cookies
 	var ticket, flag string
-	if cookie, err := c.Cookie(request.REGIST_TICKET_SUB); err == nil {
+	if cookie, err := c.Cookie(request.RegisterTicketSub); err == nil {
 		ticket = cookie.Value
-		flag = request.REGIST_TICKET_SUB
-	} else if cookie, err := c.Cookie(request.RESETPWD_TICKET_SUB); err == nil {
+		flag = request.RegisterTicketSub
+	} else if cookie, err := c.Cookie(request.ResetPwdTicketSub); err == nil {
 		ticket = cookie.Value
-		flag = request.RESETPWD_TICKET_SUB
-	} else if cookie, err := c.Cookie(request.OAUTH_CHECK_EMAIL_SUB); err == nil {
+		flag = request.ResetPwdTicketSub
+	} else if cookie, err := c.Cookie(request.OAuthCheckEmailSub); err == nil {
 		ticket = cookie.Value
-		flag = request.OAUTH_CHECK_EMAIL_SUB
+		flag = request.OAuthCheckEmailSub
 	} else {
-		return response.Error(c, response.TICKET_NOT_FOUND)
+		return response.Error(c, response.TicketNotFound)
 	}
 
 	studentID, err := util.IdentityFromToken(ticket, flag)
 	if err != nil {
-		return response.Error(c, response.INTENAL_ERROR)
+		return response.Error(c, response.InternalError)
 	}
 
 	status, err := s.Store.Get(ctx, ticket)
@@ -309,12 +310,12 @@ func (s *APIV1Service) CheckVerifyCode(c echo.Context) error {
 		return response.Error(c, "failed to get current status")
 	}
 
-	if err := s.UserService.CheckVerifyCode(ctx, status, code, flag, studentID); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, response.VERIFY_CODE_INCORRECT)
+	if err := s.UserService.CheckVerifyCode(ctx, status, code, studentID); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, response.VerifyCodeInCorrect)
 	}
 
 	// Update the status of the ticket
-	s.Store.Set(ctx, ticket, request.VERIFY_STATUS["VERIFY_CAPTCHA"], request.REGISTER_TICKET_EXP)
+	_ = s.Store.Set(ctx, ticket, request.VerifyStatus["VERIFY_CAPTCHA"], request.RegisterTicketExp)
 	log.Debugf("User [%s] check verify code success", studentID)
 	return c.JSON(http.StatusOK, response.Success(nil))
 }
@@ -324,7 +325,7 @@ func (s *APIV1Service) Verify(c echo.Context) error {
 	// Username maybe email or studentID
 	username := c.QueryParam("username")
 	if username == "" {
-		return response.Error(c, response.REQUIRED_PARAMS)
+		return response.Error(c, response.RequiredParams)
 	}
 	// Capitalize the username
 	username = strings.ToLower(username)
@@ -338,16 +339,16 @@ func (s *APIV1Service) Verify(c echo.Context) error {
 	// 1 is login
 	// 2 is resetPassword
 	if flag == 0 {
-		tKey = request.REGIST_TICKET_SUB
-		tExp = request.REGISTER_TICKET_EXP
+		tKey = request.RegisterTicketSub
+		tExp = request.RegisterTicketExp
 	} else if flag == 1 {
-		tKey = request.LOGIN_TICKET_SUB
-		tExp = request.LOGIN_TICKET_EXP
+		tKey = request.LoginTicketSub
+		tExp = request.LoginTicketExp
 	} else if flag == 2 {
-		tKey = request.RESETPWD_TICKET_SUB
-		tExp = request.RESETPWD_TICKET_EXP
+		tKey = request.ResetPwdTicketSub
+		tExp = request.ResetPwdTicketExp
 	} else {
-		return response.Error(c, response.REQUIRED_PARAMS)
+		return response.Error(c, response.RequiredParams)
 	}
 
 	ticket, err := s.UserService.VerifyAccount(ctx, username, flag)
@@ -367,17 +368,17 @@ func (s *APIV1Service) Verify(c echo.Context) error {
 func (s *APIV1Service) VerifyEmail(c echo.Context) error {
 	email := c.QueryParam("email")
 	if !validator.ValidateEmail(email) {
-		return response.Error(c, response.EMAIL_INVALID)
+		return response.Error(c, response.EmailInvalid)
 	}
 
-	ticket, err := util.GenerateTokenWithExp(c.Request().Context(), request.BindSSOSubKey(util.GetStudentIDFromEmail(email)), request.LOGIN_TICKET_EXP)
+	ticket, err := util.GenerateTokenWithExp(c.Request().Context(), request.BindSSOSubKey(util.GetStudentIDFromEmail(email)), request.LoginTicketExp)
 	if err != nil {
 		log.Errorf("Verify email fail: %s", err.Error())
 		return response.Error(c, "verify email fail")
 	}
 
-	s.Store.Set(c.Request().Context(), ticket, request.VERIFY_STATUS["VERIFY_ACCOUNT"], request.VERIFY_CODE_EXP)
-	response.SetCookieWithExpire(c, request.OAUTH_CHECK_EMAIL_SUB, ticket, request.LOGIN_TICKET_EXP)
+	_ = s.Store.Set(c.Request().Context(), ticket, request.VerifyStatus["VERIFY_ACCOUNT"], request.VerifyCodeExp)
+	response.SetCookieWithExpire(c, request.OAuthCheckEmailSub, ticket, request.LoginTicketExp)
 
 	return c.JSON(http.StatusOK, response.Success(nil))
 }
@@ -407,17 +408,17 @@ func (s *APIV1Service) SendEmail(c echo.Context) error {
 	ctx := c.Request().Context()
 	// Get TICKET from cookies
 	var ticket, flag string
-	if cookie, err := c.Cookie(request.REGIST_TICKET_SUB); err == nil {
+	if cookie, err := c.Cookie(request.RegisterTicketSub); err == nil {
 		ticket = cookie.Value
-		flag = request.REGIST_TICKET_SUB
-	} else if cookie, err := c.Cookie(request.RESETPWD_TICKET_SUB); err == nil {
+		flag = request.RegisterTicketSub
+	} else if cookie, err := c.Cookie(request.ResetPwdTicketSub); err == nil {
 		ticket = cookie.Value
-		flag = request.RESETPWD_TICKET_SUB
-	} else if cookie, err := c.Cookie(request.OAUTH_CHECK_EMAIL_SUB); err == nil {
+		flag = request.ResetPwdTicketSub
+	} else if cookie, err := c.Cookie(request.OAuthCheckEmailSub); err == nil {
 		ticket = cookie.Value
-		flag = request.OAUTH_CHECK_EMAIL_SUB
+		flag = request.OAuthCheckEmailSub
 	} else {
-		return response.Error(c, response.TICKET_NOT_FOUND)
+		return response.Error(c, response.TicketNotFound)
 	}
 	log.Debugf("SendEmail::[ticket: %s] [flag: %s]", ticket, flag)
 
@@ -426,20 +427,20 @@ func (s *APIV1Service) SendEmail(c echo.Context) error {
 	// 我开始乱写了啊啊啊啊
 	if err != nil {
 		log.Errorf("username parse error: %s", err.Error())
-		return response.Error(c, response.INTENAL_ERROR)
+		return response.Error(c, response.InternalError)
 	}
 
 	// Verify if the user email correct
 	log.Debugf("SendEmail::[studentID: %s]", studentID)
 	if !validator.ValidateStudentID(studentID) {
 		log.Errorf("student not valid : %s", studentID)
-		return echo.NewHTTPError(http.StatusBadRequest, response.EMAIL_INVALID)
+		return echo.NewHTTPError(http.StatusBadRequest, response.EmailInvalid)
 	}
 
 	var title string
-	if flag == request.REGIST_TICKET_SUB {
+	if flag == request.RegisterTicketSub {
 		title = "确认电子邮件注册SAST-Link账户（无需回复）"
-	} else if flag == request.OAUTH_CHECK_EMAIL_SUB {
+	} else if flag == request.OAuthCheckEmailSub {
 		title = "确认电子邮件绑定SSO账号（无需回复）"
 	} else {
 		title = "确认电子邮件重置SAST-Link账户密码（无需回复）"
@@ -447,7 +448,7 @@ func (s *APIV1Service) SendEmail(c echo.Context) error {
 	status, err := s.Store.Get(ctx, ticket)
 	if err != nil || status == "" {
 		log.Errorf("should not in current phase: %v", err)
-		return response.Error(c, response.INTENAL_ERROR)
+		return response.Error(c, response.InternalError)
 	}
 
 	email := util.UserNameToEmail(studentID)
@@ -457,7 +458,7 @@ func (s *APIV1Service) SendEmail(c echo.Context) error {
 	}
 
 	// Update the status of the ticket
-	s.Store.Set(ctx, ticket, request.VERIFY_STATUS["SEND_EMAIL"], request.REGISTER_TICKET_EXP)
+	_ = s.Store.Set(ctx, ticket, request.VerifyStatus["SEND_EMAIL"], request.RegisterTicketExp)
 	log.Debugf("send email to [%s] successfully", email)
 	return c.JSON(http.StatusOK, response.Success(nil))
 }
