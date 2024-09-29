@@ -25,16 +25,19 @@ issues:
 
 linters-settings:
   goimports:
-    # Put imports beginning with prefix after 3rd-party packages.
+    # Organize imports so that local packages come after third-party packages.
     local-prefixes: github.com/NJUPT-SAST/sast-link-backend
   revive:
-    # Default to run all linters so that new rules in the future could automatically be added to the static check.
+    # Enable all rules but selectively disable ones that are too restrictive.
     enable-all-rules: true
     rules:
-      # The following rules are too strict and make coding harder. We do not enable them for now.
-      - name: file-header
-        disabled: true
+      # Rules description see revive documentation: https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md
+      # - name: line-length-limit
+      #  arguments: [120] # Set a reasonable line length limit
+      # Disable other rules that are too strict.
       - name: line-length-limit
+        disabled: true
+      - name: file-header
         disabled: true
       - name: function-length
         disabled: true
@@ -73,14 +76,16 @@ linters-settings:
       - name: max-control-nesting
         disabled: true
   gocritic:
+    # Rules description see gocritic documentation: https://go-critic.com/overview#checkers-from-the-diagnostic-group
     disabled-checks:
       - ifElseChain
   govet:
     settings:
       printf: # The name of the analyzer, run `go tool vet help` to see the list of all analyzers
         funcs: # Run `go tool vet help printf` to see the full configuration of `printf`.
-          - common.Errorf
+          - common.Errorf # Treat common.Errorf as a printf-style function.
     enable-all: true
+    # Rules description see govet documentation: https://pkg.go.dev/github.com/golangci/govet
     disable:
       - fieldalignment
       - shadow

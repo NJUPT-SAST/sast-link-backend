@@ -2,33 +2,84 @@ name: golangci-lint
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - next/cicd # For test
   pull_request:
     branches:
       - main
       - "release/*.*.*"
+      - next/cicd
     paths:
       - "go.mod"
       - "go.sum"
       - "**.go"
 
+env:
+  GO_VERSION: '1.23'
+
 jobs:
-  go-static-checks:
+  lint-and-test:
+    # Only run if push to main or not previously run in a pull request
+    if: |
+      github.event_name == 'push' &&
+      (
+        github.event.pull_request.head.repo.full_name != github.repository ||
+        github.event.pull_request.merged != true
+      ) ||
+      github.event_name == 'pull_request'
+
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup go
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.23
+          go-version: ${{ env.GO_VERSION }}
           check-latest: true
-          cache: true
+          cache: false
+
+      # Cache Go modules to improve build time.
+      - name: Cache Go Modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      # Verify go.mod and go.sum are tidy.
       - name: Verify go.mod is tidy
         run: |
-          go mod tidy -go=1.23
-          git diff --exit-code
+          cd src
+          go mod tidy -go=${{ env.GO_VERSION }}
+          git diff --exit-code go.sum
+          git diff --exit-code go.mod
+
+      # Due to poor unit testing, we comment out it.
+      #
+      # Run unit tests.
+      # - name: Run unit tests
+      #   run: |
+      #     go test ./... -v -race -coverprofile=coverage.out
+      #   env:
+      #      GOFLAGS: "-mod=readonly"
+
+      # Upload code coverage report.
+      # - name: Upload Coverage Report
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: coverage-report
+      #     path: coverage.out
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.61.0
-          args: --verbose --timeout=3m
+          args: --verbose --timeout=3m --config=../.golangci.yaml
           skip-cache: true
+          working-directory: src
