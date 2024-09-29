@@ -4,12 +4,10 @@ on:
   push:
     branches:
       - main
-      - next/cicd # For test
   pull_request:
     branches:
       - main
       - "release/*.*.*"
-      - next/cicd
     paths:
       - "go.mod"
       - "go.sum"
