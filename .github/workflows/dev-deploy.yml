@@ -8,6 +8,10 @@ on:
     types:
       - closed
 
+concurrency:
+  group: ci_build-${{ github.event.inputs.branch || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   build:
     if: github.event.pull_request.merged
