@@ -13,7 +13,7 @@ import (
 func (s *APIV1Service) SystemSetting(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	settingType := c.Param("settingType")
+	settingType := c.Param("setting_type")
 	if settingType == "" {
 		log.Error("The setting type is empty")
 		return echo.NewHTTPError(http.StatusBadRequest, response.RequiredParams)
@@ -30,7 +30,7 @@ func (s *APIV1Service) SystemSetting(c echo.Context) error {
 func (s *APIV1Service) UpsetSystemSetting(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	settingType := c.Param("settingType")
+	settingType := c.Param("setting_type")
 	if settingType == "" {
 		log.Error("The setting type is empty")
 		return echo.NewHTTPError(http.StatusBadRequest, response.RequiredParams)

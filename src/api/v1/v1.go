@@ -85,6 +85,7 @@ func (s *APIV1Service) RegistryRoutes(_ context.Context, echoServer *echo.Echo) 
 		oauth.GET("/listClient", s.ListClient)
 		oauth.POST("/updateClient", s.UpdateClient)
 		oauth.POST("/deleteClient", s.DelClient)
+		oauth.GET("/client/:client_id", s.GetClient)
 	}
 	profileGroup := v1.Group("/profile")
 	{
@@ -96,7 +97,7 @@ func (s *APIV1Service) RegistryRoutes(_ context.Context, echoServer *echo.Echo) 
 	}
 	systemSettingGroup := v1.Group("/systemSetting")
 	{
-		systemSettingGroup.GET("/:settingType", s.SystemSetting)
-		systemSettingGroup.POST("/:settingType", s.UpsetSystemSetting)
+		systemSettingGroup.GET("/:setting_type", s.SystemSetting)
+		systemSettingGroup.POST("/:setting_type", s.UpsetSystemSetting)
 	}
 }

@@ -2,6 +2,7 @@ package middleware
 
 import "strings"
 
+// Don't need to check the authentication for the following paths.
 var authenticationAllowlist = map[string]bool{
 	"/api/v1/user/login":         true,
 	"/api/v1/user/register":      true,

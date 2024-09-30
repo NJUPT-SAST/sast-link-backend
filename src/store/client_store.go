@@ -9,7 +9,6 @@ import (
 	"github.com/go-oauth2/oauth2/v4"
 	"github.com/go-oauth2/oauth2/v4/models"
 	"github.com/pkg/errors"
-	"gorm.io/gorm"
 
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 )
@@ -111,21 +110,26 @@ func (s *ClientStore) GetByID(ctx context.Context, id string) (oauth2.ClientInfo
 }
 
 // ListClient retrieves and returns client information by user id.
+
+// It reveives a FindClientRequest struct as a parameter, which
+// contains the user id and client id.
 func (s *ClientStore) ListClient(ctx context.Context, find FindClientRequest) ([]ClientStoreItem, error) {
 	// Initialize the result slice
 	result := make([]ClientStoreItem, 0)
 
-	var query *gorm.DB
+	query := s.dbStore.db.Table(s.tableName).WithContext(ctx)
 	var err error
 
+	if find.UserID == "" && find.ID == "" {
+		return nil, errors.New("invalid request: UserID or ID must be provided")
+	}
+
 	// Determine query based on find conditions
-	switch {
-	case find.ID != "":
-		query = s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("id = ?", find.ID)
-	case find.UserID != "":
-		query = s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("user_id = ?", find.UserID)
-	default:
-		return nil, errors.New("invalid request: either ID or UserID must be provided")
+	if find.ID != "" {
+		query = query.Where("id = ?", find.ID)
+	}
+	if find.UserID != "" {
+		query = query.Where("user_id = ?", find.UserID)
 	}
 
 	// Execute the query

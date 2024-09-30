@@ -290,6 +290,33 @@ func (s *APIV1Service) ListClient(c echo.Context) error {
 	return c.JSON(http.StatusOK, response.Success(list))
 }
 
+func (s *APIV1Service) GetClient(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	clientID := c.QueryParam("client_id")
+	if clientID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.RequiredParams))
+	}
+
+	uid := request.GetUserID(c.Request())
+	if !s.OAuthServer.ClientStore.CheckClientOwner(ctx, clientID, uid) {
+		return echo.NewHTTPError(http.StatusForbidden, response.Failed(response.FORBIDDEN))
+	}
+
+	request := store.FindClientRequest{
+		ID:     clientID,
+		UserID: uid,
+	}
+
+	client, err := s.OAuthServer.ClientStore.GetClient(ctx, request)
+	if err != nil {
+		log.Errorf("Failed to get client: %s", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
+	}
+
+	return c.JSON(http.StatusOK, response.Success(client))
+}
+
 // UpdateClient updates client info.
 func (s *APIV1Service) UpdateClient(c echo.Context) error {
 	ctx := c.Request().Context()
