@@ -256,7 +256,7 @@ func (s *APIV1Service) CreateClient(c echo.Context) error {
 func (s *APIV1Service) AddRedirectURI(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	stuID := request.GetUsername(c.Request())
+	uid := request.GetUserID(c.Request())
 
 	clientID := c.FormValue("client_id")
 	redirectURI := c.FormValue("redirect_uri")
@@ -264,7 +264,7 @@ func (s *APIV1Service) AddRedirectURI(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.RequiredParams))
 	}
 
-	if err := s.OAuthServer.ClientStore.AddRedirectURI(ctx, stuID, clientID, redirectURI); err != nil {
+	if err := s.OAuthServer.ClientStore.AddRedirectURI(ctx, uid, clientID, redirectURI); err != nil {
 		log.Errorf("Failed to add redirect uri: %s", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
@@ -297,14 +297,33 @@ func (s *APIV1Service) UpdateClient(c echo.Context) error {
 	clientID := c.FormValue("client_id")
 	clientName := c.FormValue("client_name")
 	clientDesc := c.FormValue("client_desc")
-
-	if clientID == "" || clientName == "" {
+	redirectURIStr := c.FormValue("redirect_uri")
+	if clientID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.RequiredParams))
 	}
 
 	uid := request.GetUserID(c.Request())
 
-	if err := s.OAuthServer.ClientStore.UpdateClient(ctx, clientID, uid, clientName, clientDesc); err != nil {
+	if !s.OAuthServer.ClientStore.CheckClientOwner(ctx, clientID, uid) {
+		return echo.NewHTTPError(http.StatusForbidden, response.Failed(response.FORBIDDEN))
+	}
+
+	redirectURIs := strings.Split(redirectURIStr, ",")
+	for uir := range redirectURIs {
+		if !util.CheckRedirectURI(redirectURIs[uir]) {
+			return echo.NewHTTPError(http.StatusBadRequest, response.Failed(response.InvalidRedirectURI))
+		}
+	}
+
+	requestClient := store.UpdateClientRequest{
+		ID:           clientID,
+		Name:         clientName,
+		Desc:         clientDesc,
+		RedirectURIs: redirectURIs,
+		UserID:       uid,
+	}
+
+	if err := s.OAuthServer.ClientStore.UpdateClient(ctx, requestClient); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
 
@@ -321,6 +340,11 @@ func (s *APIV1Service) DelClient(c echo.Context) error {
 	}
 
 	uid := request.GetUserID(c.Request())
+
+	// Check whether the client belongs to the user
+	if !s.OAuthServer.ClientStore.CheckClientOwner(ctx, clientID, uid) {
+		return echo.NewHTTPError(http.StatusForbidden, response.Failed(response.FORBIDDEN))
+	}
 
 	if err := s.OAuthServer.ClientStore.DeleteClient(ctx, clientID, uid); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))

@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/mail"
 	"net/smtp"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -237,4 +238,22 @@ func MaskSecret(secret string) string {
 		return secret[:4] + "*******" + secret[len(secret)-4:]
 	}
 	return "*******"
+}
+
+// CheckRedirectURI checks whether the redirect URI is valid.
+func CheckRedirectURI(uri string) bool {
+	parseURI, err := url.Parse(uri)
+	if err != nil {
+		return false
+	}
+
+	if parseURI.Scheme == "" || parseURI.Host == "" {
+		return false
+	}
+
+	if parseURI.Scheme != "http" && parseURI.Scheme != "https" {
+		return false
+	}
+
+	return true
 }

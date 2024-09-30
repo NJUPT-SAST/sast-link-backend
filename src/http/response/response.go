@@ -111,6 +111,7 @@ var (
 	ClientError          = LocalError{ErrCode: 6003, ErrMsg: "client error"}
 	ClientNotFound       = LocalError{ErrCode: 6004, ErrMsg: "client not found"}
 	CodeInvalid          = LocalError{ErrCode: 6002, ErrMsg: "code invalid"}
+	InvalidRedirectURI   = LocalError{ErrCode: 6003, ErrMsg: "redirect uri invalid"}
 	// Profile error.
 	ProfileInfoError = LocalError{ErrCode: 7001, ErrMsg: "profile error"}
 	ProfileOrgError  = LocalError{ErrCode: 7002, ErrMsg: "profile organization error"}

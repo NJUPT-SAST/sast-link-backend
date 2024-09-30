@@ -47,6 +47,15 @@ type FindClientRequest struct {
 	UserID string `json:"user_id"`
 }
 
+type UpdateClientRequest struct {
+	ID           string   `json:"id"`
+	UserID       string   `json:"user_id"`
+	Name         string   `json:"name"`
+	Desc         string   `json:"desc"`
+	RedirectURIs []string `json:"redirect_uri"` // Domain
+	// Other fields ...
+}
+
 // NewClientStore creates PostgreSQL store instance.
 func NewClientStore(dbStore Store) *ClientStore {
 	store := &ClientStore{
@@ -57,7 +66,7 @@ func NewClientStore(dbStore Store) *ClientStore {
 	return store
 }
 
-//nolint
+// nolint
 // TODO: All tables should be created in the same place.
 func (s *ClientStore) initTable() error {
 	// Create table if not exists
@@ -160,11 +169,36 @@ func (s *ClientStore) GetClient(ctx context.Context, find FindClientRequest) (*C
 	return &client, nil
 }
 
-func (s *ClientStore) UpdateClient(ctx context.Context, id, uid, name, desc string) error {
-	return s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("id = ?", id).Where("user_id = ?", uid).Updates(map[string]interface{}{
-		"name": name,
-		"desc": desc,
-	}).Error
+// UpdateClient updates the client information.
+func (s *ClientStore) UpdateClient(ctx context.Context, request UpdateClientRequest) error {
+	tx := s.dbStore.db.Table(s.tableName).WithContext(ctx).Begin()
+
+	if request.ID == "" {
+		return errors.New("invalid request: ID must be provided")
+	}
+	if request.UserID == "" {
+		return errors.New("invalid request: UserID must be provided")
+	}
+
+	updateData := map[string]interface{}{}
+	if request.Name != "" {
+		updateData["name"] = request.Name
+	}
+	if request.Desc != "" {
+		updateData["desc"] = request.Desc
+	}
+	if len(request.RedirectURIs) > 0 {
+		updateData["domain"] = strings.Join(request.RedirectURIs, ",")
+	}
+
+	if err := tx.Where("id = ?", request.ID).
+		Where("user_id = ?", request.UserID).
+		Updates(updateData).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }
 
 func (s *ClientStore) DeleteClient(ctx context.Context, id, uid string) error {
@@ -190,13 +224,13 @@ func (s *ClientStore) Create(ctx context.Context, info oauth2.ClientInfo, name, 
 }
 
 // AddRedirectURI adds redirect uri to client information.
-func (s *ClientStore) AddRedirectURI(ctx context.Context, stuID, id, uri string) error {
-	if id == "" || uri == "" {
+func (s *ClientStore) AddRedirectURI(ctx context.Context, uid, clientID, uri string) error {
+	if clientID == "" || uri == "" {
 		return nil
 	}
 
 	var item ClientStoreItem
-	if err := s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("id = ?", id).First(&item).Error; err != nil {
+	if err := s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("id = ?", clientID).First(&item).Error; err != nil {
 		return err
 	}
 
@@ -206,12 +240,12 @@ func (s *ClientStore) AddRedirectURI(ctx context.Context, stuID, id, uri string)
 	}
 
 	dbURI := item.Domain
-	dbStuID, ok := dbMap["UserID"].(string)
+	dbUid, ok := dbMap["UserID"].(string)
 	if !ok {
 		return errors.New("user id not found")
 	}
 
-	if dbStuID != stuID {
+	if dbUid != uid {
 		return errors.New("user id not match")
 	}
 
@@ -226,5 +260,29 @@ func (s *ClientStore) AddRedirectURI(ctx context.Context, stuID, id, uri string)
 
 	uris = append(uris, uri)
 
-	return s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("id = ?", id).Update("domain", strings.Join(uris, ",")).Error
+	return s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("id = ?", clientID).Update("domain", strings.Join(uris, ",")).Error
+}
+
+// CheckPermissions checks the user whether has the permission to access the client.
+func (s *ClientStore) CheckClientOwner(ctx context.Context, uid, clientID string) bool {
+	var item ClientStoreItem
+	if err := s.dbStore.db.Table(s.tableName).WithContext(ctx).Where("id = ?", clientID).First(&item).Error; err != nil {
+		return false
+	}
+
+	dbMap := make(map[string]interface{})
+	if err := json.Unmarshal(item.Data, &dbMap); err != nil {
+		return false
+	}
+
+	dbUid, ok := dbMap["UserID"].(string)
+	if !ok {
+		return false
+	}
+
+	if dbUid != uid {
+		return false
+	}
+
+	return true
 }
