@@ -121,3 +121,18 @@ func (s *APIV1Service) DealCensorRes(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, response.Success(nil))
 }
+
+// BindStatus return the third-party binding status of the user.
+func (s *APIV1Service) BindStatus(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	stuID := request.GetUsername(c.Request())
+
+	bindList, err := s.GetBindList(ctx, stuID)
+	if err != nil {
+		log.Errorf("GetBindList service error: %s", err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
+	}
+
+	return c.JSON(http.StatusOK, response.Success(bindList))
+}

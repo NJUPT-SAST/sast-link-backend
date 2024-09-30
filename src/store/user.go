@@ -154,3 +154,14 @@ func (s *Store) SendEmail(ctx context.Context, recipient, content, title string)
 	secret := emailInfo.Secret
 	return util.SendEmail(sender, secret, recipient, content, title)
 }
+
+// GetOauthBindStatusByUID get oauth bind status by uid
+func (s *Store) GetOauthBindStatusByUID(ctx context.Context, uid string) ([]string, error) {
+	var oauthBindStatus []string
+	err := s.db.WithContext(ctx).Table("oauth2_info").Where("user_id = ?", uid).Pluck("client", &oauthBindStatus).Error
+	if err != nil {
+		log.Errorf("Failed to get oauth bind status by uid: %s\n", err.Error())
+		return nil, errors.Wrap(err, "failed to get oauth bind status by uid")
+	}
+	return oauthBindStatus, nil
+}

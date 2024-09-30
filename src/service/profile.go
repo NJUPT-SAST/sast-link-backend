@@ -346,3 +346,13 @@ func (s *ProfileService) DealWithFrozenImage(ctx context.Context, checkRes *stor
 	}
 	return nil
 }
+
+// GetBindList get bind list by uid
+func (s *ProfileService)GetBindList(ctx context.Context, uid string) ([]string, error) {
+	binds, err := s.Store.GetOauthBindStatusByUID(ctx, uid)
+	if err != nil {
+		log.Errorf("GetBindList service error: %s", err.Error())
+		return nil, err
+	}
+	return binds, nil
+}

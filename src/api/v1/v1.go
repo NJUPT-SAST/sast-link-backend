@@ -89,6 +89,7 @@ func (s *APIV1Service) RegistryRoutes(_ context.Context, echoServer *echo.Echo) 
 	profileGroup := v1.Group("/profile")
 	{
 		profileGroup.GET("/getProfile", s.GetProfile)
+		profileGroup.GET("/bindStatus", s.BindStatus)
 		profileGroup.POST("/change", s.ChangeProfile)
 		profileGroup.POST("/changeAvatar", s.UploadAvatar)
 		profileGroup.POST("/dealCensorRes", s.DealCensorRes)
