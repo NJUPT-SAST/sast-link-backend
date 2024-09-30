@@ -10,6 +10,7 @@ import (
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 )
 
+// TODO: Need to authrize the user
 func (s *APIV1Service) SystemSetting(c echo.Context) error {
 	ctx := c.Request().Context()
 
@@ -27,6 +28,7 @@ func (s *APIV1Service) SystemSetting(c echo.Context) error {
 	}))
 }
 
+// TODO: Need to authrize the user
 func (s *APIV1Service) UpsetSystemSetting(c echo.Context) error {
 	ctx := c.Request().Context()
 

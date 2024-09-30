@@ -85,7 +85,7 @@ func (s *APIV1Service) RegistryRoutes(_ context.Context, echoServer *echo.Echo) 
 		oauth.GET("/listClient", s.ListClient)
 		oauth.POST("/updateClient", s.UpdateClient)
 		oauth.POST("/deleteClient", s.DelClient)
-		oauth.GET("/client/:client_id", s.GetClient)
+		oauth.GET("/client", s.GetClient)
 	}
 	profileGroup := v1.Group("/profile")
 	{
