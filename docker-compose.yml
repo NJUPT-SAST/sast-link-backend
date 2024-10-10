@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   postgres:
     image: postgres:latest
@@ -9,7 +7,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_CONTAINER_PORT}:${POSTGRES_PORT}"
     volumes:
       - "./sql/ddl.sql:/docker-entrypoint-initdb.d/ddl.sql"
     healthcheck:
@@ -21,7 +19,7 @@ services:
   redis:
     image: redis:latest
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${REDIS_CONTAINER_PORT}:${REDIS_PORT}"
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -35,9 +33,11 @@ services:
       context: .
       dockerfile: ./docker/Dockerfile
     ports:
-      - "8080:8080"
+      - "127.0.0.1:${SASTLINK_CONTAINER_PORT}:${SASTLINK_PORT}"
     environment:
       CONFIG_FILE: ${CONFIG_FILE}
+    volumes:
+      - ${CONFIG_PATH}:/sastlink/config
     depends_on:
       postgres:
         condition: service_healthy
