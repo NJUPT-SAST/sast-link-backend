@@ -9,6 +9,7 @@ services:
     ports:
       - "127.0.0.1:${POSTGRES_CONTAINER_PORT}:${POSTGRES_PORT}"
     volumes:
+      - pgdata:/var/lib/postgresql/data
       - "./sql/ddl.sql:/docker-entrypoint-initdb.d/ddl.sql"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -h localhost -p 5432"]
@@ -43,3 +44,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+volumes:
+  pgdata:
