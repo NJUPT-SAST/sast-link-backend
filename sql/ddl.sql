@@ -21,7 +21,7 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- Name: admin; Type: TABLE; Schema: public; Owner: postgres
+-- Name: admin; Type: TABLE; Schema: public; Owner: sastlink
 --
 
 CREATE TABLE public.admin (
@@ -31,10 +31,10 @@ CREATE TABLE public.admin (
 );
 
 
-ALTER TABLE public.admin OWNER TO postgres;
+ALTER TABLE public.admin OWNER TO sastlink;
 
 --
--- Name: admin_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: admin_id_seq; Type: SEQUENCE; Schema: public; Owner: sastlink
 --
 
 CREATE SEQUENCE public.admin_id_seq
@@ -46,17 +46,17 @@ CREATE SEQUENCE public.admin_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.admin_id_seq OWNER TO postgres;
+ALTER TABLE public.admin_id_seq OWNER TO sastlink;
 
 --
--- Name: admin_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: admin_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: sastlink
 --
 
 ALTER SEQUENCE public.admin_id_seq OWNED BY public.admin.id;
 
 
 --
--- Name: carrer_records; Type: TABLE; Schema: public; Owner: postgres
+-- Name: carrer_records; Type: TABLE; Schema: public; Owner: sastlink
 --
 
 CREATE TABLE public.carrer_records (
@@ -69,45 +69,45 @@ CREATE TABLE public.carrer_records (
 );
 
 
-ALTER TABLE public.carrer_records OWNER TO postgres;
+ALTER TABLE public.carrer_records OWNER TO sastlink;
 
 --
--- Name: COLUMN carrer_records.user_id; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN carrer_records.user_id; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.carrer_records.user_id IS '与user表映射，表示某个用户的生涯记录';
 
 
 --
--- Name: COLUMN carrer_records.org_id; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN carrer_records.org_id; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.carrer_records.org_id IS '与orgnize表映射，表示用户该届所在的组织';
 
 
 --
--- Name: COLUMN carrer_records.grade; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN carrer_records.grade; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.carrer_records.grade IS '表示某一届（如：2023届）';
 
 
 --
--- Name: COLUMN carrer_records.is_delete; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN carrer_records.is_delete; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.carrer_records.is_delete IS '假删';
 
 
 --
--- Name: COLUMN carrer_records."position"; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN carrer_records."position"; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.carrer_records."position" IS '包括:部员、讲师、组长、部长、主席';
 
 
 --
--- Name: carrer_records_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: carrer_records_id_seq; Type: SEQUENCE; Schema: public; Owner: sastlink
 --
 
 CREATE SEQUENCE public.carrer_records_id_seq
@@ -119,17 +119,17 @@ CREATE SEQUENCE public.carrer_records_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.carrer_records_id_seq OWNER TO postgres;
+ALTER TABLE public.carrer_records_id_seq OWNER TO sastlink;
 
 --
--- Name: carrer_records_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: carrer_records_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: sastlink
 --
 
 ALTER SEQUENCE public.carrer_records_id_seq OWNED BY public.carrer_records.id;
 
 
 --
--- Name: organize; Type: TABLE; Schema: public; Owner: postgres
+-- Name: organize; Type: TABLE; Schema: public; Owner: sastlink
 --
 
 CREATE TABLE public.organize (
@@ -139,10 +139,10 @@ CREATE TABLE public.organize (
 );
 
 
-ALTER TABLE public.organize OWNER TO postgres;
+ALTER TABLE public.organize OWNER TO sastlink;
 
 --
--- Name: department_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: department_id_seq; Type: SEQUENCE; Schema: public; Owner: sastlink
 --
 
 CREATE SEQUENCE public.department_id_seq
@@ -154,17 +154,17 @@ CREATE SEQUENCE public.department_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.department_id_seq OWNER TO postgres;
+ALTER TABLE public.department_id_seq OWNER TO sastlink;
 
 --
--- Name: department_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: department_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: sastlink
 --
 
 ALTER SEQUENCE public.department_id_seq OWNED BY public.organize.id;
 
 
 --
--- Name: oauth2_clients; Type: TABLE; Schema: public; Owner: postgres
+-- Name: oauth2_clients; Type: TABLE; Schema: public; Owner: sastlink
 --
 
 CREATE TABLE public.oauth2_clients (
@@ -175,10 +175,10 @@ CREATE TABLE public.oauth2_clients (
 );
 
 
-ALTER TABLE public.oauth2_clients OWNER TO postgres;
+ALTER TABLE public.oauth2_clients OWNER TO sastlink;
 
 --
--- Name: oauth2_info; Type: TABLE; Schema: public; Owner: postgres
+-- Name: oauth2_info; Type: TABLE; Schema: public; Owner: sastlink
 --
 
 CREATE TABLE public.oauth2_info (
@@ -190,31 +190,31 @@ CREATE TABLE public.oauth2_info (
 );
 
 
-ALTER TABLE public.oauth2_info OWNER TO postgres;
+ALTER TABLE public.oauth2_info OWNER TO sastlink;
 
 --
--- Name: COLUMN oauth2_info.client; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN oauth2_info.client; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.oauth2_info.client IS 'oauth client, eg. Feishu';
 
 
 --
--- Name: COLUMN oauth2_info.oauth_user_id; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN oauth2_info.oauth_user_id; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.oauth2_info.oauth_user_id IS 'user id, eg. github user id.';
 
 
 --
--- Name: COLUMN oauth2_info.user_id; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN oauth2_info.user_id; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.oauth2_info.user_id IS 'user id, eg. B21010101';
 
 
 --
--- Name: oauth2_info_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: oauth2_info_id_seq; Type: SEQUENCE; Schema: public; Owner: sastlink
 --
 
 CREATE SEQUENCE public.oauth2_info_id_seq
@@ -226,17 +226,17 @@ CREATE SEQUENCE public.oauth2_info_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.oauth2_info_id_seq OWNER TO postgres;
+ALTER TABLE public.oauth2_info_id_seq OWNER TO sastlink;
 
 --
--- Name: oauth2_info_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: oauth2_info_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: sastlink
 --
 
 ALTER SEQUENCE public.oauth2_info_id_seq OWNED BY public.oauth2_info.id;
 
 
 --
--- Name: oauth2_tokens; Type: TABLE; Schema: public; Owner: postgres
+-- Name: oauth2_tokens; Type: TABLE; Schema: public; Owner: sastlink
 --
 
 CREATE TABLE public.oauth2_tokens (
@@ -250,10 +250,10 @@ CREATE TABLE public.oauth2_tokens (
 );
 
 
-ALTER TABLE public.oauth2_tokens OWNER TO postgres;
+ALTER TABLE public.oauth2_tokens OWNER TO sastlink;
 
 --
--- Name: oauth2_tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: oauth2_tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: sastlink
 --
 
 CREATE SEQUENCE public.oauth2_tokens_id_seq
@@ -264,17 +264,17 @@ CREATE SEQUENCE public.oauth2_tokens_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.oauth2_tokens_id_seq OWNER TO postgres;
+ALTER TABLE public.oauth2_tokens_id_seq OWNER TO sastlink;
 
 --
--- Name: oauth2_tokens_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: oauth2_tokens_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: sastlink
 --
 
 ALTER SEQUENCE public.oauth2_tokens_id_seq OWNED BY public.oauth2_tokens.id;
 
 
 --
--- Name: profile; Type: TABLE; Schema: public; Owner: postgres
+-- Name: profile; Type: TABLE; Schema: public; Owner: sastlink
 --
 
 CREATE TABLE public.profile (
@@ -292,80 +292,80 @@ CREATE TABLE public.profile (
 );
 
 
-ALTER TABLE public.profile OWNER TO postgres;
+ALTER TABLE public.profile OWNER TO sastlink;
 
 --
--- Name: COLUMN profile.user_id; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN profile.user_id; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.profile.user_id IS '与user表映射';
 
 
 --
--- Name: COLUMN profile.nickname; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN profile.nickname; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.profile.nickname IS '昵称';
 
 
 --
--- Name: COLUMN profile.org_id; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN profile.org_id; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.profile.org_id IS '对应部门和组的信息（现在的职位，历史职位的信息在carrer_records中）';
 
 
 --
--- Name: COLUMN profile.bio; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN profile.bio; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.profile.bio IS '自我介绍';
 
 
 --
--- Name: COLUMN profile.email; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN profile.email; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.profile.email IS '邮箱(默认展示)';
 
 
 --
--- Name: COLUMN profile.badge; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN profile.badge; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.profile.badge IS '纪念卡';
 
 
 --
--- Name: COLUMN profile.link; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN profile.link; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.profile.link IS '个人链接（包括自己b站、博客、GitHub等账号链接）';
 
 
 --
--- Name: COLUMN profile.avatar; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN profile.avatar; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.profile.avatar IS '头像（存储oss链接）';
 
 
 --
--- Name: COLUMN profile.is_deleted; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN profile.is_deleted; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.profile.is_deleted IS '假删';
 
 
 --
--- Name: COLUMN profile.hide; Type: COMMENT; Schema: public; Owner: postgres
+-- Name: COLUMN profile.hide; Type: COMMENT; Schema: public; Owner: sastlink
 --
 
 COMMENT ON COLUMN public.profile.hide IS '选择隐藏的信息';
 
 
 --
--- Name: profile_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: profile_id_seq; Type: SEQUENCE; Schema: public; Owner: sastlink
 --
 
 CREATE SEQUENCE public.profile_id_seq
@@ -377,17 +377,17 @@ CREATE SEQUENCE public.profile_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.profile_id_seq OWNER TO postgres;
+ALTER TABLE public.profile_id_seq OWNER TO sastlink;
 
 --
--- Name: profile_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: profile_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: sastlink
 --
 
 ALTER SEQUENCE public.profile_id_seq OWNED BY public.profile.id;
 
 
 --
--- Name: user; Type: TABLE; Schema: public; Owner: postgres
+-- Name: user; Type: TABLE; Schema: public; Owner: sastlink
 --
 
 CREATE TABLE public."user" (
@@ -404,10 +404,10 @@ CREATE TABLE public."user" (
 );
 
 
-ALTER TABLE public."user" OWNER TO postgres;
+ALTER TABLE public."user" OWNER TO sastlink;
 
 --
--- Name: user_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: user_id_seq; Type: SEQUENCE; Schema: public; Owner: sastlink
 --
 
 CREATE SEQUENCE public.user_id_seq
@@ -419,66 +419,66 @@ CREATE SEQUENCE public.user_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.user_id_seq OWNER TO postgres;
+ALTER TABLE public.user_id_seq OWNER TO sastlink;
 
 --
--- Name: user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: sastlink
 --
 
 ALTER SEQUENCE public.user_id_seq OWNED BY public."user".id;
 
 
 --
--- Name: admin id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: admin id; Type: DEFAULT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public.admin ALTER COLUMN id SET DEFAULT nextval('public.admin_id_seq'::regclass);
 
 
 --
--- Name: carrer_records id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: carrer_records id; Type: DEFAULT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public.carrer_records ALTER COLUMN id SET DEFAULT nextval('public.carrer_records_id_seq'::regclass);
 
 
 --
--- Name: oauth2_info id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: oauth2_info id; Type: DEFAULT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public.oauth2_info ALTER COLUMN id SET DEFAULT nextval('public.oauth2_info_id_seq'::regclass);
 
 
 --
--- Name: oauth2_tokens id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: oauth2_tokens id; Type: DEFAULT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public.oauth2_tokens ALTER COLUMN id SET DEFAULT nextval('public.oauth2_tokens_id_seq'::regclass);
 
 
 --
--- Name: organize id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: organize id; Type: DEFAULT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public.organize ALTER COLUMN id SET DEFAULT nextval('public.department_id_seq'::regclass);
 
 
 --
--- Name: profile id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: profile id; Type: DEFAULT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public.profile ALTER COLUMN id SET DEFAULT nextval('public.profile_id_seq'::regclass);
 
 
 --
--- Name: user id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: user id; Type: DEFAULT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public."user" ALTER COLUMN id SET DEFAULT nextval('public.user_id_seq'::regclass);
 
 
 --
--- Name: admin admin_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: admin admin_pkey; Type: CONSTRAINT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public.admin
@@ -486,7 +486,7 @@ ALTER TABLE ONLY public.admin
 
 
 --
--- Name: carrer_records carrer_records_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: carrer_records carrer_records_pkey; Type: CONSTRAINT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public.carrer_records
@@ -494,7 +494,7 @@ ALTER TABLE ONLY public.carrer_records
 
 
 --
--- Name: organize department_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: organize department_pkey; Type: CONSTRAINT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public.organize
@@ -502,7 +502,7 @@ ALTER TABLE ONLY public.organize
 
 
 --
--- Name: oauth2_clients oauth2_clients_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: oauth2_clients oauth2_clients_pkey; Type: CONSTRAINT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public.oauth2_clients
@@ -510,7 +510,7 @@ ALTER TABLE ONLY public.oauth2_clients
 
 
 --
--- Name: oauth2_info oauth2_info_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: oauth2_info oauth2_info_unique; Type: CONSTRAINT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public.oauth2_info
@@ -518,7 +518,7 @@ ALTER TABLE ONLY public.oauth2_info
 
 
 --
--- Name: oauth2_tokens oauth2_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: oauth2_tokens oauth2_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public.oauth2_tokens
@@ -526,7 +526,7 @@ ALTER TABLE ONLY public.oauth2_tokens
 
 
 --
--- Name: profile profile_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: profile profile_pkey; Type: CONSTRAINT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public.profile
@@ -534,7 +534,7 @@ ALTER TABLE ONLY public.profile
 
 
 --
--- Name: user user_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: user user_pkey; Type: CONSTRAINT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public."user"
@@ -542,7 +542,7 @@ ALTER TABLE ONLY public."user"
 
 
 --
--- Name: user user_un; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: user user_un; Type: CONSTRAINT; Schema: public; Owner: sastlink
 --
 
 ALTER TABLE ONLY public."user"
@@ -550,28 +550,28 @@ ALTER TABLE ONLY public."user"
 
 
 --
--- Name: idx_oauth2_tokens_access; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_oauth2_tokens_access; Type: INDEX; Schema: public; Owner: sastlink
 --
 
 CREATE INDEX idx_oauth2_tokens_access ON public.oauth2_tokens USING btree (access);
 
 
 --
--- Name: idx_oauth2_tokens_code; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_oauth2_tokens_code; Type: INDEX; Schema: public; Owner: sastlink
 --
 
 CREATE INDEX idx_oauth2_tokens_code ON public.oauth2_tokens USING btree (code);
 
 
 --
--- Name: idx_oauth2_tokens_expires_at; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_oauth2_tokens_expires_at; Type: INDEX; Schema: public; Owner: sastlink
 --
 
 CREATE INDEX idx_oauth2_tokens_expires_at ON public.oauth2_tokens USING btree (expires_at);
 
 
 --
--- Name: idx_oauth2_tokens_refresh; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_oauth2_tokens_refresh; Type: INDEX; Schema: public; Owner: sastlink
 --
 
 CREATE INDEX idx_oauth2_tokens_refresh ON public.oauth2_tokens USING btree (refresh);
