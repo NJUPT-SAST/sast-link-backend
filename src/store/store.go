@@ -53,7 +53,7 @@ func (s *Store) WithLogger(log *zap.Logger) *Store {
 }
 
 // NewStore creates a new store.
-func NewStore(ctx context.Context, profile *config.Config) (*Store, error) {
+func NewStore(ctx context.Context, profile *config.Config, logger *zap.Logger) (*Store, error) {
 	db, err := NewPostgresDB(profile)
 	if err != nil {
 		return nil, err
@@ -66,6 +66,7 @@ func NewStore(ctx context.Context, profile *config.Config) (*Store, error) {
 		Profile: profile,
 		db:      db,
 		rdb:     rdb,
+		log:     logger,
 	}, nil
 }
 
@@ -87,10 +88,10 @@ func NewPostgresDB(profile *config.Config) (*gorm.DB, error) {
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		fmt.Printf("Failed to connect database: %s", err)
+		fmt.Printf("Failed to connect database: %s\n", err)
 		return nil, err
 	}
-	fmt.Printf("Connected to database: %s:%d", profile.PostgresHost, profile.PostgresPort)
+	fmt.Printf("Connected to database: %s:%d\n", profile.PostgresHost, profile.PostgresPort)
 	return db, nil
 }
 
@@ -108,10 +109,10 @@ func NewRedisDB(ctx context.Context, profile *config.Config) (*redis.Client, err
 
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil || rdb == nil {
-		fmt.Printf("Failed to connect redis: %s", err)
+		fmt.Printf("Failed to connect redis: %s\n", err)
 		return nil, err
 	}
-	fmt.Printf("Connected to redis: %s:%d", host, port)
+	fmt.Printf("Connected to redis: %s:%d\n", host, port)
 	return rdb, nil
 }
 

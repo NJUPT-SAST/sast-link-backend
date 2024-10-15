@@ -41,7 +41,8 @@ var (
 func run(_ *cobra.Command, _ []string) {
 	instanceConfig := config.NewConfig()
 	ctx, cancel := context.WithCancel(context.Background())
-	storeInstance, err := store.NewStore(ctx, instanceConfig)
+	logger := log.NewLogger(log.WithModule("main"))
+	storeInstance, err := store.NewStore(ctx, instanceConfig, logger)
 	if err != nil {
 		cancel()
 		fmt.Printf("Failed to create store: %s", err)
