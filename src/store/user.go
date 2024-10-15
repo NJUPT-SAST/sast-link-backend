@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 
 	"github.com/pkg/errors"
@@ -66,7 +66,7 @@ func (s *Store) CheckPassword(username string, password string) (string, error) 
 	}
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Errorf("User [%s] Not Exist\n", username)
+			s.log.Error("User not exist", zap.String("username", username))
 			return "", errors.New("User not exist")
 		}
 	}
@@ -97,11 +97,11 @@ func (s *Store) UserByField(ctx context.Context, field, value string) (*User, er
 	err := s.db.WithContext(ctx).Where(fmt.Sprintf("%s = ?", field), value).Where("is_deleted = ?", false).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// userLogger.Errorf("User with [%s: %s] Not Exist\n", field, value)
-			log.Debugf("User with [%s: %s] Not Exist\n", field, value)
+			s.log.Warn("User not exist", zap.String("field", field), zap.String("value", value))
 			return nil, nil
 		}
-		log.Errorf("Failed to query user by field: %s\n", field)
+
+		s.log.Error("Failed to query user by field", zap.String("field", field), zap.String("value", value), zap.Error(err))
 		return nil, errors.Wrap(err, "failed to query user by field")
 	}
 	return &user, nil
@@ -120,7 +120,7 @@ func (s *Store) UserInfo(ctx context.Context, username string) (*User, error) {
 	}
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Errorf("User [%s] Not Exist\n", username)
+			s.log.Warn("User not exist", zap.String("username", username))
 			return nil, nil
 		}
 		return nil, err
@@ -160,7 +160,7 @@ func (s *Store) GetOauthBindStatusByUID(ctx context.Context, uid string) ([]stri
 	var oauthBindStatus []string
 	err := s.db.WithContext(ctx).Table("oauth2_info").Where("user_id = ?", uid).Pluck("client", &oauthBindStatus).Error
 	if err != nil {
-		log.Errorf("Failed to get oauth bind status by uid: %s\n", err.Error())
+		s.log.Error("Failed to get oauth bind status", zap.String("uid", uid), zap.Error(err))
 		return nil, errors.Wrap(err, "failed to get oauth bind status by uid")
 	}
 	return oauthBindStatus, nil

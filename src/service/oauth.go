@@ -12,8 +12,8 @@ type OauthService struct {
 	*BaseService
 }
 
-func NewOauthService(store *BaseService) *OauthService {
-	return &OauthService{store}
+func NewOauthService(base *BaseService) *OauthService {
+	return &OauthService{base}
 }
 
 func (s *OauthService) UpsetOauthInfo(username, clientType, oauthID string, oauth2Info datatypes.JSON) {

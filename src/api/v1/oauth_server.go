@@ -13,6 +13,7 @@ import (
 	"github.com/go-oauth2/oauth2/v4/models"
 	"github.com/go-oauth2/oauth2/v4/server"
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
@@ -25,11 +26,14 @@ type OAuthServer struct {
 	Srv         *server.Server
 	TokenStore  *store.TokenStore
 	ClientStore *store.ClientStore
+
+	log *zap.Logger
 }
 
 func NewOAuthServer(_ context.Context, dbStore store.Store) (*OAuthServer, error) {
-	tokenStore := store.NewTokenStore(dbStore, store.WithTokenStoreGCInterval(5*time.Minute))
-	clientStore := store.NewClientStore(dbStore)
+	logger := log.NewLogger(log.WithModule("oauth_server"))
+	tokenStore := store.NewTokenStore(dbStore.WithLogger(logger.WithOptions(log.WithLayer("model"))), store.WithTokenStoreGCInterval(5*time.Minute))
+	clientStore := store.NewClientStore(dbStore.WithLogger(logger.WithOptions(log.WithLayer("model"))))
 
 	mg := manage.NewDefaultManager()
 	mg.MapTokenStorage(tokenStore)
@@ -44,6 +48,7 @@ func NewOAuthServer(_ context.Context, dbStore store.Store) (*OAuthServer, error
 		Srv:         srv,
 		TokenStore:  tokenStore,
 		ClientStore: clientStore,
+		log:         log.NewLogger(log.WithModule("oauth_server"), log.WithLayer("internal")),
 	}, nil
 }
 
@@ -61,17 +66,16 @@ func (s *OAuthServer) SetHandler() {
 	// RFC 6749 https://www.rfc-editor.org/rfc/rfc6749#section-5.1
 	// s.Srv.SetResponseTokenHandler(ResponseTokenHandler)
 
-	s.Srv.SetPreRedirectErrorHandler(PreRedirectErrorHandler)
+	// s.Srv.SetPreRedirectErrorHandler(s.PreRedirectErrorHandler)
 }
 
 // nolint
-func PreRedirectErrorHandler(w http.ResponseWriter, req *server.AuthorizeRequest, err error) error {
-	log.Errorf("Oauth2 Server ::: PreRedirectErrorHandler:[%s]", err.Error())
+func (s *OAuthServer) PreRedirectErrorHandler(w http.ResponseWriter, req *server.AuthorizeRequest, err error) error {
+	s.log.Error("Error occurred when handling authorize request", zap.String("client_id", req.ClientID), zap.Error(err))
 	return err
 }
 
 func InternalErrorHandler(err error) (re *errors.Response) {
-	log.Errorf("Oauth2 Server ::: InternalErrorHandler:[%s]", err.Error())
 	reErr := errors.NewResponse(err, http.StatusInternalServerError)
 	reErr.ErrorCode = 500
 	reErr.StatusCode = http.StatusInternalServerError
@@ -80,7 +84,6 @@ func InternalErrorHandler(err error) (re *errors.Response) {
 }
 
 func ResponseErrorHandler(re *errors.Response) {
-	log.Errorf("Oauth2 ::: ResponseErrorHandler:[%s]", re.Error.Error())
 }
 
 func ResponseTokenHandler(w http.ResponseWriter, data map[string]interface{}, header http.Header, statusCode ...int) error {
@@ -116,7 +119,6 @@ func ResponseTokenHandler(w http.ResponseWriter, data map[string]interface{}, he
 			ErrCode: errCode,
 			ErrMsg:  errMsg,
 		}
-		log.Errorf("Oauth2 ::: ResponseTokenHandler:error:[%s]", err)
 		return json.NewEncoder(w).Encode(response.Failed(err))
 	}
 
@@ -126,7 +128,7 @@ func ResponseTokenHandler(w http.ResponseWriter, data map[string]interface{}, he
 
 	err := response.LocalError{
 		ErrCode: 400,
-		ErrMsg:  "access_token not found",
+		ErrMsg:  "access token is invalid",
 	}
 
 	return json.NewEncoder(w).Encode(response.Failed(err))
@@ -151,7 +153,7 @@ func (s *APIV1Service) OauthUserInfo(c echo.Context) error {
 
 	user, err := s.OauthService.OauthUserInfo(ctx, ti.GetUserID())
 	if err != nil {
-		log.Errorf("Failed to get user info: %s", err)
+		s.OauthServerLog.Error("Failed to get user info", zap.Error(err))
 		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
 	if user == nil {
@@ -160,13 +162,13 @@ func (s *APIV1Service) OauthUserInfo(c echo.Context) error {
 
 	profileInfo, err := s.ProfileService.GetProfileInfo(*user.UID)
 	if err != nil {
-		log.Errorf("Failed to get profile info: %s", err)
+		s.OauthServerLog.Error("Failed to get profile info", zap.Error(err))
 		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
 
 	dep, org, err := s.ProfileService.GetProfileOrg(profileInfo.OrgID)
 	if err != nil {
-		log.Errorf("Failed to get profile org: %s", err)
+		s.OauthServerLog.Error("Failed to get profile orgenization", zap.Error(err))
 		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
 	return c.JSON(http.StatusOK, response.Success(map[string]interface{}{
@@ -265,7 +267,7 @@ func (s *APIV1Service) AddRedirectURI(c echo.Context) error {
 	}
 
 	if err := s.OAuthServer.ClientStore.AddRedirectURI(ctx, uid, clientID, redirectURI); err != nil {
-		log.Errorf("Failed to add redirect uri: %s", err)
+		s.OauthServerLog.Error("Failed to add redirect uri", zap.Error(err))
 		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
 
@@ -283,7 +285,7 @@ func (s *APIV1Service) ListClient(c echo.Context) error {
 	}
 	list, err := s.OAuthServer.ClientStore.ListClient(ctx, find)
 	if err != nil {
-		log.Errorf("Failed to list client: %s", err)
+		s.OauthServerLog.Error("Failed to list client", zap.Error(err))
 		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
 
@@ -310,7 +312,7 @@ func (s *APIV1Service) GetClient(c echo.Context) error {
 
 	client, err := s.OAuthServer.ClientStore.GetClient(ctx, request)
 	if err != nil {
-		log.Errorf("Failed to get client: %s", err)
+		s.OauthServerLog.Error("Failed to get client", zap.Error(err))
 		return echo.NewHTTPError(http.StatusInternalServerError, response.Failed(response.InternalError))
 	}
 
@@ -407,7 +409,7 @@ func (s *OAuthServer) clientInfoHandler(r *http.Request) (clientID, clientSecret
 		return "", "", errors.New("client id or client secret not found")
 	}
 
-	log.Debugf("Oauth2 Server ::: client_id:[%s]", clientID)
+	s.log.Debug("Client info", zap.String("client_id", clientID))
 
 	if clientID == "" {
 		return "", "", errors.New("client id not found")

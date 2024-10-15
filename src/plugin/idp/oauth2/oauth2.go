@@ -12,7 +12,6 @@ import (
 	"github.com/tidwall/gjson"
 	"golang.org/x/oauth2"
 
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 )
 
@@ -236,7 +235,6 @@ func (s *OAuth2Setting) FromJSON(jsonStr string) error {
 // FIXME: redirectURL is used to exchange token? maybe need to be removed.
 // ExchangeToken returns the exchanged OAuth2 token using the given authorization code.
 func ExchangeToken(ctx context.Context, oauth2Setting *OAuth2Setting, redirectURL, code string) (string, error) {
-	log.Debugf("ExchangeToken::[redirectURL: %s] [code: %s]", redirectURL, code)
 	conf := &oauth2.Config{
 		ClientID:     oauth2Setting.ClientID,
 		ClientSecret: oauth2Setting.ClientSecret,
@@ -250,13 +248,11 @@ func ExchangeToken(ctx context.Context, oauth2Setting *OAuth2Setting, redirectUR
 	}
 
 	token, err := conf.Exchange(ctx, code)
-	log.Debug("ExchangeToken::", err)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to exchange access token")
 	}
 
 	accessToken, ok := token.Extra("access_token").(string)
-	log.Debugf("ExchangeToken::[accessToken: %s]", accessToken)
 	if !ok {
 		return "", errors.New(`missing "access_token" from authorization response`)
 	}
@@ -266,31 +262,25 @@ func ExchangeToken(ctx context.Context, oauth2Setting *OAuth2Setting, redirectUR
 
 func UserInfo(_ context.Context, oauth2Setting *OAuth2Setting, token string) (*IdentityProviderUserInfo, error) {
 	client := &http.Client{}
-	log.Debug("UserInfo::userInfoUrl: ", oauth2Setting.UserInfoURL)
 	req, err := http.NewRequest(http.MethodGet, oauth2Setting.UserInfoURL, nil)
 	if err != nil {
-		log.Debug("UserInfo::", err)
 		return nil, errors.Wrap(err, "failed to new http request")
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Debug("UserInfo::", err)
 		return nil, errors.Wrap(err, "failed to get user information")
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Debug("UserInfo::", err)
 		return nil, errors.Wrap(err, "failed to read response body")
 	}
 	defer resp.Body.Close()
 
 	var claims map[string]any
 	err = json.Unmarshal(body, &claims)
-	log.Debug("UserInfo::body", string(body))
 	if err != nil {
-		log.Debug("UserInfo::", err)
 		return nil, errors.Wrap(err, "failed to unmarshal response body")
 	}
 
@@ -299,7 +289,7 @@ func UserInfo(_ context.Context, oauth2Setting *OAuth2Setting, token string) (*I
 }
 
 // FIXME: redirectURL is used to exchange token? maybe need to be removed.
-//nolint
+// nolint
 func LarkExchangeToken(_ context.Context, oauth2Setting *OAuth2Setting, redirectURL, code string) (string, error) {
 	appAccessToken, err := larkAppAccessToken(oauth2Setting)
 	if err != nil || appAccessToken == "" {
@@ -317,18 +307,15 @@ func LarkExchangeToken(_ context.Context, oauth2Setting *OAuth2Setting, redirect
 	}
 	res, err := util.PostWithHeader(oauth2Setting.TokenURL, header, data)
 	if err != nil {
-		log.Errorf("util.PostWithHeader ::: %s", err.Error())
 		return "", err
 	}
 
 	body, err := io.ReadAll(res.Body)
 	defer res.Body.Close()
 	if err != nil {
-		log.Errorf("io.ReadAll ::: %s", err.Error())
 		return "", errors.Wrap(err, "failed to read response body")
 	}
 	if resCode := gjson.Get(string(body), "code").Int(); resCode != 0 {
-		log.Errorf("LarkExchangeToken ::: gjson.Get ::: response code: %d\n", resCode)
 		return "", errors.New("Failed to exchange token")
 	}
 
@@ -346,18 +333,15 @@ func LarkUserInfo(_ context.Context, oauth2Setting *OAuth2Setting, accessToken s
 	}
 	res, err := util.GetWithHeader(oauth2Setting.UserInfoURL, header)
 	if err != nil {
-		log.Errorf("util.GetWithHeader ::: %s", err.Error())
 		return nil, errors.Wrap(err, "failed to get user information")
 	}
 
 	body, err := io.ReadAll(res.Body)
 	defer res.Body.Close()
 	if err != nil {
-		log.Errorf("io.ReadAll ::: %s", err.Error())
 		return nil, errors.Wrap(err, "failed to read response body")
 	}
 	if resCode := gjson.Get(string(body), "code").Int(); resCode != 0 {
-		log.Errorf("LarkUserInfo ::: gjson.Get ::: response code: %d\n", resCode)
 		return nil, errors.New("Failed to get user information")
 	}
 
@@ -384,26 +368,21 @@ func larkAppAccessToken(oauth2Setting *OAuth2Setting) (string, error) {
 
 	res, err := http.PostForm(appAccessTokenURL, params)
 	if err != nil {
-		log.Errorf("http.PostForm ::: %s", err.Error())
 		return "", err
 	}
-	// log.LogRes(res)
 
 	body, err := io.ReadAll(res.Body)
 	defer res.Body.Close()
 	if err != nil {
-		log.Errorf("io.ReadAll ::: %s", err.Error())
 		return "", err
 	}
 
 	if code := gjson.Get(string(body), "code").Int(); code != 0 {
-		log.Errorf("gjson.Get ::: code: %d", code)
 		return "", errors.New("Failed to get app_access_token")
 	}
 
 	acceToken := gjson.Get(string(body), "app_access_token").String()
-	expire := gjson.Get(string(body), "expire").Int()
-	log.Infof("larkAppAccessToken ::: expire: %d", expire)
+	// expire := gjson.Get(string(body), "expire").Int()
 
 	// TODO: store app_access_token in redis/postgresql
 	// model.Rdb.Set(model.RedisCtx, "lark_app_access_token", acceToken, time.Duration(expire))

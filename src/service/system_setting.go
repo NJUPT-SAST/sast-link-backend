@@ -11,8 +11,8 @@ type SysSettingService struct {
 	*BaseService
 }
 
-func NewSysSettingService(store *BaseService) *SysSettingService {
-	return &SysSettingService{store}
+func NewSysSettingService(base *BaseService) *SysSettingService {
+	return &SysSettingService{base}
 }
 
 func (s *SysSettingService) GetSysSetting(ctx context.Context, settingName string) (interface{}, error) {

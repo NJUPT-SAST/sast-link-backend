@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"strings"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/plugin/idp/oauth2"
 )
 
@@ -215,7 +215,7 @@ func (s *Store) UpsetSystemSetting(ctx context.Context, setting *SystemSetting) 
 	// Perform upsert operation
 	err := s.db.Table("system_setting").Where("name = ?", setting.Name).Assign(setting).FirstOrCreate(&setting).Error
 	if err != nil {
-		log.Errorf("Failed to upsert system setting: %s", err.Error())
+		s.log.Error("Failed to upsert system setting", zap.Error(err))
 		return err
 	}
 
@@ -234,20 +234,20 @@ func (s *Store) InsertSystemSetting(ctx context.Context, setting *SystemSetting)
 	if err == nil {
 		if !existingSetting.IsEmpty() || setting.IsEmpty() {
 			// Record exists, log and cache
-			log.Infof("Record with name %s already exists, skipping insert.", setting.Name)
+			s.log.Info("Record with name already exists, skipping insert.", zap.String("name", setting.Name))
 			return s.Set(ctx, existingSetting.Name, existingSetting, 0)
 		}
 		// Record exists, but the value is empty, proceed with the insert
 		// s.db.Table("system_setting").Where("name = ?", setting.Name).Delete(&existingSetting)
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		// An error occurred other than "record not found"
-		log.Errorf("Failed to check if record exists: %s", err.Error())
+		s.log.Error("Failed to query system setting", zap.Error(err))
 		return err
 	}
 
 	// Record does not exist, proceed with the insert
 	if err := s.db.Table("system_setting").Create(setting).Error; err != nil {
-		log.Errorf("Failed to insert system setting: %s", err.Error())
+		s.log.Error("Failed to insert system setting", zap.Error(err))
 		return err
 	}
 

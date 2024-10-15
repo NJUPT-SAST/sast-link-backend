@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 	"gorm.io/datatypes"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/plugin/idp/oauth2"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/NJUPT-SAST/sast-link-backend/validator"
@@ -35,18 +35,18 @@ func (s *APIV1Service) Login(c echo.Context) error {
 	// Get username from ticket
 	username, err := util.IdentityFromToken(ticket, request.LoginTicketSub)
 	if err != nil {
-		log.Errorf("Get username from ticket fail: %s", err.Error())
+		s.UserLog.Error("Username parse error from ticket", zap.Error(err))
 		return response.Error(c, response.TicketInvalid)
 	}
 	password := c.FormValue("password")
 	if password == "" || username == "" {
-		log.Errorf("Login fail, username: %s", username)
+		s.UserLog.Error("Username or password is empty", zap.String("username", username), zap.String("password", password))
 		return response.Error(c, response.RequiredParams)
 	}
 
 	uid, err := s.UserService.Login(username, password)
 	if err != nil {
-		log.Errorf("Login fail: %s", err.Error())
+		s.UserLog.Error("Login fail", zap.String("username", username), zap.Error(err))
 		return response.Error(c, response.LoginFailed)
 	}
 
@@ -60,7 +60,7 @@ func (s *APIV1Service) Login(c echo.Context) error {
 
 	// Upset the token to database
 	if err := s.Store.UpsetAccessTokensUserSetting(ctx, uid, token, ""); err != nil {
-		log.Errorf("Failed to upset access token to database: %s", err.Error())
+		s.UserLog.Error("Failed to upset access token to database", zap.Error(err))
 		return response.Error(c, response.InternalError)
 	}
 
@@ -83,7 +83,7 @@ func (s *APIV1Service) LoginWithSSO(c echo.Context) error {
 	if identityProvider.Type == oauth2.IDPTypeOAuth2 {
 		oauth2Idp, err := oauth2.NewOauth2IdentityProvider(identityProvider)
 		if err != nil {
-			log.Errorf("Failed to create oauth2 identity provider: %s", err.Error())
+			s.UserLog.Error("Failed to create oauth2 identity provider", zap.Error(err))
 			return response.Error(c, "failed to create oauth2 identity provider")
 		}
 		token, err := oauth2Idp.ExchangeToken(ctx, identityProvider.GetOauth2Setting(), c.QueryParam("redirect_url"), c.QueryParam("code"))
@@ -122,7 +122,7 @@ func (s *APIV1Service) LoginWithSSO(c echo.Context) error {
 		_ = s.Store.Set(ctx, fmt.Sprintf("BIND-EMAIL-%s-%s", idpName, userInfo.IdentifierID), userInfo.IdentifierID, request.BindEmailExp)
 		systemSetting, err := s.Store.GetSystemSetting(ctx, config.WebsiteSettingType.String())
 		if err != nil {
-			log.Errorf("Get website setting fail: %s", err.Error())
+			s.UserLog.Error("Get website setting fail", zap.Error(err))
 			return response.Error(c, response.InternalError)
 		}
 
@@ -231,7 +231,7 @@ func (s *APIV1Service) BindEmailWithSSO(c echo.Context) error {
 	return c.JSON(http.StatusOK, response.Success(map[string]string{request.AccessTokenCookieName: token}))
 }
 
-//nolint
+// nolint
 // TODO: Implement this function for login and login with SSO.
 func (s *APIV1Service) doLogin(ctx context.Context, username, password string) error {
 	return nil
@@ -274,7 +274,7 @@ func (s *APIV1Service) Register(c echo.Context) error {
 	}
 	// set VERIFY_STATUS to 3 if successes
 	_ = s.Store.Set(ctx, ticket, request.VerifyStatus["SUCCESS"], request.RegisterTicketExp)
-	log.Debugf("User [%s] register success", studentID)
+	s.UserLog.Info("User register success", zap.String("studentID", studentID))
 	return c.JSON(http.StatusOK, response.Success(nil))
 }
 
@@ -316,7 +316,7 @@ func (s *APIV1Service) CheckVerifyCode(c echo.Context) error {
 
 	// Update the status of the ticket
 	_ = s.Store.Set(ctx, ticket, request.VerifyStatus["VERIFY_CAPTCHA"], request.RegisterTicketExp)
-	log.Debugf("User [%s] check verify code success", studentID)
+	s.UserLog.Debug("Verify code success", zap.String("studentID", studentID))
 	return c.JSON(http.StatusOK, response.Success(nil))
 }
 
@@ -330,7 +330,7 @@ func (s *APIV1Service) Verify(c echo.Context) error {
 	// Capitalize the username
 	username = strings.ToLower(username)
 
-	log.Infof("Verify username: %s", username)
+	s.UserLog.Debug("Verify account", zap.String("username", username))
 
 	flag, _ := strconv.Atoi(c.QueryParam("flag"))
 	tKey := ""
@@ -353,7 +353,7 @@ func (s *APIV1Service) Verify(c echo.Context) error {
 
 	ticket, err := s.UserService.VerifyAccount(ctx, username, flag)
 	if err != nil {
-		log.Errorf("Verify account fail: %s", err.Error())
+		s.UserLog.Error("Verify account fail", zap.Error(err))
 		return response.Error(c, "verify account fail")
 	}
 
@@ -373,7 +373,7 @@ func (s *APIV1Service) VerifyEmail(c echo.Context) error {
 
 	ticket, err := util.GenerateTokenWithExp(c.Request().Context(), request.BindSSOSubKey(util.GetStudentIDFromEmail(email)), request.LoginTicketExp)
 	if err != nil {
-		log.Errorf("Verify email fail: %s", err.Error())
+		s.UserLog.Error("Generate token fail", zap.Error(err))
 		return response.Error(c, "verify email fail")
 	}
 
@@ -396,7 +396,7 @@ func (s *APIV1Service) Logout(c echo.Context) error {
 
 	// Delete the access token
 	if err := s.UserService.DeleteUserAccessToken(ctx, studentID, accessToken); err != nil {
-		log.Errorf("Delete access token fail: %s", err.Error())
+		s.UserLog.Error("Delete user access token fail", zap.Error(err))
 	}
 
 	response.SetCookieWithExpire(c, request.AccessTokenCookieName, "", 0)
@@ -420,20 +420,18 @@ func (s *APIV1Service) SendEmail(c echo.Context) error {
 	} else {
 		return response.Error(c, response.TicketNotFound)
 	}
-	log.Debugf("SendEmail::[ticket: %s] [flag: %s]", ticket, flag)
 
 	studentID, err := util.IdentityFromToken(ticket, flag)
 	// 错误处理机制写玉玉了
 	// 我开始乱写了啊啊啊啊
 	if err != nil {
-		log.Errorf("username parse error: %s", err.Error())
+		s.UserLog.Error("Parse studentID from token fail", zap.Error(err))
 		return response.Error(c, response.InternalError)
 	}
 
 	// Verify if the user email correct
-	log.Debugf("SendEmail::[studentID: %s]", studentID)
 	if !validator.ValidateStudentID(studentID) {
-		log.Errorf("student not valid : %s", studentID)
+		s.UserLog.Error("StudentID invalid", zap.String("studentID", studentID))
 		return echo.NewHTTPError(http.StatusBadRequest, response.EmailInvalid)
 	}
 
@@ -447,18 +445,18 @@ func (s *APIV1Service) SendEmail(c echo.Context) error {
 	}
 	status, err := s.Store.Get(ctx, ticket)
 	if err != nil || status == "" {
-		log.Errorf("should not in current phase: %v", err)
+		s.UserLog.Error("Get status fail", zap.Error(err))
 		return response.Error(c, response.InternalError)
 	}
 
 	email := util.UserNameToEmail(studentID)
 	if err := s.UserService.SendEmail(ctx, email, status, title); err != nil {
-		log.Errorf("Send email fail: %s", err.Error())
+		s.UserLog.Error("Send email fail", zap.Error(err))
 		return response.Error(c, err)
 	}
 
 	// Update the status of the ticket
 	_ = s.Store.Set(ctx, ticket, request.VerifyStatus["SEND_EMAIL"], request.RegisterTicketExp)
-	log.Debugf("send email to [%s] successfully", email)
+	s.UserLog.Debug("Send email success", zap.String("studentID", studentID))
 	return c.JSON(http.StatusOK, response.Success(nil))
 }

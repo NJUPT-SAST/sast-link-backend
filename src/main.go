@@ -90,7 +90,7 @@ func init() {
 	if config.SetupConfig() != nil {
 		os.Exit(1)
 	}
-	log.SetupLogger()
+	log.Logger = log.NewLogger(log.WithModule("global"))
 }
 
 func setupDefaults() {

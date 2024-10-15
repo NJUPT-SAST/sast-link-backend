@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 )
 
 const (
@@ -26,6 +26,30 @@ type Store struct {
 	Profile *config.Config
 	db      *gorm.DB
 	rdb     *redis.Client
+	log     *zap.Logger
+}
+
+type StoreOptions func(s *Store)
+
+func (s *Store) WithOptions(opts ...StoreOptions) *Store {
+	newStore := *s
+	for _, opt := range opts {
+		opt(&newStore)
+	}
+	return &newStore
+}
+
+func WithLogger(log *zap.Logger) StoreOptions {
+	return func(s *Store) {
+		s.log = log
+	}
+}
+
+// WithLogger will copy store and set the logger to the new store.
+func (s *Store) WithLogger(log *zap.Logger) *Store {
+	newStore := *s
+	newStore.log = log
+	return &newStore
 }
 
 // NewStore creates a new store.
@@ -63,10 +87,10 @@ func NewPostgresDB(profile *config.Config) (*gorm.DB, error) {
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		log.Errorf("Failed to connect database: %s", err)
+		fmt.Printf("Failed to connect database: %s", err)
 		return nil, err
 	}
-	log.Infof("Connected to database: %s:%d", profile.PostgresHost, profile.PostgresPort)
+	fmt.Printf("Connected to database: %s:%d", profile.PostgresHost, profile.PostgresPort)
 	return db, nil
 }
 
@@ -84,10 +108,10 @@ func NewRedisDB(ctx context.Context, profile *config.Config) (*redis.Client, err
 
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil || rdb == nil {
-		log.Errorf("Failed to connect redis: %s", err)
+		fmt.Printf("Failed to connect redis: %s", err)
 		return nil, err
 	}
-	log.Infof("Connected to redis: %s", addr)
+	fmt.Printf("Connected to redis: %s:%d", host, port)
 	return rdb, nil
 }
 

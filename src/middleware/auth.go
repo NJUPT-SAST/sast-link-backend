@@ -8,6 +8,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
@@ -19,10 +20,13 @@ import (
 type AuthInterceptor struct {
 	store  *store.Store
 	secret string
+
+	log *zap.Logger
 }
 
 func NewAuthInterceptor(store *store.Store, secret string) *AuthInterceptor {
-	return &AuthInterceptor{store: store, secret: secret}
+	logger := log.NewLogger(log.WithModule("auth"), log.WithLayer("middleware"))
+	return &AuthInterceptor{store: store, secret: secret, log: logger}
 }
 
 func (m *AuthInterceptor) AuthenticationInterceptor(next echo.HandlerFunc) echo.HandlerFunc {
@@ -30,10 +34,11 @@ func (m *AuthInterceptor) AuthenticationInterceptor(next echo.HandlerFunc) echo.
 		r, _ := c.Request(), c.Response().Writer
 		ctx := r.Context()
 
-		log.Debugf("Request URI: %s", r.RequestURI)
 		defer func() {
-			log.Debug("Incomming request",
-				log.Fields{"method": r.Method, "uri": r.RequestURI, "client_ip": c.RealIP(), "user_agent": r.UserAgent()})
+			m.log.Debug("Incomming request", zap.String("method", r.Method),
+				zap.String("uri", r.RequestURI),
+				zap.String("client_ip", c.RealIP()),
+				zap.String("user_agent", r.UserAgent()))
 		}()
 
 		if r.URL == nil {
@@ -47,25 +52,34 @@ func (m *AuthInterceptor) AuthenticationInterceptor(next echo.HandlerFunc) echo.
 
 		username, err := m.authenticate(r.Context(), accesstoken)
 		if err != nil {
-			log.ErrorWithFields("Failed to authenticate",
-				log.Fields{"client_ip": clientIP, "user_agent": r.UserAgent(), "error": err.Error()})
+			m.log.Error("Failed to authenticate",
+				zap.String("client_ip", clientIP),
+				zap.String("user_agent", r.UserAgent()),
+				zap.Error(err))
 			return response.Error(c, response.UNAUTHORIZED)
 		}
 		user, err := m.store.UserInfo(ctx, username)
 		if err != nil {
-			log.ErrorWithFields("Failed to get user",
-				log.Fields{"client_ip": clientIP, "user_agent": r.UserAgent(), "username": username, "error": err.Error()})
+			m.log.Error("Failed to get user",
+				zap.String("client_ip", clientIP),
+				zap.String("user_agent", r.UserAgent()),
+				zap.Error(err))
 			return response.Error(c, response.UNAUTHORIZED)
 		}
 
 		if user == nil {
-			log.DebugWithFields("User not found",
-				log.Fields{"client_ip": clientIP, "user_agent": r.UserAgent(), "username": username})
+			m.log.Error("User not found",
+				zap.String("client_ip", clientIP),
+				zap.String("user_agent", r.UserAgent()),
+				zap.Error(err))
 			return response.Error(c, response.UNAUTHORIZED)
 		}
 
-		log.DebugWithFields("User found",
-			log.Fields{"client_ip": clientIP, "user_agent": r.UserAgent(), "username": username})
+		m.log.Debug("User entered",
+			zap.String("client_ip", clientIP),
+			zap.String("user_agent", r.UserAgent()),
+			zap.String("username", username),
+		)
 
 		// if isOnlyForAdminAllowedPath(r.URL.Path) && user.Role != model.RoleHost && user.Role != model.RoleAdmin {
 		// 	log.DebugWithFields("User is not allowed to access this path",
@@ -118,9 +132,6 @@ func (m *AuthInterceptor) authenticate(ctx context.Context, accessToken string) 
 	if !validateAccessToken(accessToken, accessTokens) {
 		return "", errors.New("invalid access token")
 	}
-
-	log.DebugWithFields("User authenticated",
-		log.Fields{"username": *user.UID})
 
 	return *user.UID, nil
 }

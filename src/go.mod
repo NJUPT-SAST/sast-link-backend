@@ -21,13 +21,13 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.0.3
-	github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18
-	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.2.1
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.44
 	github.com/tidwall/gjson v1.12.1
+	go.uber.org/zap v1.21.0
 	golang.org/x/mod v0.9.0
 	golang.org/x/oauth2 v0.12.0
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gorm.io/datatypes v1.2.1
 )
 
@@ -86,6 +86,8 @@ require (
 	github.com/ugorji/go/codec v1.2.11 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
+	go.uber.org/atomic v1.9.0 // indirect
+	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/arch v0.4.0 // indirect
 	golang.org/x/crypto v0.22.0 // indirect
 	golang.org/x/net v0.24.0 // indirect

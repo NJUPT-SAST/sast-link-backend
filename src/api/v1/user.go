@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 )
 
@@ -17,7 +17,7 @@ func (s *APIV1Service) UserInfo(c echo.Context) error {
 	studentID := request.GetUsername(c.Request())
 	user, err := s.UserService.UserInfo(ctx, studentID)
 	if err != nil {
-		log.Errorf("Failed to find user: %s", err.Error())
+		s.UserLog.Error("Failed to get user info", zap.Error(err))
 		return echo.NewHTTPError(http.StatusInternalServerError, response.InternalError)
 	}
 	if user == nil {
@@ -62,7 +62,7 @@ func (s *APIV1Service) ResetPassword(c echo.Context) error {
 
 	cookie, err := c.Cookie(request.ResetPwdTicketSub)
 	if err != nil {
-		log.Errorf("Get cookie error: %s", err.Error())
+		s.UserLog.Error("Failed to get cookie", zap.Error(err))
 		return echo.NewHTTPError(http.StatusBadRequest, response.TicketNotFound)
 	}
 	ticket := cookie.Value
@@ -92,6 +92,6 @@ func (s *APIV1Service) ResetPassword(c echo.Context) error {
 
 	// Set VERIFY_STATUS to 3 if successes
 	_ = s.Store.Set(ctx, ticket, request.VerifyStatus["SUCCESS"], request.RegisterTicketExp)
-	log.Debugf("Reset password success: %s", studentID)
+	s.UserLog.Info("Reset password success", zap.String("studentID", studentID))
 	return c.JSON(http.StatusOK, response.Success(nil))
 }

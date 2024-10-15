@@ -4,8 +4,10 @@ import (
 	"context"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
+	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/service"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
+	"go.uber.org/zap"
 
 	"github.com/labstack/echo/v4"
 
@@ -27,19 +29,42 @@ type APIV1Service struct {
 	Store       *store.Store
 	Config      *config.Config
 	OAuthServer *OAuthServer
+
+	UserLog        *zap.Logger
+	ProfileLog     *zap.Logger
+	SysSettingLog  *zap.Logger
+	OauthServerLog *zap.Logger
 }
 
 func NewAPIV1Service(store *store.Store, config *config.Config, oauthServer *OAuthServer) *APIV1Service {
+	userLog := log.NewLogger(log.WithModule("user"))
+	profileLog := log.NewLogger(log.WithModule("profile"))
+	sysSettingLog := log.NewLogger(log.WithModule("system_setting"))
+	oauthServerLog := log.NewLogger(log.WithModule("oauth_server"))
 	base := service.NewBaseService(store, config)
+	// WTF: Are you writing functional programming?
 	return &APIV1Service{
-		UserService:       *service.NewUserService(base),
-		ProfileService:    *service.NewProfileService(base),
-		SysSettingService: *service.NewSysSettingService(base),
-		OauthService:      *service.NewOauthService(base),
+		UserService: *service.NewUserService(base.WithOptions(
+			service.WithLogger(userLog.WithOptions(log.WithLayer("service"))),
+			service.WithStore(store.WithLogger(userLog.WithOptions(log.WithLayer("model")))))),
+		ProfileService: *service.NewProfileService(base.WithOptions(
+			service.WithLogger(profileLog.WithOptions(log.WithLayer("service"))),
+			service.WithStore(store.WithLogger(profileLog.WithOptions(log.WithLayer("model")))))),
+		SysSettingService: *service.NewSysSettingService(base.WithOptions(
+			service.WithLogger(sysSettingLog.WithOptions(log.WithLayer("service"))),
+			service.WithStore(store.WithLogger(sysSettingLog.WithOptions(log.WithLayer("model")))))),
+		OauthService: *service.NewOauthService(base.WithOptions(
+			service.WithLogger(oauthServerLog.WithOptions(log.WithLayer("service"))),
+			service.WithStore(store.WithLogger(oauthServerLog.WithOptions(log.WithLayer("model")))))),
 
 		Store:       store,
 		Config:      config,
 		OAuthServer: oauthServer,
+
+		UserLog:        userLog.WithOptions(log.WithLayer("api")),
+		ProfileLog:     profileLog.WithOptions(log.WithLayer("api")),
+		SysSettingLog:  sysSettingLog.WithOptions(log.WithLayer("api")),
+		OauthServerLog: oauthServerLog.WithOptions(log.WithLayer("api")),
 	}
 }
 

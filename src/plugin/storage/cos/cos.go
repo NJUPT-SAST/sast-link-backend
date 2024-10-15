@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/tencentyun/cos-go-sdk-v5"
+	"go.uber.org/zap"
 
 	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
@@ -52,7 +53,7 @@ func NewClient(config *store.StorageSetting) *Client {
 func (c *Client) UploadObject(ctx context.Context, key string, file io.Reader) (string, error) {
 	_, err := c.Client.Object.Put(ctx, key, file, nil)
 	if err != nil {
-		log.Errorf("Failed to upload object to COS: %s", err)
+		log.Error("Failed to upload object to COS", zap.String("plugin", "cos"), zap.Error(err))
 		return "", err
 	}
 
@@ -67,7 +68,7 @@ func (c *Client) GetObjectURL(key string) string {
 func (c *Client) DeleteObject(ctx context.Context, key string) error {
 	_, err := c.Client.Object.Delete(ctx, key)
 	if err != nil {
-		log.Errorf("Failed to delete object from COS: %s", err)
+		log.Error("Failed to delete object from COS", zap.String("plugin", "cos"), zap.Error(err))
 		return err
 	}
 	return nil
@@ -77,12 +78,12 @@ func (c *Client) DeleteObject(ctx context.Context, key string) error {
 func (c *Client) MoveObject(ctx context.Context, srcKey, destKey string) error {
 	_, _, err := c.Client.Object.Copy(ctx, destKey, c.GetObjectURL(srcKey), nil)
 	if err != nil {
-		log.Errorf("Failed to move object from COS: %s", err)
+		log.Error("Failed to move object from COS", zap.String("plugin", "cos"), zap.Error(err))
 		return err
 	}
 	err = c.DeleteObject(ctx, srcKey)
 	if err != nil {
-		log.Errorf("Failed to delete object from COS: %s", err)
+		log.Error("Failed to delete object from COS", zap.String("plugin", "cos"), zap.Error(err))
 		return err
 	}
 	return nil
@@ -91,7 +92,7 @@ func (c *Client) MoveObject(ctx context.Context, srcKey, destKey string) error {
 func (c *Client) GetObject(ctx context.Context, key string) (io.ReadCloser, error) {
 	res, err := c.Client.Object.Get(ctx, key, nil)
 	if err != nil {
-		log.Errorf("Failed to get object from COS: %s", err)
+		log.Error("Failed to get object from COS", zap.String("plugin", "cos"), zap.Error(err))
 		return nil, err
 	}
 	return res.Body, nil

@@ -8,14 +8,13 @@ import (
 
 	"github.com/go-oauth2/oauth2/v4"
 	"github.com/go-oauth2/oauth2/v4/models"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
-
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 )
 
 // TokenStore store oauth2 token information.
 type TokenStore struct {
-	dbStore   Store
+	dbStore   *Store
 	tableName string
 
 	gcDisabled bool
@@ -35,7 +34,7 @@ type TokenStoreItem struct {
 }
 
 // NewTokenStore create token store instance.
-func NewTokenStore(dbStore Store, options ...TokenStoreOption) *TokenStore {
+func NewTokenStore(dbStore *Store, options ...TokenStoreOption) *TokenStore {
 	store := &TokenStore{
 		dbStore:    dbStore,
 		tableName:  "oauth2_tokens",
@@ -68,7 +67,7 @@ func (s *TokenStore) gc() {
 	}
 }
 
-//nolint
+// nolint
 // TODO: other tables should be created, so we need to create a new function to create tables.
 func (s *TokenStore) initTable() error {
 	return s.dbStore.Exec(context.Background(), fmt.Sprintf(`
@@ -93,7 +92,7 @@ CREATE INDEX IF NOT EXISTS idx_%[1]s_refresh ON %[1]s (refresh);
 func (s *TokenStore) clean() {
 	now := time.Now()
 	if err := s.dbStore.db.Table(s.tableName).Where("expires_at <= ?", now).Delete(&TokenStoreItem{}).Error; err != nil {
-		log.Errorf("Error while cleaning out outdated entities: %+v", err)
+		s.dbStore.log.Error("Failed to clean outdated token store items", zap.Error(err))
 	}
 }
 

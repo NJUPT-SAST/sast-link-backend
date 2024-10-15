@@ -18,6 +18,10 @@ signing_key = "650be11c-bf2a-46e9-9620-13efb77a0378"
 
 [log]
 level = "debug"
+max_size = 100
+max_age = 7
+max_backups = 10
+compress = true
 
 [email]
 sender = "xxxxx"

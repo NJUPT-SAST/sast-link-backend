@@ -11,10 +11,10 @@ import (
 	"strconv"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/plugin/storage/cos"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
+	"go.uber.org/zap"
 
 	"github.com/pkg/errors"
 )
@@ -23,8 +23,8 @@ type ProfileService struct {
 	*BaseService
 }
 
-func NewProfileService(store *BaseService) *ProfileService {
-	return &ProfileService{store}
+func NewProfileService(base *BaseService) *ProfileService {
+	return &ProfileService{base}
 }
 
 const reviewFailMsg = `{
@@ -90,7 +90,7 @@ const picSensitiveMsg = `{
 func (s *ProfileService) ChangeProfile(profile *store.Profile, uid string) error {
 	// Check org_id
 	if profile.OrgID > 26 || profile.OrgID < -1 {
-		log.Errorf("Orgenization id invalid: %d", profile.OrgID)
+		s.log.Error("Orgenization id invalid", zap.Int("org_id", profile.OrgID))
 		return errors.New("Orgenization id invalid")
 	}
 
@@ -102,17 +102,17 @@ func (s *ProfileService) ChangeProfile(profile *store.Profile, uid string) error
 	// Verify if profile exist by uid(student ID)
 	resProfile, err := s.Store.SelectProfileByUID(uid)
 	if err != nil {
-		log.Errorf("CheckProfile error: %s", err.Error())
+		s.log.Error("Failed to get profile", zap.String("uid", uid), zap.Error(err))
 		return err
 	}
 	if resProfile == nil {
-		log.Errorf("Profile [%s] Not Exist\n", uid)
+		s.log.Error("Profile not exist", zap.String("uid", uid))
 		return errors.New("Profile not exist")
 	}
 
 	// Update profile
 	if err := s.Store.UpdateProfile(resProfile, profile); err != nil {
-		log.Errorf("UpdateProfile error: %s", err.Error())
+		s.log.Error("Failed to update profile", zap.String("uid", uid), zap.Error(err))
 		return err
 	}
 	return nil
@@ -122,19 +122,19 @@ func (s *ProfileService) GetProfileInfo(uid string) (*store.Profile, error) {
 	// Verify if profile exist by uid(student ID)
 	resProfile, err := s.Store.SelectProfileByUID(uid)
 	if err != nil {
-		log.Errorf("CheckProfile error: %s", err.Error())
+		s.log.Error("Failed to get profile", zap.String("uid", uid), zap.Error(err))
 		return nil, err
 	}
 	if resProfile == nil {
-		log.Errorf("Profile [%s] Not Exist\n", uid)
+		s.log.Error("Profile not exist", zap.String("uid", uid))
 		return nil, errors.New("Profile not exist")
 	}
 
 	hideFiled := resProfile.Hide
 	// Check hide
-	if matchErr := checkHideLegal(hideFiled); matchErr != nil {
-		log.Errorf("Hide field illegal")
-		return nil, matchErr
+	if err := checkHideLegal(hideFiled); err != nil {
+		s.log.Error("Failed to check hide field", zap.Error(err))
+		return nil, err
 	}
 	// Hide filed
 	for i := range hideFiled {
@@ -153,7 +153,7 @@ func (s *ProfileService) GetProfileInfo(uid string) (*store.Profile, error) {
 func (s *ProfileService) GetProfileOrg(orgID int) (string, string, error) {
 	// Check org_id
 	if orgID > 26 {
-		log.Errorf("OrgId illegal: %d", orgID)
+		s.log.Error("Orgenization id is invalid", zap.Int("org_id", orgID))
 		return "", "", errors.New("Orgenization id is invalid")
 	} else if orgID == -1 || orgID == 0 {
 		return "", "", nil
@@ -162,7 +162,7 @@ func (s *ProfileService) GetProfileOrg(orgID int) (string, string, error) {
 	// Get dep and org
 	dep, org, err := s.Store.GetDepAndOrgByOrgID(orgID)
 	if err != nil {
-		log.Errorf("GetDepAndOrgByOrgID error: %s", err.Error())
+		s.log.Error("Failed to get departmental and organizational information", zap.Error(err))
 		return "", "", err
 	}
 	return dep, org, nil
@@ -170,41 +170,41 @@ func (s *ProfileService) GetProfileOrg(orgID int) (string, string, error) {
 
 func (s *ProfileService) UploadAvatar(ctx context.Context, avatar *multipart.FileHeader, uid string) (string, error) {
 	// Construct fileName
-	userInfo, userInfoErr := s.Store.UserInfo(ctx, uid)
-	if userInfoErr != nil {
-		log.Errorf("User not exist: %s", userInfoErr.Error())
-		return "", userInfoErr
+	userInfo, err := s.Store.UserInfo(ctx, uid)
+	if err != nil {
+		s.log.Error("Failed to get user info", zap.String("uid", uid), zap.Error(err))
+		return "", err
 	}
 
 	fileName := strconv.Itoa(int(userInfo.ID))
 	// Get file stream
-	fd, fileIOErr := avatar.Open()
-	if fileIOErr != nil {
-		log.Errorf("Open file fail: %s", fileIOErr.Error())
-		return "", fileIOErr
+	fd, err := avatar.Open()
+	if err != nil {
+		s.log.Error("Failed to open file", zap.Error(err))
+		return "", err
 	}
 	defer fd.Close()
 
 	// Convert image to WebP
 	fileBytes, err := io.ReadAll(fd)
 	if err != nil {
-		log.Errorf("Read file fail: %s", err.Error())
+		s.log.Error("Failed to read file", zap.Error(err))
 		return "", err
 	}
 	webpBytes, err := util.ImageToWebp(fileBytes, 75)
 	if err != nil {
-		log.Errorf("Transfer image to webp fail: %s", err.Error())
+		s.log.Error("Failed to convert image to WebP", zap.Error(err))
 		return "", err
 	}
 
 	systemSetting, err := s.Store.GetSystemSetting(ctx, config.StorageSettingType.String())
 	if err != nil {
-		log.Errorf("Get system setting error: %s", err.Error())
+		s.log.Error("Failed to get storage setting", zap.Error(err))
 		return "", err
 	}
 	storageSetting := systemSetting.GetStorageSetting()
 	if storageSetting == nil {
-		log.Errorf("Get storage setting error")
+		s.log.Error("Failed to get storage setting", zap.Error(err))
 		return "", errors.New("Get storage setting error")
 	}
 
@@ -212,11 +212,11 @@ func (s *ProfileService) UploadAvatar(ctx context.Context, avatar *multipart.Fil
 	uploadKey := fmt.Sprintf("avatar/%s.jpg", fileName)
 	avatarURL, err := client.UploadObject(ctx, uploadKey, bytes.NewReader(webpBytes))
 	if err != nil {
-		log.Errorf("Upload file %s fail: %s", uploadKey, err.Error())
+		s.log.Error("Failed to upload file", zap.String("key", uploadKey), zap.Error(err))
 		// If upload file fail, delete file in cos
 		if err := client.DeleteObject(ctx, uploadKey); err != nil {
 			// If delete file in cos fail, log error and return
-			log.Errorf("Delete file %s fail: %s", uploadKey, err.Error())
+			s.log.Error("Failed to delete file", zap.String("key", uploadKey), zap.Error(err))
 			return "", errors.Wrap(err, "failed to delete file when upload fail")
 		}
 
@@ -227,11 +227,11 @@ func (s *ProfileService) UploadAvatar(ctx context.Context, avatar *multipart.Fil
 	if err := s.Store.UpdateAvatar(avatarURL, userInfo.ID); err != nil {
 		// If update avatar to database fail, delete file in cos
 		if err := client.DeleteObject(ctx, uploadKey); err != nil {
-			log.Errorf("Delete file %s fail: %s", uploadKey, err.Error())
+			s.log.Error("Failed to delete file", zap.String("key", uploadKey), zap.Error(err))
 			return "", errors.Wrap(err, "failed to delete file when update avatar fail")
 		}
 
-		log.Errorf("Update avatar to database fail: %s, %s", avatarURL, err.Error())
+		s.log.Error("Failed to update avatar to database", zap.String("avatar_url", avatarURL), zap.Error(err))
 		return "", err
 	}
 
@@ -251,10 +251,8 @@ func checkHideLegal(hide []string) error {
 		matched, err := regexp.MatchString(hideFiledPattern[0]+"|"+hideFiledPattern[1]+"|"+hideFiledPattern[2], hide[i])
 
 		if err != nil {
-			log.Errorf("Hide field match fail: %s", err.Error())
 			return errors.Wrap(err, "failed to match hide field")
 		} else if !matched || i > len(hideFiledPattern) {
-			log.Errorf("Hide field invalid")
 			return errors.New("Hide field invalid")
 		}
 	}
@@ -273,7 +271,7 @@ func (s *ProfileService) SentMsgToBot(ctx context.Context, checkRes *store.Check
 
 	systemSetting, err := s.Store.GetSystemSetting(ctx, config.WebsiteSettingType.String())
 	if err != nil {
-		log.Errorf("Get system setting error: %s", err.Error())
+		s.log.Error("Failed to get system setting", zap.Error(err))
 		return errors.Wrap(err, "failed to get system setting")
 	}
 	webSetting := systemSetting.GetWebsiteSetting()
@@ -285,7 +283,7 @@ func (s *ProfileService) SentMsgToBot(ctx context.Context, checkRes *store.Check
 	url := webSetting.ImageReviewWebhook
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(message))
 	if err != nil {
-		log.Errorf("Sent msg to feishu bot fail: %s", err.Error())
+		s.log.Error("Failed to send message to feishu bot", zap.Error(err))
 		return errors.Wrap(err, "failed to send message to feishu bot")
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -294,7 +292,7 @@ func (s *ProfileService) SentMsgToBot(ctx context.Context, checkRes *store.Check
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Errorf("Sent msg to feishu bot fail: %s", err.Error())
+		s.log.Error("Failed to send message to feishu bot", zap.Error(err))
 		return errors.Wrap(err, "failed to send message to feishu bot")
 	}
 	defer resp.Body.Close()
@@ -311,7 +309,7 @@ func (s *ProfileService) DealWithFrozenImage(ctx context.Context, checkRes *stor
 
 	systemSetting, err := s.Store.ListSystemSetting(ctx)
 	if err != nil {
-		log.Errorf("Get system setting error: %s", err.Error())
+		s.log.Error("Failed to get system setting", zap.Error(err))
 		return errors.Wrap(err, "failed to get system setting")
 	}
 	orStoragesetting := systemSetting[config.StorageSettingType.String()]
@@ -325,11 +323,11 @@ func (s *ProfileService) DealWithFrozenImage(ctx context.Context, checkRes *stor
 	source := "avatar/" + userID + ".jpg"
 	dest := "ban/" + userID + ".jpg"
 	if err := client.MoveObject(ctx, source, dest); err != nil {
-		log.Errorf("Move file %s to %s failed: %s", source, dest, err)
+		s.log.Error("Failed to move file to ban", zap.String("source", source), zap.String("dest", dest), zap.Error(err))
 		return errors.Wrap(err, "failed to move file to ban")
 	}
 	if err := client.DeleteObject(ctx, source); err != nil {
-		log.Errorf("Delete file %s failed: %s", source, err.Error())
+		s.log.Error("Failed to delete file", zap.String("source", source), zap.Error(err))
 		return errors.Wrap(err, "failed to delete file")
 	}
 
@@ -341,17 +339,17 @@ func (s *ProfileService) DealWithFrozenImage(ctx context.Context, checkRes *stor
 	avatarURL := siteSetting.AvatarErrorURLImage
 	parseUint, _ := strconv.Atoi(userID)
 	if err := s.Store.UpdateAvatar(avatarURL, uint(parseUint)); err != nil {
-		log.Errorf("Update avatar failed: %s", err)
+		s.log.Error("Failed to update avatar", zap.String("avatar_url", avatarURL), zap.Error(err))
 		return errors.Wrap(err, "failed to update avatar")
 	}
 	return nil
 }
 
 // GetBindList get bind list by uid
-func (s *ProfileService)GetBindList(ctx context.Context, uid string) ([]string, error) {
+func (s *ProfileService) GetBindList(ctx context.Context, uid string) ([]string, error) {
 	binds, err := s.Store.GetOauthBindStatusByUID(ctx, uid)
 	if err != nil {
-		log.Errorf("GetBindList service error: %s", err.Error())
+		s.log.Error("Failed to get bind list", zap.String("uid", uid), zap.Error(err))
 		return nil, err
 	}
 	return binds, nil

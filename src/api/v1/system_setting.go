@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 
 	"github.com/NJUPT-SAST/sast-link-backend/config"
 	"github.com/NJUPT-SAST/sast-link-backend/http/response"
@@ -40,7 +41,7 @@ func (s *APIV1Service) UpsetSystemSetting(c echo.Context) error {
 
 	var settingValue interface{}
 	if err := c.Bind(&settingValue); err != nil {
-		log.Error("Failed to bind the setting value", err)
+		s.SysSettingLog.Error("Failed to bind setting value", zap.Error(err))
 		return echo.NewHTTPError(http.StatusBadRequest, response.RequiredParams)
 	}
 

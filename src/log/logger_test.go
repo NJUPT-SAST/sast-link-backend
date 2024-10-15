@@ -2,21 +2,14 @@ package log
 
 import (
 	"testing"
+
+	"go.uber.org/zap"
 )
 
-func TestInfo(_ *testing.T) {
-	Info("info")
-	Infof("info %s", "format")
-	InfoWithFields("info", Fields{"key": "value"})
-	Warn("warn")
-	Warnf("warn %s", "format")
-	WarnWithFields("warn", Fields{"key": "value"})
-	SetLevel(logLevelSwitcher("debug"))
-	Debug("ignore")
-	Debug("debug")
-	Debugf("debug %s", "format")
-	DebugWithFields("debug", Fields{"key": "value"})
-	Error("error")
-	Errorf("error %s", "format")
-	ErrorWithFields("error", Fields{"key": "value"})
+func TestLogger(t *testing.T) {
+	logger := NewLogger(WithLayer("test_layer"), WithModule("test_module"))
+	logger.Info("test info", zap.String("key", "value"))
+
+	logger = NewLogger(WithModule("test_module"), WithLayer("test_layer"))
+	logger.Info("test info 2", zap.String("key", "value"))
 }

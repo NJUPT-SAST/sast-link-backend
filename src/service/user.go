@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/NJUPT-SAST/sast-link-backend/http/request"
-	"github.com/NJUPT-SAST/sast-link-backend/log"
 	"github.com/NJUPT-SAST/sast-link-backend/store"
 	"github.com/NJUPT-SAST/sast-link-backend/util"
 	"github.com/NJUPT-SAST/sast-link-backend/validator"
@@ -18,8 +18,10 @@ type UserService struct {
 	*BaseService
 }
 
-func NewUserService(store *BaseService) *UserService {
-	return &UserService{store}
+func NewUserService(base *BaseService) *UserService {
+	return &UserService{
+		BaseService: base,
+	}
 }
 
 // CreateUserAndProfile will create a new user and profile.
@@ -58,13 +60,13 @@ func (s *UserService) CreateUserAndProfile(email, password string) error {
 func (s *UserService) VerifyAccount(ctx context.Context, username string, flag int) (string, error) {
 	switch flag {
 	case 0: // Register
-		log.Debugf("[%s] enter register verify\n", username)
+		s.log.Debug("enter register verify", zap.String("username", username))
 		return s.processRegistration(ctx, username)
 	case 1: // Login
-		log.Debugf("[%s] enter login verify\n", username)
+		s.log.Debug("enter login verify", zap.String("username", username))
 		return s.processLogin(ctx, username)
 	case 2: // Reset Password
-		log.Debugf("[%s] enter resetPWD verify\n", username)
+		s.log.Debug("enter reset password verify", zap.String("username", username))
 		return s.processPasswordReset(ctx, username)
 	default:
 		return "", errors.New("Invalid request parameter")
@@ -175,7 +177,7 @@ func (s *UserService) ModifyPassword(ctx context.Context, username, oldPassword,
 		return errors.New("Password is incorrect")
 	}
 	if err := s.Store.ChangePassword(ctx, uid, newPassword); err != nil {
-		log.Errorf("Change password failed: %s", err.Error())
+		s.log.Error("Failed to change password", zap.String("uid", uid), zap.Error(err))
 		return errors.Wrap(err, "Change password failed")
 	}
 	return nil
@@ -213,11 +215,11 @@ func (s *UserService) SendEmail(ctx context.Context, email, status, title string
 	_ = s.Store.Set(ctx, request.VerifyCodeKey(email), code, request.VerifyCodeExp)
 	content := store.InsertCode(code)
 	if err := s.Store.SendEmail(ctx, email, content, title); err != nil {
-		log.Errorf("Send email failed: %s", err.Error())
+		s.log.Error("Failed to send email", zap.String("email", email), zap.Error(err))
 		return errors.Wrap(err, "Send email failed")
 	}
 
-	log.Debugf("Send Email to [%s] with code [%s]\n", email, code)
+	s.log.Debug("Send email success", zap.String("email", email))
 	return nil
 }
 
@@ -228,7 +230,7 @@ func (s *UserService) CheckVerifyCode(ctx context.Context, status, code, usernam
 
 	target, err := s.Store.Get(ctx, request.VerifyCodeKey(username))
 	if err != nil {
-		log.Errorf("CheckVerifyCode error: %s", err.Error())
+		s.log.Error("Failed to get verify code", zap.String("username", username), zap.Error(err))
 		return err
 	}
 	if target == "" {
@@ -236,7 +238,7 @@ func (s *UserService) CheckVerifyCode(ctx context.Context, status, code, usernam
 	}
 
 	if code != target {
-		log.Errorf("Verify code is incorrect, expect [%s], got [%s]\n", target, code)
+		s.log.Error("Verify code is incorrect", zap.String("username", username))
 		return errors.New("Verify code is incorrect")
 	}
 

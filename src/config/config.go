@@ -38,8 +38,12 @@ type Config struct {
 	// For JWT
 	Secret string
 	// For log
-	LogLevel string
-	LogFile  string
+	LogLevel          string
+	LogFile           string
+	LogFileMaxSize    int
+	LogFileMaxBackups int
+	LogFileMaxAge     int
+	LogCompress       bool
 	// Version is the current version of server
 	Version string
 
@@ -54,23 +58,27 @@ func (c *Config) IsDev() bool {
 // NewConfig create a new Config instance.
 func NewConfig() *Config {
 	instanceConfig := &Config{
-		ConfigFile:   viper.GetString("config_file"),
-		Mode:         viper.GetString("mode"),
-		Addr:         viper.GetString("addr"),
-		Port:         viper.GetInt("port"),
-		PostgresHost: viper.GetString("postgres.host"),
-		PostgresPort: viper.GetInt("postgres.port"),
-		PostgresUser: viper.GetString("postgres.user"),
-		PostgresPWD:  viper.GetString("postgres.password"),
-		PostgresDB:   viper.GetString("postgres.db"),
-		RedisHost:    viper.GetString("redis.host"),
-		RedisPort:    viper.GetInt("redis.port"),
-		RedisPWD:     viper.GetString("redis.password"),
-		RedisDB:      viper.GetInt("redis.db"),
-		Secret:       viper.GetString("jwt.secret"),
-		LogLevel:     viper.GetString("log.level"),
-		LogFile:      viper.GetString("log.file"),
-		Version:      version.GetCurrentVersion(viper.GetString("mode")),
+		ConfigFile:        viper.GetString("config_file"),
+		Mode:              viper.GetString("mode"),
+		Addr:              viper.GetString("addr"),
+		Port:              viper.GetInt("port"),
+		PostgresHost:      viper.GetString("postgres.host"),
+		PostgresPort:      viper.GetInt("postgres.port"),
+		PostgresUser:      viper.GetString("postgres.user"),
+		PostgresPWD:       viper.GetString("postgres.password"),
+		PostgresDB:        viper.GetString("postgres.db"),
+		RedisHost:         viper.GetString("redis.host"),
+		RedisPort:         viper.GetInt("redis.port"),
+		RedisPWD:          viper.GetString("redis.password"),
+		RedisDB:           viper.GetInt("redis.db"),
+		Secret:            viper.GetString("jwt.secret"),
+		LogLevel:          viper.GetString("log.level"),
+		LogFile:           viper.GetString("log.file"),
+		LogFileMaxSize:    viper.GetInt("log.max_size"),
+		LogFileMaxBackups: viper.GetInt("log.max_backups"),
+		LogFileMaxAge:     viper.GetInt("log.max_age"),
+		LogCompress:       viper.GetBool("log.compress"),
+		Version:           version.GetCurrentVersion(viper.GetString("mode")),
 	}
 	return instanceConfig
 }

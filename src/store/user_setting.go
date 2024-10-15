@@ -5,8 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/pkg/errors"
-
-	"github.com/NJUPT-SAST/sast-link-backend/log"
+	"go.uber.org/zap"
 )
 
 type UserSettingKey int32
@@ -145,7 +144,7 @@ func (s *Store) GetUserSetting(ctx context.Context, find *FindUserSetting) (*Use
 	// Get user setting from cache
 	userSettingStr, err := s.Get(ctx, find.UserID)
 	if err != nil {
-		log.Errorf("Failed to get user setting from cache: %v", err)
+		s.log.Error("Failed to get user setting from cache", zap.Error(err))
 		return nil, err
 	}
 
@@ -219,7 +218,6 @@ func (s *Store) UpsetAccessTokensUserSetting(ctx context.Context, userID string,
 	}
 
 	accessTokens.AccessTokens = append(accessTokens.AccessTokens, userAccessToken)
-	log.Debugf("User [%s] has %d access tokens", userID, len(accessTokens.AccessTokens))
 	userSetting.Value = accessTokens.String()
 
 	return s.UpsetUserSetting(ctx, userSetting)

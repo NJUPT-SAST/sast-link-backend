@@ -14,7 +14,7 @@ import (
 )
 
 type ClientStore struct {
-	dbStore   Store
+	dbStore   *Store
 	tableName string
 }
 
@@ -56,7 +56,7 @@ type UpdateClientRequest struct {
 }
 
 // NewClientStore creates PostgreSQL store instance.
-func NewClientStore(dbStore Store) *ClientStore {
+func NewClientStore(dbStore *Store) *ClientStore {
 	store := &ClientStore{
 		dbStore:   dbStore,
 		tableName: "oauth2_clients",
